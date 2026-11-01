@@ -3,6 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   GRAVITY,
   JUMP_VELOCITY,
+  DISTANCE_PER_POINT,
   MAX_SPEED,
   NO_INPUT,
   ROBOT_WIDTH,
@@ -11,10 +12,11 @@ import {
   TAP_AIRTIME,
   fromSnapshot,
   initialState,
+  makeObstacle,
   minimumGap,
+  NEAR_MISS_BONUS,
   step,
   toSnapshot,
-  type Obstacle,
   type RunInput,
   type RunState,
 } from "./logic";
@@ -58,11 +60,6 @@ function autopilot(state: RunState): RunInput {
   return state.grounded && lead <= trigger ? PRESS : NO_INPUT;
 }
 
-function obstacleAt(kind: Obstacle["kind"], x: number): Obstacle {
-  if (kind === "bug-high") return { kind, x, y: 17, w: 18, h: 12 };
-  return { kind, x, y: 0, w: 16, h: 16 };
-}
-
 describe("claude run logic", () => {
   it("starts on the first press and stays put before it", () => {
     const ready = initialState(7, 640, 180);
@@ -82,8 +79,8 @@ describe("claude run logic", () => {
       airborneMs += STEP_MS;
     }
     expect(state.robotY).toBe(0);
-    expect(apex).toBeGreaterThan(70);
-    expect(apex).toBeLessThan(90);
+    expect(apex).toBeGreaterThan(62);
+    expect(apex).toBeLessThan(78);
     expect(Math.abs(airborneMs / 1000 - TAP_AIRTIME)).toBeLessThan(0.05);
   });
 
@@ -102,7 +99,7 @@ describe("claude run logic", () => {
   });
 
   it("ends the run on collision, keeps best, and restarts after the delay", () => {
-    const state = running(3, { obstacles: [obstacleAt("crate", ROBOT_X + 30)], best: 2 });
+    const state = running(3, { obstacles: [makeObstacle("crate", ROBOT_X + 30)], best: 2 });
     const over = runFor(state, 200);
     expect(over.phase).toBe("over");
     expect(over.best).toBe(2);
@@ -117,13 +114,13 @@ describe("claude run logic", () => {
     const state = running(3, {
       distance: 5000,
       score: 200,
-      obstacles: [obstacleAt("crate", ROBOT_X + 30)],
+      obstacles: [makeObstacle("crate", ROBOT_X + 30)],
     });
     expect(runFor(state, 200).best).toBe(200);
   });
 
   it("ducks under a high bug that hits a standing robot", () => {
-    const state = running(5, { obstacles: [obstacleAt("bug-high", ROBOT_X + 40)] });
+    const state = running(5, { obstacles: [makeObstacle("bug-high", ROBOT_X + 40)] });
     expect(runFor(state, 400).phase).toBe("over");
     const ducked = runFor(state, 400, DUCK);
     expect(ducked.phase).toBe("running");
@@ -151,6 +148,50 @@ describe("claude run logic", () => {
     }
   });
 
+  it("builds a combo across consecutive clean jumps and resets it after a wasted jump", () => {
+    const clear = (state: RunState) => {
+      let current = state;
+      for (let elapsed = 0; elapsed < 2000 && current.phase === "running"; elapsed += STEP_MS) {
+        current = step(current, STEP_MS, autopilot(current));
+      }
+      return current;
+    };
+    const first = clear(running(11, { obstacles: [makeObstacle("crate", ROBOT_X + 120)] }));
+    expect(first.phase).toBe("running");
+    expect(first.combo).toBe(1);
+    expect(first.bonus).toBe(0);
+
+    const second = clear({ ...first, obstacles: [makeObstacle("crate", ROBOT_X + 120)] });
+    expect(second.combo).toBe(2);
+    expect(second.bonus).toBe(2);
+    expect(second.score).toBe(Math.floor(second.distance / DISTANCE_PER_POINT) + 2);
+
+    const wasted = runFor(step(second, STEP_MS, PRESS), 1200);
+    expect(wasted.combo).toBe(0);
+    expect(wasted.bestCombo).toBe(2);
+  });
+
+  it("awards a near-miss bonus only for a close clearance", () => {
+    const skim = (robotY: number) =>
+      runFor(
+        running(13, {
+          speed: MAX_SPEED,
+          grounded: false,
+          robotY,
+          robotVy: 60,
+          obstacles: [makeObstacle("crate", ROBOT_X + 20)],
+        }),
+        120,
+      );
+    const close = skim(16);
+    expect(close.phase).toBe("running");
+    expect(close.nearMisses).toBe(1);
+    expect(close.bonus).toBe(NEAR_MISS_BONUS);
+    const clear = skim(40);
+    expect(clear.nearMisses).toBe(0);
+    expect(clear.bonus).toBe(0);
+  });
+
   it("is deterministic for a seed and resumes identically from a snapshot", () => {
     const drive = (state: RunState, ms: number) => {
       let current = state;
@@ -163,7 +204,7 @@ describe("claude run logic", () => {
     expect(drive(step(initialState(99, 640, 180), STEP_MS, PRESS), 8000)).toEqual(midway);
 
     const restored = fromSnapshot(JSON.parse(JSON.stringify(toSnapshot(midway))));
-    expect(restored).toEqual(midway);
+    expect(toSnapshot(restored!)).toEqual(toSnapshot(midway));
     expect(drive(restored!, 5000)).toEqual(drive(midway, 5000));
   });
 
@@ -176,14 +217,19 @@ describe("claude run logic", () => {
       "claude",
       [],
       {},
-      { ...valid, version: 2 },
+      { ...valid, version: 3 },
       { ...valid, phase: "paused" },
       { ...valid, distance: "far" },
       { ...valid, speed: Number.NaN },
       { ...valid, grounded: 1 },
       { ...valid, obstacles: "none" },
-      { ...valid, obstacles: [{ kind: "dragon", x: 1, y: 0, w: 1, h: 1 }] },
-      { ...valid, obstacles: [{ kind: "crate", x: 1, y: 0, w: 1 }] },
+      {
+        ...valid,
+        obstacles: [{ kind: "dragon", x: 1, y: 0, w: 1, h: 1, passed: false, closest: 1 }],
+      },
+      { ...valid, obstacles: [{ kind: "crate", x: 1, y: 0, w: 1, h: 1, passed: false }] },
+      { ...valid, version: 1 },
+      { ...valid, newBest: "yes" },
     ];
     for (const value of garbage) expect(fromSnapshot(value)).toBeNull();
     expect(fromSnapshot(valid)).not.toBeNull();

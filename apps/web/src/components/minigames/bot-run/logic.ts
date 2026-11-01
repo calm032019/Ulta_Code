@@ -1,8 +1,8 @@
-export const SNAPSHOT_VERSION = 1;
+export const SNAPSHOT_VERSION = 2;
 export const STEP_MS = 1000 / 120;
-export const WORLD_HEIGHT = 180;
+export const WORLD_HEIGHT = 150;
 export const MIN_WORLD_WIDTH = 400;
-export const GROUND_OFFSET = 28;
+export const GROUND_OFFSET = 24;
 
 export const ROBOT_X = 48;
 export const ROBOT_WIDTH = 22;
@@ -13,22 +13,26 @@ const ROBOT_INSET = 3;
 const OBSTACLE_INSET = 2;
 
 export const GRAVITY = 2400;
-export const JUMP_VELOCITY = 620;
+export const JUMP_VELOCITY = 580;
+const FALL_GRAVITY_FACTOR = 1.2;
 const HOLD_GRAVITY_FACTOR = 0.7;
 const MAX_HOLD_MS = 180;
 const FAST_FALL_FACTOR = 3;
 const JUMP_BUFFER_MS = 120;
-export const TAP_AIRTIME = (2 * JUMP_VELOCITY) / GRAVITY;
+export const TAP_AIRTIME = (JUMP_VELOCITY / GRAVITY) * (1 + 1 / Math.sqrt(FALL_GRAVITY_FACTOR));
 
 export const START_SPEED = 260;
 export const MAX_SPEED = 620;
 const ACCELERATION = 4;
-const DISTANCE_PER_POINT = 25;
+export const DISTANCE_PER_POINT = 25;
 const BUG_SCORE = 200;
 const FIRST_SPAWN_LEAD = 220;
 export const RESTART_DELAY_MS = 350;
-const FLASH_MS = 800;
 const MAX_STEP_MS = 50;
+export const NEAR_MISS_DISTANCE = 6;
+export const NEAR_MISS_BONUS = 5;
+const MAX_COMBO_BONUS = 10;
+const UNTOUCHED = 999;
 
 export type Phase = "ready" | "running" | "over";
 export type ObstacleKind =
@@ -46,7 +50,17 @@ export interface Obstacle {
   readonly y: number;
   readonly w: number;
   readonly h: number;
+  readonly passed: boolean;
+  readonly closest: number;
 }
+
+export type RunEvent =
+  | { readonly type: "start" | "restart" | "jump" }
+  | { readonly type: "land"; readonly impact: number }
+  | { readonly type: "clear"; readonly combo: number; readonly bonus: number }
+  | { readonly type: "near-miss"; readonly bonus: number; readonly x: number; readonly y: number }
+  | { readonly type: "milestone"; readonly score: number }
+  | { readonly type: "crash"; readonly x: number; readonly y: number; readonly newBest: boolean };
 
 export interface RunState {
   readonly phase: Phase;
@@ -57,16 +71,22 @@ export interface RunState {
   readonly speed: number;
   readonly score: number;
   readonly best: number;
+  readonly bonus: number;
+  readonly combo: number;
+  readonly bestCombo: number;
+  readonly nearMisses: number;
+  readonly newBest: boolean;
   readonly robotY: number;
   readonly robotVy: number;
   readonly grounded: boolean;
   readonly ducking: boolean;
+  readonly jumpCleared: boolean;
   readonly jumpHoldMs: number;
   readonly jumpBufferMs: number;
   readonly obstacles: ReadonlyArray<Obstacle>;
   readonly nextSpawnX: number;
-  readonly flashMs: number;
   readonly overMs: number;
+  readonly events: ReadonlyArray<RunEvent>;
 }
 
 export interface RunInput {
@@ -76,6 +96,7 @@ export interface RunInput {
 }
 
 export const NO_INPUT: RunInput = { jumpHeld: false, jumpPressed: false, duckHeld: false };
+const NO_EVENTS: ReadonlyArray<RunEvent> = [];
 
 const SHAPES: Record<ObstacleKind, { readonly w: number; readonly h: number; readonly y: number }> =
   {
@@ -121,6 +142,11 @@ export function minimumGap(speed: number): number {
   return speed * (TAP_AIRTIME + 0.16) + 24;
 }
 
+export function makeObstacle(kind: ObstacleKind, x: number): Obstacle {
+  const shape = SHAPES[kind];
+  return { kind, x, y: shape.y, w: shape.w, h: shape.h, passed: false, closest: UNTOUCHED };
+}
+
 export function initialState(seed: number, width: number, height: number, best = 0): RunState {
   const view = viewport(width, height);
   return {
@@ -132,16 +158,22 @@ export function initialState(seed: number, width: number, height: number, best =
     speed: START_SPEED,
     score: 0,
     best,
+    bonus: 0,
+    combo: 0,
+    bestCombo: 0,
+    nearMisses: 0,
+    newBest: false,
     robotY: 0,
     robotVy: 0,
     grounded: true,
     ducking: false,
+    jumpCleared: false,
     jumpHoldMs: 0,
     jumpBufferMs: 0,
     obstacles: [],
     nextSpawnX: view.width + FIRST_SPAWN_LEAD,
-    flashMs: 0,
     overMs: 0,
+    events: NO_EVENTS,
   };
 }
 
@@ -158,15 +190,7 @@ export function withViewport(state: RunState, width: number, height: number): Ru
   };
 }
 
-export function needsFrames(state: RunState): boolean {
-  return (
-    state.phase === "running" ||
-    state.flashMs > 0 ||
-    (state.phase === "over" && state.overMs < RESTART_DELAY_MS)
-  );
-}
-
-export function robotBox(state: RunState): {
+export function robotBox(state: Pick<RunState, "robotY" | "ducking">): {
   readonly x: number;
   readonly y: number;
   readonly w: number;
@@ -178,16 +202,6 @@ export function robotBox(state: RunState): {
     w: state.ducking ? ROBOT_DUCK_WIDTH : ROBOT_WIDTH,
     h: state.ducking ? ROBOT_DUCK_HEIGHT : ROBOT_HEIGHT,
   };
-}
-
-function collides(state: RunState, obstacle: Obstacle): boolean {
-  const robot = robotBox(state);
-  return (
-    robot.x + ROBOT_INSET < obstacle.x + obstacle.w - OBSTACLE_INSET &&
-    robot.x + robot.w - ROBOT_INSET > obstacle.x + OBSTACLE_INSET &&
-    robot.y + ROBOT_INSET < obstacle.y + obstacle.h - OBSTACLE_INSET &&
-    robot.y + robot.h - ROBOT_INSET > obstacle.y + OBSTACLE_INSET
-  );
 }
 
 function spawn(
@@ -206,9 +220,9 @@ function spawn(
         ? "bug-low"
         : "bug-high"
       : (GROUND_KINDS[Math.floor(pickRoll.value * GROUND_KINDS.length)] ?? "crate");
-  const shape = SHAPES[kind];
+  const obstacle = makeObstacle(kind, x);
   const gap = minimumGap(speed + 20) + gapRoll.value * (160 + speed * 0.5);
-  return { obstacle: { kind, x, y: shape.y, w: shape.w, h: shape.h }, gap, rng: gapRoll.seed };
+  return { obstacle, gap, rng: gapRoll.seed };
 }
 
 function restart(state: RunState): RunState {
@@ -220,16 +234,16 @@ function restart(state: RunState): RunState {
     viewWidth: state.viewWidth,
     viewHeight: state.viewHeight,
     nextSpawnX: state.viewWidth + FIRST_SPAWN_LEAD,
+    events: [{ type: "restart" }],
   };
 }
 
 export function step(state: RunState, dtMs: number, input: RunInput): RunState {
   const dtClamped = Math.min(Math.max(dtMs, 0), MAX_STEP_MS);
   const dt = dtClamped / 1000;
-  const flashMs = Math.max(0, state.flashMs - dtClamped);
 
   if (state.phase === "ready") {
-    if (!input.jumpPressed) return state;
+    if (!input.jumpPressed) return state.events.length ? { ...state, events: NO_EVENTS } : state;
     return {
       ...state,
       phase: "running",
@@ -237,16 +251,22 @@ export function step(state: RunState, dtMs: number, input: RunInput): RunState {
       ducking: false,
       robotVy: JUMP_VELOCITY,
       jumpHoldMs: 0,
+      jumpCleared: false,
+      events: [{ type: "start" }, { type: "jump" }],
     };
   }
 
   if (state.phase === "over") {
-    const overMs = state.overMs + dtClamped;
     if (input.jumpPressed && state.overMs >= RESTART_DELAY_MS) return restart(state);
-    return { ...state, overMs, flashMs };
+    return { ...state, overMs: state.overMs + dtClamped, events: NO_EVENTS };
   }
 
-  let { robotY, robotVy, grounded, jumpHoldMs, jumpBufferMs } = state;
+  const events: RunEvent[] = [];
+  const emit = (event: RunEvent) => {
+    events.push(event);
+  };
+
+  let { robotY, robotVy, grounded, jumpHoldMs, jumpBufferMs, combo, jumpCleared } = state;
   jumpBufferMs = input.jumpPressed ? JUMP_BUFFER_MS : Math.max(0, jumpBufferMs - dtClamped);
 
   if (grounded && jumpBufferMs > 0) {
@@ -254,6 +274,8 @@ export function step(state: RunState, dtMs: number, input: RunInput): RunState {
     robotVy = JUMP_VELOCITY;
     jumpHoldMs = 0;
     jumpBufferMs = 0;
+    jumpCleared = false;
+    emit({ type: "jump" });
   }
 
   if (!grounded) {
@@ -265,10 +287,13 @@ export function step(state: RunState, dtMs: number, input: RunInput): RunState {
       jumpHoldMs += dtClamped;
     } else {
       jumpHoldMs = MAX_HOLD_MS;
+      if (robotVy <= 0) gravity *= FALL_GRAVITY_FACTOR;
     }
     robotVy -= gravity * dt;
     robotY += robotVy * dt;
     if (robotY <= 0) {
+      emit({ type: "land", impact: -robotVy });
+      if (!jumpCleared) combo = 0;
       robotY = 0;
       robotVy = 0;
       grounded = true;
@@ -279,51 +304,108 @@ export function step(state: RunState, dtMs: number, input: RunInput): RunState {
   const speed = Math.min(MAX_SPEED, state.speed + ACCELERATION * dt);
   const travel = speed * dt;
   const distance = state.distance + travel;
-  const score = Math.floor(distance / DISTANCE_PER_POINT);
 
+  const robot = robotBox({ robotY, ducking });
+  const robotLeft = robot.x + ROBOT_INSET;
+  const robotRight = robot.x + robot.w - ROBOT_INSET;
+  const robotBottom = robot.y + ROBOT_INSET;
+  const robotTop = robot.y + robot.h - ROBOT_INSET;
+
+  let { bonus, bestCombo, nearMisses } = state;
+  let crashed = false;
   const obstacles: Obstacle[] = [];
   for (const obstacle of state.obstacles) {
     const x = obstacle.x - travel;
-    if (x + obstacle.w > -40) obstacles.push({ ...obstacle, x });
+    if (x + obstacle.w <= -40) continue;
+    let { passed, closest } = obstacle;
+    const left = x + OBSTACLE_INSET;
+    const right = x + obstacle.w - OBSTACLE_INSET;
+    const bottom = obstacle.y + OBSTACLE_INSET;
+    const top = obstacle.y + obstacle.h - OBSTACLE_INSET;
+    if (!passed && robotLeft < right && robotRight > left) {
+      const clearance = Math.max(bottom - robotTop, robotBottom - top);
+      if (clearance <= 0) crashed = true;
+      else closest = Math.min(closest, clearance);
+    }
+    if (!passed && !crashed && right < robotLeft) {
+      passed = true;
+      combo += 1;
+      bestCombo = Math.max(bestCombo, combo);
+      if (!grounded) jumpCleared = true;
+      const comboBonus = combo >= 2 ? Math.min(combo, MAX_COMBO_BONUS) : 0;
+      bonus += comboBonus;
+      emit({ type: "clear", combo, bonus: comboBonus });
+      if (closest < NEAR_MISS_DISTANCE) {
+        bonus += NEAR_MISS_BONUS;
+        nearMisses += 1;
+        emit({ type: "near-miss", bonus: NEAR_MISS_BONUS, x: x + obstacle.w / 2, y: top });
+      }
+    }
+    obstacles.push(
+      passed === obstacle.passed && closest === obstacle.closest && x === obstacle.x
+        ? obstacle
+        : { ...obstacle, x, passed, closest },
+    );
   }
 
   let rng = state.rng;
   let nextSpawnX = state.nextSpawnX - travel;
+  const baseScore = Math.floor(distance / DISTANCE_PER_POINT);
   while (nextSpawnX < state.viewWidth + 40) {
-    const spawned = spawn(rng, score, speed, nextSpawnX);
+    const spawned = spawn(rng, baseScore + bonus, speed, nextSpawnX);
     obstacles.push(spawned.obstacle);
     rng = spawned.rng;
     nextSpawnX += spawned.obstacle.w + spawned.gap;
   }
 
-  const crossedHundred = Math.floor(score / 100) > Math.floor(state.score / 100);
+  const score = baseScore + bonus;
+  if (Math.floor(score / 100) > Math.floor(state.score / 100)) {
+    emit({ type: "milestone", score: Math.floor(score / 100) * 100 });
+  }
+
   const next: RunState = {
     ...state,
     rng,
     distance,
     speed,
     score,
+    bonus,
+    combo,
+    bestCombo,
+    nearMisses,
     robotY,
     robotVy,
     grounded,
     ducking,
+    jumpCleared,
     jumpHoldMs,
     jumpBufferMs,
     obstacles,
     nextSpawnX,
-    flashMs: crossedHundred ? FLASH_MS : flashMs,
+    events: events.length > 0 ? events : NO_EVENTS,
   };
 
-  if (obstacles.some((obstacle) => collides(next, obstacle))) {
-    return { ...next, phase: "over", overMs: 0, best: Math.max(state.best, score) };
+  if (crashed) {
+    const newBest = score > state.best;
+    emit({ type: "crash", x: robot.x + robot.w / 2, y: robot.y + robot.h / 2, newBest });
+    return {
+      ...next,
+      phase: "over",
+      overMs: 0,
+      combo: 0,
+      newBest,
+      best: Math.max(state.best, score),
+      events: events.length > 0 ? events : NO_EVENTS,
+    };
   }
   return next;
 }
 
-export function toSnapshot(state: RunState): unknown {
+export function toSnapshot(state: RunState): Record<string, unknown> {
+  const { events: _events, ...rest } = state;
   return {
     version: SNAPSHOT_VERSION,
-    ...state,
+    ...rest,
     obstacles: state.obstacles.map((obstacle) => ({ ...obstacle })),
   };
 }
@@ -336,12 +418,15 @@ const NUMBER_FIELDS = [
   "speed",
   "score",
   "best",
+  "bonus",
+  "combo",
+  "bestCombo",
+  "nearMisses",
   "robotY",
   "robotVy",
   "jumpHoldMs",
   "jumpBufferMs",
   "nextSpawnX",
-  "flashMs",
   "overMs",
 ] as const;
 
@@ -357,12 +442,13 @@ function isFiniteNumber(value: unknown): value is number {
 
 function readObstacle(value: unknown): Obstacle | null {
   if (!isRecord(value)) return null;
-  const { kind, x, y, w, h } = value;
+  const { kind, x, y, w, h, passed, closest } = value;
   if (typeof kind !== "string" || !OBSTACLE_KINDS.has(kind)) return null;
   if (!isFiniteNumber(x) || !isFiniteNumber(y) || !isFiniteNumber(w) || !isFiniteNumber(h)) {
     return null;
   }
-  return { kind: kind as ObstacleKind, x, y, w, h };
+  if (typeof passed !== "boolean" || !isFiniteNumber(closest)) return null;
+  return { kind: kind as ObstacleKind, x, y, w, h, passed, closest };
 }
 
 export function fromSnapshot(value: unknown): RunState | null {
@@ -370,9 +456,16 @@ export function fromSnapshot(value: unknown): RunState | null {
   for (const field of NUMBER_FIELDS) {
     if (!isFiniteNumber(value[field])) return null;
   }
-  const { phase, grounded, ducking, obstacles } = value;
+  const { phase, grounded, ducking, jumpCleared, newBest, obstacles } = value;
   if (phase !== "ready" && phase !== "running" && phase !== "over") return null;
-  if (typeof grounded !== "boolean" || typeof ducking !== "boolean") return null;
+  if (
+    typeof grounded !== "boolean" ||
+    typeof ducking !== "boolean" ||
+    typeof jumpCleared !== "boolean" ||
+    typeof newBest !== "boolean"
+  ) {
+    return null;
+  }
   if (!Array.isArray(obstacles)) return null;
   const parsed: Obstacle[] = [];
   for (const entry of obstacles) {
@@ -382,6 +475,7 @@ export function fromSnapshot(value: unknown): RunState | null {
   }
   const numbers = value as Record<(typeof NUMBER_FIELDS)[number], number>;
   if (numbers.viewWidth <= 0 || numbers.viewHeight <= 0 || numbers.speed <= 0) return null;
+  const whole = (field: (typeof NUMBER_FIELDS)[number]) => Math.max(0, Math.floor(numbers[field]));
   return {
     phase,
     rng: numbers.rng >>> 0,
@@ -389,17 +483,23 @@ export function fromSnapshot(value: unknown): RunState | null {
     viewHeight: numbers.viewHeight,
     distance: numbers.distance,
     speed: Math.min(MAX_SPEED, numbers.speed),
-    score: Math.max(0, Math.floor(numbers.score)),
-    best: Math.max(0, Math.floor(numbers.best)),
+    score: whole("score"),
+    best: whole("best"),
+    bonus: whole("bonus"),
+    combo: whole("combo"),
+    bestCombo: whole("bestCombo"),
+    nearMisses: whole("nearMisses"),
+    newBest,
     robotY: Math.max(0, numbers.robotY),
     robotVy: numbers.robotVy,
     grounded,
     ducking,
+    jumpCleared,
     jumpHoldMs: numbers.jumpHoldMs,
     jumpBufferMs: numbers.jumpBufferMs,
     obstacles: parsed,
     nextSpawnX: numbers.nextSpawnX,
-    flashMs: numbers.flashMs,
     overMs: numbers.overMs,
+    events: NO_EVENTS,
   };
 }
