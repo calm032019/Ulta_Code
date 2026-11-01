@@ -17,6 +17,7 @@ import { createRenderer, type RenderUi } from "./render";
 
 const STEP_MS = 1000 / 60;
 const MAX_FRAME_MS = 250;
+const IDLE_FRAME_MS = 1000 / 30;
 const BUTTON_DELAY_MS = 450;
 
 const LEFT_KEYS = new Set(["ArrowLeft", "a", "A"]);
@@ -75,6 +76,7 @@ function createGateRunner(canvas: HTMLCanvasElement, options: MiniGameCreateOpti
   const ui: RenderUi = { hoverButton: false, hoverMute: false, pressButton: false };
   let frame: number | null = null;
   let lastTime: number | null = null;
+  let lastDraw = Number.NEGATIVE_INFINITY;
   let accumulator = 0;
   let pending: StepInput = {};
   let drag: { x: number; lane: number } | null = null;
@@ -110,7 +112,17 @@ function createGateRunner(canvas: HTMLCanvasElement, options: MiniGameCreateOpti
     }
     updateFx(fx, elapsed, state);
     report();
-    draw();
+    const idle =
+      state.status !== "running" &&
+      state.statusAge > BUTTON_DELAY_MS &&
+      fx.shake === 0 &&
+      fx.flash === 0 &&
+      !fx.particles.some((particle) => particle.active) &&
+      !fx.texts.some((text) => text.active);
+    if (!idle || now - lastDraw >= IDLE_FRAME_MS) {
+      lastDraw = now;
+      draw();
+    }
   };
 
   const queue = (input: StepInput) => {

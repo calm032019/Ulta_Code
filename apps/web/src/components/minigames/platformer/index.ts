@@ -15,6 +15,7 @@ import { buildPalette, inside, layout, render, type Palette } from "./render";
 
 const STEP_MS = 1000 / 120;
 const MAX_FRAME_MS = 100;
+const IDLE_FRAME_MS = 1000 / 30;
 const LEFT_KEYS = new Set(["ArrowLeft", "a", "A"]);
 const RIGHT_KEYS = new Set(["ArrowRight", "d", "D"]);
 const JUMP_KEYS = new Set([" ", "Spacebar", "ArrowUp", "w", "W"]);
@@ -78,6 +79,7 @@ function create(canvas: HTMLCanvasElement, options: MiniGameCreateOptions): Mini
 
   let frame: number | null = null;
   let last: number | null = null;
+  let lastDraw = Number.NEGATIVE_INFINITY;
   let accumulator = 0;
   let reportedScore = state.score;
 
@@ -144,7 +146,18 @@ function create(canvas: HTMLCanvasElement, options: MiniGameCreateOptions): Mini
       reportedScore = state.score;
       options.onScore?.(state.score);
     }
-    draw();
+    const idle =
+      (state.phase === "title" || state.phase === "over") &&
+      state.phaseTime > 0.6 &&
+      fx.hitStop <= 0 &&
+      fx.shake === 0 &&
+      fx.flash === 0 &&
+      fx.squash === 0 &&
+      !fx.particles.some((particle) => particle.active);
+    if (!idle || now - lastDraw >= IDLE_FRAME_MS) {
+      lastDraw = now;
+      draw();
+    }
   };
 
   const stop = () => {
