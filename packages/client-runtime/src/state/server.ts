@@ -1334,6 +1334,11 @@ export function createServerEnvironmentAtoms<R, E>(
       tag: WS_METHODS.serverGetResourceTelemetryHistory,
       staleTimeMs: 5_000,
     }),
+    mcpConnectors: createEnvironmentRpcQueryAtomFamily(runtime, {
+      label: "environment-data:server:mcp-connectors",
+      tag: WS_METHODS.serverListMcpConnectors,
+      staleTimeMs: 30_000,
+    }),
     searchAcpRegistry: createEnvironmentRpcQueryAtomFamily(runtime, {
       label: "environment-data:server:acp-registry:search",
       tag: WS_METHODS.serverSearchAcpRegistry,
