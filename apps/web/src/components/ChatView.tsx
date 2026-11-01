@@ -257,6 +257,12 @@ import {
 } from "../state/entities";
 import { useEnvironmentShellHasSnapshot } from "../state/shell";
 import { ChatComposer, type ChatComposerHandle } from "./chat/ChatComposer";
+import { MiniGameDock } from "./minigames/MiniGameDock";
+import {
+  closeMiniGameDock,
+  openMiniGameDock,
+  useMiniGameDockOpen,
+} from "./minigames/miniGameDockStore";
 import { DraftHeroHeadline } from "./chat/DraftHeroHeadline";
 import { ExpandedImageDialogHost, openExpandedImagePreview } from "./chat/ExpandedImageDialog";
 import {
@@ -1837,6 +1843,21 @@ export default function ChatView(props: ChatViewProps) {
     });
   };
   const scheduleComposerFocusStable = useStableCallback(scheduleComposerFocus);
+  const minigameDockOpen = useMiniGameDockOpen(isServerThread ? activeThreadKey : null);
+  // Approvals and questions live in the composer, so the dock steps aside while the agent needs the user.
+  const minigameDockShown =
+    minigameDockOpen &&
+    composerMounted &&
+    !isDraftHeroState &&
+    activePendingApproval === null &&
+    pendingUserInputs.length === 0;
+  const openMinigamesStable = useStableCallback(() => {
+    if (activeThreadKey !== null) openMiniGameDock(activeThreadKey);
+  });
+  const closeMinigamesStable = useStableCallback(() => {
+    closeMiniGameDock();
+    scheduleComposerFocusStable();
+  });
   const openComposerPermissionsStable = useStableCallback(() =>
     composerRef.current?.openControl("composer.mode"),
   );
@@ -3556,7 +3577,25 @@ export default function ChatView(props: ChatViewProps) {
                     }
                   >
                     <ChildThreadApprovals threadRef={activeThreadRef} />
-                    <ComposerSurface.Shell contextRow={showComposerContextStrip}>
+                    {minigameDockShown ? (
+                      <MiniGameDock
+                        isWorking={isWorking}
+                        latestRun={
+                          activeActivityRun
+                            ? {
+                                startedAt:
+                                  activeActivityRun.startedAt ?? activeActivityRun.requestedAt,
+                                completedAt: activeActivityRun.completedAt,
+                              }
+                            : null
+                        }
+                        onBackToChat={closeMinigamesStable}
+                      />
+                    ) : null}
+                    <ComposerSurface.Shell
+                      contextRow={showComposerContextStrip}
+                      hidden={minigameDockShown}
+                    >
                       <ComposerSurface.Host
                         inert={queuedRunEdit.isSaving}
                         aria-busy={queuedRunEdit.isSaving}
@@ -3733,6 +3772,7 @@ export default function ChatView(props: ChatViewProps) {
                               onRemoveEditingQueuedAttachment={
                                 queuedRunEdit.removeEditingAttachment
                               }
+                              onOpenMinigames={isServerThread ? openMinigamesStable : undefined}
                             />
                           )}
                         </div>

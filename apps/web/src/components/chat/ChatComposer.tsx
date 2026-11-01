@@ -278,6 +278,7 @@ import {
   usePreparingComposerImages,
 } from "./preparingComposerImages";
 import { ComposerControlsBar } from "./ComposerControlsBar";
+import { MiniGameComposerButton } from "../minigames/MiniGameComposerButton";
 import { composerCommandKeyHandler } from "./composerCommandKey";
 
 function consumePasteAsTextShortcut(deadline: { current: number }): boolean {
@@ -497,6 +498,8 @@ export interface ChatComposerProps {
   setThreadError: (threadId: ThreadId | null, error: string | null) => void;
   onExpandImage: (preview: ExpandedImagePreview) => void;
   onFileOpen: (attachment: ChatFileAttachment) => void;
+  /** Swaps the composer for the minigame dock; absent where the dock is unavailable. */
+  onOpenMinigames?: (() => void) | undefined;
 }
 
 const NO_PROVIDER_SKILLS: ServerProvider["skills"] = [];
@@ -3452,6 +3455,9 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                   >
                     {composerControls}
                   </div>
+                  {props.onOpenMinigames ? (
+                    <MiniGameComposerButton onOpen={props.onOpenMinigames} />
+                  ) : null}
                   <ComposerFooterPrimaryActions
                     compact={isComposerPrimaryActionsCompact}
                     canOperateThread={canOperateThread}
