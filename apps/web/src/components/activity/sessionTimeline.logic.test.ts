@@ -2,7 +2,13 @@ import { RunId } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import type { SessionActivityEvent } from "./sessionActivity.logic";
-import { buildSessionTimeline, sessionTimelineStepTarget } from "./sessionTimeline.logic";
+import {
+  buildSessionTimeline,
+  sessionTimelineItems,
+  sessionTimelineMarkerIndex,
+  sessionTimelineStepTarget,
+  type SessionTimelineItem,
+} from "./sessionTimeline.logic";
 
 const runA = RunId.make("run-a");
 const runB = RunId.make("run-b");
@@ -27,23 +33,33 @@ const runOrdinals = new Map([
   [runA, 1],
   [runB, 2],
 ]);
-const keys = (items: ReturnType<typeof buildSessionTimeline>["items"]) =>
+function layout(input: {
+  readonly events: ReadonlyArray<SessionActivityEvent>;
+  readonly viewportAt: string | null;
+  readonly atEnd: boolean;
+}) {
+  const timeline = buildSessionTimeline({ events: input.events, runOrdinals });
+  const markerIndex = sessionTimelineMarkerIndex(timeline, input.viewportAt, input.atEnd);
+  return { timeline, markerIndex, items: sessionTimelineItems(timeline, markerIndex) };
+}
+const keys = (items: ReadonlyArray<SessionTimelineItem>) =>
   items.map((item) =>
     item.type === "event" ? item.event.id : item.type === "group" ? item.label : "|",
   );
+const eventItem = (items: ReadonlyArray<SessionTimelineItem>, id: string) =>
+  items.find((item) => item.type === "event" && item.event.id === id);
 
 describe("buildSessionTimeline", () => {
   it("lists oldest first under turn groups with the marker after the last event when following", () => {
-    const timeline = buildSessionTimeline({ events, runOrdinals, viewportAt: null, atEnd: true });
+    const timeline = layout({ events, viewportAt: null, atEnd: true });
     expect(keys(timeline.items)).toEqual(["Turn 1", "e1", "e2", "Turn 2", "e3", "e4", "|"]);
     expect(timeline.markerIndex).toBe(3);
     expect(timeline.items.some((item) => item.type === "event" && item.future)).toBe(false);
   });
 
   it("places the marker at the chat's position and fades later events", () => {
-    const timeline = buildSessionTimeline({
+    const timeline = layout({
       events,
-      runOrdinals,
       viewportAt: "2026-11-01T10:02:30.000Z",
       atEnd: false,
     });
@@ -53,12 +69,15 @@ describe("buildSessionTimeline", () => {
         item.type === "event" && item.future ? [item.event.id] : [],
       ),
     ).toEqual(["e3", "e4"]);
+    // Moving the marker keeps the rows it does not pass.
+    const followed = sessionTimelineItems(timeline.timeline, 3);
+    expect(eventItem(followed, "e1")).toBe(eventItem(timeline.items, "e1"));
+    expect(eventItem(followed, "e3")).not.toBe(eventItem(timeline.items, "e3"));
   });
 
   it("puts the marker before everything when the chat sits before the first event", () => {
-    const timeline = buildSessionTimeline({
+    const timeline = layout({
       events,
-      runOrdinals,
       viewportAt: "2026-11-01T09:00:00.000Z",
       atEnd: false,
     });
@@ -67,9 +86,8 @@ describe("buildSessionTimeline", () => {
   });
 
   it("groups events without a turn under Thread", () => {
-    const timeline = buildSessionTimeline({
+    const timeline = layout({
       events: [event("pr", "2026-11-01T10:05:00.000Z", null)],
-      runOrdinals,
       viewportAt: null,
       atEnd: true,
     });

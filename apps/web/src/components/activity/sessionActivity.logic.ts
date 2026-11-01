@@ -126,7 +126,10 @@ function readPathOf(script: string): string | null {
 }
 
 export function classifyCommandActivity(command: string): CommandActivity {
-  const script = commandDisplayText(command);
+  return classifyScript(commandDisplayText(command));
+}
+
+function classifyScript(script: string): CommandActivity {
   const git = new Set<GitOperation>();
   for (const segment of script.split(/&&|\|\||;|\n|\|/)) {
     const normalized = withoutPrefixes(segment.trim());
@@ -203,76 +206,73 @@ const GIT_FAILURE_TITLES: Record<GitOperation, string> = {
   "pull-request": "Pull request not opened",
 };
 
-/** Typed, chronological activity for a thread from data the client already holds. */
-export function deriveSessionActivity(input: SessionActivityInput): SessionActivityEvent[] {
-  const events: SessionActivityEvent[] = [];
-  const turnLabel = new Map(input.runs.map((run) => [run.id, `Turn ${run.ordinal}`] as const));
+type TurnItem = ThreadStructureVisibleTurnItem["item"];
 
-  const pushCommand = (
-    id: string,
-    at: string,
-    runId: RunId | null,
-    command: string,
-    failed: boolean,
-  ) => {
-    const detail = firstLine(commandDisplayText(command));
-    const { git, readPath } = classifyCommandActivity(command);
-    for (const operation of git) {
-      events.push({
-        id: `${id}:${operation}`,
-        kind: operation,
-        at,
-        runId,
-        itemId: id,
-        title: failed
-          ? GIT_FAILURE_TITLES[operation]
-          : operation === "commit"
-            ? (commitMessageOf(command) ?? "Committed")
-            : operation === "push"
-              ? "Pushed"
-              : "Opened pull request",
-        detail,
-        failed,
-      });
-    }
-    if (git.length > 0) return;
-    events.push(
-      readPath === null
-        ? { id, kind: "command", at, runId, itemId: id, title: detail, detail: null, failed }
-        : {
-            id,
-            kind: "read",
-            at,
-            runId,
-            itemId: id,
-            title: `Read ${baseName(readPath)}`,
-            detail: readPath,
-            failed,
-          },
-    );
-  };
-
-  for (const { item } of input.visibleTurnItems) {
-    const at = itemAt(item);
-    const failed = item.status === "failed";
-    switch (item.type) {
-      case "command_execution":
-        pushCommand(
-          item.id,
+function commandEvents(
+  id: string,
+  at: string,
+  runId: RunId | null,
+  command: string,
+  failed: boolean,
+): SessionActivityEvent[] {
+  const script = commandDisplayText(command);
+  const detail = firstLine(script);
+  const { git, readPath } = classifyScript(script);
+  if (git.length > 0) {
+    return git.map((operation) => ({
+      id: `${id}:${operation}`,
+      kind: operation,
+      at,
+      runId,
+      itemId: id,
+      title: failed
+        ? GIT_FAILURE_TITLES[operation]
+        : operation === "commit"
+          ? (commitMessageOf(command) ?? "Committed")
+          : operation === "push"
+            ? "Pushed"
+            : "Opened pull request",
+      detail,
+      failed,
+    }));
+  }
+  return [
+    readPath === null
+      ? { id, kind: "command", at, runId, itemId: id, title: detail, detail: null, failed }
+      : {
+          id,
+          kind: "read",
           at,
-          item.runId,
-          item.input,
-          failed || (item.exitCode !== undefined && item.exitCode !== 0),
-        );
-        break;
-      case "file_change": {
-        const changes = item.changes ?? [];
-        const paths = changes.length > 0 ? changes.map((change) => change.path) : [item.fileName];
-        const title =
-          paths.length > 1
-            ? `Changed ${paths.length} files`
-            : `${fileChangeVerb(changes[0]?.operation)} ${baseName(paths[0]!)}`;
-        events.push({
+          runId,
+          itemId: id,
+          title: `Read ${baseName(readPath)}`,
+          detail: readPath,
+          failed,
+        },
+  ];
+}
+
+function turnItemEvents(item: TurnItem): SessionActivityEvent[] {
+  const at = itemAt(item);
+  const failed = item.status === "failed";
+  switch (item.type) {
+    case "command_execution":
+      return commandEvents(
+        item.id,
+        at,
+        item.runId,
+        item.input,
+        failed || (item.exitCode !== undefined && item.exitCode !== 0),
+      );
+    case "file_change": {
+      const changes = item.changes ?? [];
+      const paths = changes.length > 0 ? changes.map((change) => change.path) : [item.fileName];
+      const title =
+        paths.length > 1
+          ? `Changed ${paths.length} files`
+          : `${fileChangeVerb(changes[0]?.operation)} ${baseName(paths[0]!)}`;
+      return [
+        {
           id: item.id,
           kind: "change",
           at,
@@ -290,22 +290,22 @@ export function deriveSessionActivity(input: SessionActivityInput): SessionActiv
                 },
               }
             : {}),
-        });
-        break;
+        },
+      ];
+    }
+    case "dynamic_tool": {
+      const action = classifyToolActivity({
+        itemType: "dynamic_tool_call",
+        data: { toolName: item.toolName ?? undefined, input: item.input },
+      });
+      const input = item.input as { readonly command?: unknown } | null;
+      if (action === "command" && typeof input?.command === "string") {
+        return commandEvents(item.id, at, item.runId, input.command, failed);
       }
-      case "dynamic_tool": {
-        const action = classifyToolActivity({
-          itemType: "dynamic_tool_call",
-          data: { toolName: item.toolName ?? undefined, input: item.input },
-        });
-        const input = item.input as { readonly command?: unknown } | null;
-        if (action === "command" && typeof input?.command === "string") {
-          pushCommand(item.id, at, item.runId, input.command, failed);
-          break;
-        }
-        if (action !== "read" && action !== "file_change") break;
-        const [path] = collectToolFilePaths({ input: item.input });
-        events.push({
+      if (action !== "read" && action !== "file_change") return [];
+      const [path] = collectToolFilePaths({ input: item.input });
+      return [
+        {
           id: item.id,
           kind: action === "read" ? "read" : "change",
           at,
@@ -314,16 +314,16 @@ export function deriveSessionActivity(input: SessionActivityInput): SessionActiv
           title: `${action === "read" ? "Read" : "Edited"} ${path ? baseName(path) : (item.toolName ?? "file")}`,
           detail: path ?? null,
           failed,
-        });
-        break;
-      }
-      case "error": {
-        const presentation = providerErrorPresentation(item);
-        const usageLimit = item.failure.class === "usage_limit";
-        const rateLimited =
-          !usageLimit &&
-          /rate.?limit|\b429\b/i.test(`${item.failure.code} ${item.failure.message}`);
-        events.push({
+        },
+      ];
+    }
+    case "error": {
+      const presentation = providerErrorPresentation(item);
+      const usageLimit = item.failure.class === "usage_limit";
+      const rateLimited =
+        !usageLimit && /rate.?limit|\b429\b/i.test(`${item.failure.code} ${item.failure.message}`);
+      return [
+        {
           id: item.id,
           kind: usageLimit ? "usage-limit" : "error",
           at,
@@ -333,10 +333,33 @@ export function deriveSessionActivity(input: SessionActivityInput): SessionActiv
           detail: presentation.detail,
           // A retry that recovered is not a failure the user has to act on.
           failed: item.status !== "completed",
-        });
-        break;
-      }
+        },
+      ];
     }
+    default:
+      return [];
+  }
+}
+
+// Unchanged turn items keep their identity across projections, so each derives once.
+const turnItemEventCache = new WeakMap<TurnItem, ReadonlyArray<SessionActivityEvent>>();
+
+function cachedTurnItemEvents(item: TurnItem): ReadonlyArray<SessionActivityEvent> {
+  let events = turnItemEventCache.get(item);
+  if (events === undefined) {
+    events = turnItemEvents(item);
+    turnItemEventCache.set(item, events);
+  }
+  return events;
+}
+
+/** Typed, chronological activity for a thread from data the client already holds. */
+export function deriveSessionActivity(input: SessionActivityInput): SessionActivityEvent[] {
+  const events: SessionActivityEvent[] = [];
+  const turnLabel = new Map(input.runs.map((run) => [run.id, `Turn ${run.ordinal}`] as const));
+
+  for (const { item } of input.visibleTurnItems) {
+    events.push(...cachedTurnItemEvents(item));
   }
 
   for (const attempt of input.attempts) {
@@ -408,12 +431,9 @@ export function deriveSessionActivity(input: SessionActivityInput): SessionActiv
     });
   }
 
-  const time = new Map(events.map((event) => [event, Date.parse(event.at) || 0] as const));
   return events
-    .map((event, index) => ({ event, index }))
-    .toSorted(
-      (left, right) => time.get(right.event)! - time.get(left.event)! || right.index - left.index,
-    )
+    .map((event, index) => ({ event, index, time: Date.parse(event.at) || 0 }))
+    .sort((left, right) => right.time - left.time || right.index - left.index)
     .map(({ event }) => event);
 }
 

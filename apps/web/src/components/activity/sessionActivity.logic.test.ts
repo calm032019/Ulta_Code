@@ -270,6 +270,29 @@ describe("deriveSessionActivity", () => {
       command: 1,
     });
   });
+
+  it("re-derives a turn item when its object changes", () => {
+    const running = projected({
+      ...base("run", 1),
+      status: "running",
+      type: "command_execution",
+      input: "git push",
+    });
+    const kept = command("kept", 2, "cat a.ts");
+    const before = deriveSessionActivity(activity({ visibleTurnItems: [running, kept] }));
+    const after = deriveSessionActivity(
+      activity({ visibleTurnItems: [command("run", 1, "git push", 1), kept] }),
+    );
+    expect(before.map((event) => [event.title, event.failed])).toEqual([
+      ["Read a.ts", false],
+      ["Pushed", false],
+    ]);
+    expect(after.map((event) => [event.title, event.failed])).toEqual([
+      ["Read a.ts", false],
+      ["Push failed", true],
+    ]);
+    expect(after[0]).toBe(before[0]);
+  });
 });
 
 describe("findTimelineRowIndexForActivity", () => {

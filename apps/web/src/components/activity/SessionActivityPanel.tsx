@@ -19,7 +19,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useState, type MouseEvent, type PointerEvent } from "react";
-import { useShallow } from "zustand/react/shallow";
 
 import { useOpenPrLink } from "~/lib/openPullRequestLink";
 import { cn } from "~/lib/utils";
@@ -42,6 +41,8 @@ import {
 } from "./sessionActivity.logic";
 import {
   buildSessionTimeline,
+  sessionTimelineItems,
+  sessionTimelineMarkerIndex,
   sessionTimelineStepTarget,
   type SessionTimelineItem,
   type SessionTimelineStep,
@@ -235,23 +236,20 @@ export function SessionActivityPanel({ threadRef }: { threadRef: ScopedThreadRef
       })
     : EMPTY_EVENTS;
   const counts = countSessionActivity(events);
-  const shown = filter === null ? events : events.filter((event) => event.kind === filter);
-  const threadKey = scopedThreadKey(threadRef);
-  const viewport = useTimelineViewportStore(
-    useShallow((state) =>
-      state.threadKey === threadKey
-        ? { at: state.at, atEnd: state.atEnd }
-        : { at: null, atEnd: true },
-    ),
-  );
   const runOrdinals = new Map(projection?.runs.map((run) => [run.id, run.ordinal] as const));
   const timeline = buildSessionTimeline({
-    events: shown,
+    events: filter === null ? events : events.filter((event) => event.kind === filter),
     runOrdinals,
-    viewportAt: viewport.at,
-    atEnd: viewport.atEnd,
   });
-  const markerEvent = timeline.chronological[timeline.markerIndex];
+  const threadKey = scopedThreadKey(threadRef);
+  // Scrolling the chat publishes every frame; only a marker move re-renders.
+  const markerIndex = useTimelineViewportStore((state) =>
+    state.threadKey === threadKey
+      ? sessionTimelineMarkerIndex(timeline, state.at, state.atEnd)
+      : sessionTimelineMarkerIndex(timeline, null, true),
+  );
+  const items = sessionTimelineItems(timeline, markerIndex);
+  const markerEvent = timeline.chronological[markerIndex];
   const markerTurn = markerEvent?.runId ? runOrdinals.get(markerEvent.runId) : undefined;
 
   const jumpTo = (event: SessionActivityEvent) =>
@@ -268,13 +266,10 @@ export function SessionActivityPanel({ threadRef }: { threadRef: ScopedThreadRef
     }
     jumpTo(event);
   };
+  const rowExtraData = { dragIndex, select };
 
   const step = (direction: SessionTimelineStep) => {
-    const target = sessionTimelineStepTarget(
-      timeline.markerIndex,
-      direction,
-      timeline.chronological.length,
-    );
+    const target = sessionTimelineStepTarget(markerIndex, direction, timeline.chronological.length);
     const event = target === null ? undefined : timeline.chronological[target];
     if (event) jumpTo(event);
   };
@@ -382,18 +377,19 @@ export function SessionActivityPanel({ threadRef }: { threadRef: ScopedThreadRef
               <SkipForwardIcon aria-hidden />
             </Button>
             <span className="ms-auto pe-1 text-2xs text-muted-foreground tabular-nums">
-              {timeline.markerIndex < 0
+              {markerIndex < 0
                 ? `Before event 1 of ${timeline.chronological.length}`
-                : `Event ${timeline.markerIndex + 1} of ${timeline.chronological.length}${
+                : `Event ${markerIndex + 1} of ${timeline.chronological.length}${
                     markerTurn === undefined ? "" : ` · Turn ${markerTurn}`
                   }`}
             </span>
           </div>
           {/* Long threads run thousands of commands; only rows in view are mounted. */}
           <LegendList<SessionTimelineItem>
-            data={timeline.items}
+            data={items}
             keyExtractor={(item) => item.key}
-            extraData={dragIndex}
+            // Rows re-render only when their item or this changes, so it carries their handler.
+            extraData={rowExtraData}
             renderItem={({ item }) =>
               item.type === "group" ? (
                 <TimelineGroupRow item={item} />
