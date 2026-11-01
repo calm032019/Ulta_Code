@@ -94,8 +94,8 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --appearance-contrast-boost: 0%;
   --appearance-contrast-border-boost: 0%;
   --appearance-contrast-target: black;
-  --app-scrollbar-thumb: rgb(217 217 217);
-  --app-scrollbar-thumb-hover: rgb(191 191 191);
+  --app-scrollbar-thumb: rgb(222 220 209);
+  --app-scrollbar-thumb-hover: rgb(200 198 187);
   /*
    * Compact UI geometry. Keep these values semantic so sidebar, palette,
    * tooltip, and toolbar controls cannot quietly drift apart.
@@ -172,6 +172,10 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
     -apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", system-ui, sans-serif;
   --font-mono:
     ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  /* Long-form reading face for assistant replies and conversational headings. */
+  --font-reading:
+    "Source Serif 4 Variable", "Iowan Old Style", Charter, Georgia, Cambria, "Times New Roman",
+    serif;
 }
 
 @theme inline {
@@ -1112,8 +1116,10 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
 
 :root {
   color-scheme: light;
-  --radius: 0.5rem;
-  --background: var(--color-zinc-25);
+  /* Softer, rounder geometry than a dense IDE: cards and menus read as paper. */
+  --radius: 0.625rem;
+  /* Warm ivory canvas with white raised surfaces and a terracotta accent. */
+  --background: #faf9f5;
   --app-chrome-background: var(--background);
   --toolbar-background: var(--app-chrome-background);
   --toolbar-foreground: var(--foreground);
@@ -1121,36 +1127,36 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --toolbar-control: var(--popover);
   --toolbar-control-foreground: var(--foreground);
   --toolbar-control-hover: var(--accent);
-  --surface-raised: color-mix(in srgb, var(--card) 20%, transparent);
-  --foreground: var(--color-zinc-900);
-  --card: var(--color-white);
-  --card-foreground: var(--color-zinc-900);
-  --popover: var(--color-white);
-  --popover-foreground: var(--color-zinc-900);
-  --primary: oklch(0.488 0.217 264);
-  --primary-foreground: var(--color-white);
-  --secondary: var(--color-zinc-50);
-  --secondary-foreground: var(--color-zinc-800);
-  --muted: var(--color-zinc-50);
-  --muted-foreground: var(--color-zinc-500);
-  --placeholder: var(--muted-foreground);
+  --surface-raised: #ffffff;
+  --foreground: #29261b;
+  --card: #ffffff;
+  --card-foreground: #29261b;
+  --popover: #ffffff;
+  --popover-foreground: #29261b;
+  --primary: #c96442;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f4ed;
+  --secondary-foreground: #3d3d3a;
+  --muted: #f5f4ed;
+  --muted-foreground: #73726c;
+  --placeholder: #8a8880;
   --secondary-label: var(--muted-foreground);
-  --icon-muted: var(--muted-foreground);
-  /* One step past the accent, so a user turn stands off the near-white canvas. */
-  --message-surface: color-mix(in srgb, var(--color-zinc-200) 55%, var(--color-zinc-100));
+  --icon-muted: #83827b;
+  /* User turns sit in a soft parchment bubble. */
+  --message-surface: #f0eee6;
   --message-foreground: var(--foreground);
   --message-action: var(--primary);
   --message-action-foreground: var(--primary-foreground);
-  --message-action-hover: color-mix(in srgb, var(--primary) 90%, var(--background));
-  --accent: var(--color-zinc-100);
-  --accent-foreground: var(--color-zinc-900);
-  --error: var(--color-red-500);
-  --error-foreground: var(--color-red-700);
+  --message-action-hover: #b5573a;
+  --accent: #f0eee6;
+  --accent-foreground: #29261b;
+  --error: #d63c3c;
+  --error-foreground: #a82a2a;
   --tool-error-icon: var(--error);
   --error-surface: color-mix(in srgb, var(--error) 8%, transparent);
   --destructive: var(--error);
-  --border: var(--color-zinc-200);
-  --input: var(--color-zinc-300);
+  --border: #e8e6dc;
+  --input: #dedcd1;
   --ring: var(--primary);
   --destructive-foreground: var(--error-foreground);
   --info: var(--color-blue-500);
@@ -1159,121 +1165,121 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --guest: var(--color-fuchsia-500);
   --guest-foreground: var(--color-fuchsia-600);
   --guest-surface: color-mix(in srgb, var(--guest) 14%, var(--message-surface));
-  --success: var(--color-emerald-500);
+  --success: var(--color-emerald-600);
   --success-foreground: var(--color-emerald-700);
-  --warning: var(--color-amber-500);
-  --warning-foreground: var(--color-amber-700);
+  --warning: #d98a1c;
+  --warning-foreground: #8f5208;
   --warning-surface: color-mix(in srgb, var(--warning) 8%, transparent);
   --update: var(--primary);
-  --update-foreground: var(--primary);
-  /* Keep every sidebar primitive on the same light surface hierarchy, including
-     portaled mobile sheets and settings navigation outside the app sidebar. */
-  --sidebar: var(--color-zinc-50);
-  --sidebar-foreground: var(--foreground);
+  --update-foreground: #a9502f;
+  --sidebar: #f5f4ed;
+  --sidebar-foreground: #3d3d3a;
   --sidebar-muted-foreground: var(--muted-foreground);
-  --sidebar-control-surface: var(--color-zinc-100);
-  --sidebar-row-hover: var(--color-zinc-25);
-  --sidebar-row-active: var(--color-white);
-  --sidebar-row-selected: var(--color-white);
+  --sidebar-control-surface: #ebe9e0;
+  --sidebar-row-hover: #eeece4;
+  --sidebar-row-active: #e8e6dc;
+  --sidebar-row-selected: #e8e6dc;
   --sidebar-border: var(--border);
   --sidebar-stage-fade: var(--sidebar);
-  --code-background: color-mix(in srgb, var(--card) 90%, var(--background));
+  --code-background: #f5f4ed;
   --code-foreground: var(--foreground);
   --terminal-background: var(--background);
   --terminal-foreground: var(--foreground);
-  --terminal-cursor: rgb(38 56 78);
-  --terminal-selection-background: rgb(37 63 99 / 20%);
+  --terminal-cursor: #c96442;
+  --terminal-selection-background: rgb(201 100 66 / 18%);
 
   @variant dark {
     color-scheme: dark;
-    /* The canvas is true black, matching the sidebar. Raised surfaces keep the tone they had
-       over neutral-950, so cards, popovers, and the composer still lift. Borders and hover
-       states provide separation without milky gray fills. */
-    --background: #000;
-    --surface-raised: color-mix(in srgb, var(--color-neutral-950) 97%, var(--color-white));
-    --foreground: var(--color-neutral-100);
-    --card: color-mix(in srgb, var(--color-neutral-950) 97%, var(--color-white));
-    --card-foreground: var(--color-neutral-100);
-    --popover: color-mix(in srgb, var(--color-neutral-950) 97%, var(--color-white));
-    --popover-foreground: var(--color-neutral-100);
-    --primary: oklch(0.571 0.21 264);
-    --secondary: --alpha(var(--color-white) / 3%);
-    --secondary-foreground: var(--color-neutral-100);
-    --muted: --alpha(var(--color-white) / 3%);
-    --muted-foreground: var(--color-neutral-400);
-    --accent: --alpha(var(--color-white) / 4%);
-    --accent-foreground: var(--color-neutral-100);
-    /* A user turn sits above the composer tone, level with the selected sidebar row. */
-    --message-surface: color-mix(in srgb, var(--color-neutral-950) 92%, var(--color-white));
-    --error: color-mix(in srgb, var(--color-red-500) 90%, var(--color-white));
-    --error-foreground: var(--color-red-400);
+    /* Warm charcoal rather than true black: easier on the eyes for long reading. */
+    --background: #262624;
+    --surface-raised: #30302e;
+    --foreground: #faf9f5;
+    --card: #30302e;
+    --card-foreground: #faf9f5;
+    --popover: #30302e;
+    --popover-foreground: #faf9f5;
+    --primary: #d97757;
+    --secondary: #30302e;
+    --secondary-foreground: #ece9e1;
+    --muted: #2c2c2a;
+    --muted-foreground: #a6a39a;
+    --placeholder: #8f8c84;
+    --icon-muted: #9a978f;
+    --accent: #393937;
+    --accent-foreground: #faf9f5;
+    --message-surface: #141413;
+    --message-action-hover: #c6684a;
+    --error: #ef5f5f;
+    --error-foreground: #f59090;
     --tool-error-icon: #fca5a5;
     --error-surface: color-mix(in srgb, var(--error) 16%, transparent);
-    --border: --alpha(var(--color-white) / 8%);
-    --input: --alpha(var(--color-white) / 11%);
+    --border: #3a3936;
+    --input: #4a4945;
     --info-foreground: var(--color-blue-400);
     --guest-foreground: var(--color-fuchsia-300);
     --success-foreground: var(--color-emerald-400);
-    --warning-foreground: var(--color-amber-400);
+    --warning: #e8a24a;
+    --warning-foreground: #f2c27a;
     --warning-surface: color-mix(in srgb, var(--warning) 16%, transparent);
-    --update-foreground: var(--color-blue-400);
-    --sidebar: var(--card);
-    --sidebar-control-surface: var(--muted);
-    --sidebar-row-hover: var(--accent);
-    --sidebar-row-active: var(--accent);
-    --sidebar-row-selected: var(--muted);
-    --sidebar-stage-fade: var(--card);
-    --terminal-cursor: rgb(180 203 255);
-    --terminal-selection-background: rgb(180 203 255 / 25%);
+    --update-foreground: #eb9a7c;
+    --sidebar: #1f1e1d;
+    --sidebar-foreground: #ece9e1;
+    --sidebar-control-surface: #2a2a28;
+    --sidebar-row-hover: #2a2a28;
+    --sidebar-row-active: #30302e;
+    --sidebar-row-selected: #30302e;
+    --sidebar-border: #2f2e2c;
+    --sidebar-stage-fade: var(--sidebar);
+    --code-background: #1f1e1d;
+    --terminal-cursor: #d97757;
+    --terminal-selection-background: rgb(217 119 87 / 25%);
   }
 }
 
-/* Keep both sidebar implementations (default and legacy) on the same quiet
-   zinc hierarchy: zinc-50 navigation, zinc-25 hover, and white selected/raised
-   surfaces. */
+/* Keep both sidebar implementations (default and legacy) on the same warm
+   hierarchy: a slightly deeper parchment rail with soft selected rows. */
 [data-app-sidebar] {
-  --background: var(--color-zinc-25);
-  --foreground: var(--color-zinc-900);
-  --card: var(--color-white);
-  --card-foreground: var(--color-zinc-900);
-  --accent: var(--color-zinc-100);
-  --accent-foreground: var(--color-zinc-900);
-  --muted: var(--color-zinc-50);
-  --muted-foreground: var(--color-zinc-500);
-  --border: var(--color-zinc-200);
-  --input: var(--color-zinc-300);
-  --sidebar: var(--color-zinc-50);
-  --sidebar-foreground: var(--color-zinc-900);
-  --sidebar-muted-foreground: var(--color-zinc-500);
-  --sidebar-control-surface: var(--color-zinc-100);
-  --sidebar-row-hover: var(--color-zinc-25);
-  --sidebar-row-active: var(--color-white);
-  --sidebar-row-selected: var(--color-white);
-  --sidebar-border: var(--color-zinc-200);
+  --background: #faf9f5;
+  --foreground: #29261b;
+  --card: #ffffff;
+  --card-foreground: #29261b;
+  --accent: #eeece4;
+  --accent-foreground: #29261b;
+  --muted: #f5f4ed;
+  --muted-foreground: #73726c;
+  --border: #e8e6dc;
+  --input: #dedcd1;
+  --sidebar: #f5f4ed;
+  --sidebar-foreground: #3d3d3a;
+  --sidebar-muted-foreground: #73726c;
+  --sidebar-control-surface: #ebe9e0;
+  --sidebar-row-hover: #eeece4;
+  --sidebar-row-active: #e8e6dc;
+  --sidebar-row-selected: #e8e6dc;
+  --sidebar-border: #e8e6dc;
   --sidebar-stage-fade: var(--sidebar);
 
   @variant dark {
-    --background: #000;
-    --foreground: #f1f3f7;
-    --card: #000;
+    --background: #262624;
+    --foreground: #ece9e1;
+    --card: #1f1e1d;
     --card-foreground: var(--foreground);
-    --accent: #191a1d;
-    --accent-foreground: #f7f9ff;
-    --muted: #0a0a0a;
-    --muted-foreground: #a3a3a3;
-    --border: rgb(255 255 255 / 8%);
-    --input: rgb(255 255 255 / 18%);
-    --sidebar: var(--card);
+    --accent: #2a2a28;
+    --accent-foreground: #faf9f5;
+    --muted: #1f1e1d;
+    --muted-foreground: #a6a39a;
+    --border: #2f2e2c;
+    --input: #4a4945;
+    --sidebar: #1f1e1d;
     --sidebar-foreground: var(--foreground);
     --sidebar-muted-foreground: var(--muted-foreground);
-    --sidebar-control-surface: var(--muted);
-    --sidebar-row-hover: color-mix(in srgb, var(--contrast-foreground) 8%, transparent);
-    --sidebar-row-active: color-mix(in srgb, var(--contrast-foreground) 11%, transparent);
-    --sidebar-row-selected: color-mix(in srgb, var(--contrast-foreground) 7%, transparent);
+    --sidebar-control-surface: #2a2a28;
+    --sidebar-row-hover: #2a2a28;
+    --sidebar-row-active: #30302e;
+    --sidebar-row-selected: #30302e;
     --sidebar-border: var(--border);
-    --sidebar-stage-fade: var(--card);
-    /* Row metadata sits a step below read titles (75% white). */
-    --secondary-label: #8f8f8f;
+    --sidebar-stage-fade: var(--sidebar);
+    --secondary-label: #8f8c84;
   }
 }
 
@@ -1768,6 +1774,12 @@ body {
 :root {
   --surface-grain: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
   --surface-grain-size: 256px 256px;
+}
+
+/* The default warm palette is a flat, quiet paper surface with no grain. */
+html:not([data-theme-id]),
+html[data-theme-id=""] {
+  --surface-grain: none;
 }
 
 /* The live T3 Chat texture is a 128px grayscale tile with a constant 7/255
@@ -2568,4 +2580,92 @@ code {
 [data-workspace-area]:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: -2px;
+}
+
+/* -------------------------------------------------------------------------
+   Conversational feel
+   Make the chat read like a conversation rather than a console: a serif
+   reading face for replies, generous line height, a soft floating composer
+   and gentle selection colours. Code, diffs and terminals keep their
+   monospace face.
+   ------------------------------------------------------------------------- */
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background-color: color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+[data-message-role="assistant"] .chat-markdown {
+  font-family: var(--font-reading);
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  font-optical-sizing: auto;
+  letter-spacing: 0.002em;
+}
+
+[data-message-role="assistant"] .chat-markdown :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--font-reading);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+[data-message-role="assistant"] .chat-markdown :is(p, ul, ol, blockquote) {
+  margin: 0.85rem 0;
+}
+
+[data-message-role="assistant"] .chat-markdown li + li {
+  margin-top: 0.3rem;
+}
+
+/* UI chrome inside a reply (tables, code headers, chips) stays in the interface face. */
+[data-message-role="assistant"] .chat-markdown :is(table, .chat-markdown-codeblock-header, button) {
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+[data-message-role="assistant"] .chat-markdown :is(pre, code, kbd, samp) {
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+}
+
+[data-message-role="assistant"] .chat-markdown :not(pre) > code {
+  font-size: 0.85em;
+}
+
+[data-message-role="assistant"] .chat-markdown blockquote {
+  border-inline-start-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+}
+
+/* User turns: a roomier parchment bubble in the interface face. */
+[data-message-role="user"] .chat-markdown {
+  line-height: 1.6;
+}
+
+/* The composer floats like a card on paper rather than a docked prompt line. */
+html:not([data-theme-id]) [data-slot="composer-host"],
+html[data-theme-id=""] [data-slot="composer-host"] {
+  box-shadow:
+    0 0.25rem 1.25rem rgb(41 38 27 / 4%),
+    0 0 0 0.5px rgb(41 38 27 / 6%);
+}
+
+html.dark:not([data-theme-id]) [data-slot="composer-host"],
+html.dark[data-theme-id=""] [data-slot="composer-host"] {
+  box-shadow:
+    0 0.25rem 1.5rem rgb(0 0 0 / 22%),
+    0 0 0 0.5px rgb(255 255 255 / 6%);
+}
+
+[data-slot="composer-host"]:focus-within {
+  --chat-composer-outline: color-mix(in srgb, var(--primary) 18%, var(--input));
+}
+
+.composer-tiptap {
+  line-height: 1.6;
 }

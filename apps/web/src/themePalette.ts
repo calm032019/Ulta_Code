@@ -396,18 +396,15 @@ function legacyThemeMode(theme: ThemePreference): ThemeAppearance | null {
 
 export function getStandardThemeColors(appearance: ThemeAppearance): ThemeColors {
   if (appearance === "dark") {
-    return (standardDarkThemeColors ??= decodeThemeColors({
-      ...T3_CODE_DARK_THEME_COLORS,
-      canvas: "#000000",
-    }));
+    return (standardDarkThemeColors ??= decodeThemeColors(T3_CODE_DARK_THEME_COLORS));
   }
   return (standardLightThemeColors ??= decodeThemeColors(T3_CODE_LIGHT_THEME_COLORS));
 }
 
-// index.css paints the light bubble a step darker than the shared palette mobile uses.
+// index.css paints the standard theme with the same warm palette the shared colours use.
 const STANDARD_WEB_PAINTED_COLORS: Record<ThemeAppearance, Partial<ThemeColors>> = {
-  light: { messageSurface: "#ebebed" },
-  dark: { canvas: "#000000", messageSurface: "#1e1e1e" },
+  light: {},
+  dark: {},
 };
 
 /** The standard theme as index.css paints it, for solves that measure the page. */

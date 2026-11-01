@@ -51,6 +51,7 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { InlineButton } from "../ui/button";
 import { DraftProjectName } from "./DraftProjectName";
 import { DraftHeroProjectHeading } from "./DraftHeroProjectHeading";
+import { DraftHeroGreeting } from "./DraftHeroGreeting";
 import { TriageDraftHero } from "./TriageDraftHero";
 import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
 import { resolveProjectDefaultProviderModelSelection } from "../../providerInstances";
@@ -418,15 +419,11 @@ export function DraftHeroHeadline({
         <DraftHeroProjectHeading projectName={activeProjectDisplayName ?? "Choose a project"}>
           {projectSelector}
         </DraftHeroProjectHeading>
+      ) : isScratchDraft ? (
+        <DraftHeroGreeting />
       ) : (
-        <h1 className="w-full text-center font-normal text-2xl text-foreground tracking-tight sm:text-3xl">
-          {isScratchDraft ? (
-            <>What should we work on?</>
-          ) : canChooseProject ? (
-            <>{projectSelector} to start</>
-          ) : (
-            <>Add a project to start</>
-          )}
+        <h1 className="w-full text-center font-reading font-normal text-2xl text-foreground tracking-tight sm:text-3xl">
+          {canChooseProject ? <>{projectSelector} to start</> : <>Add a project to start</>}
         </h1>
       )}
       {scratchWorkspaceRoot === null ? null : (
