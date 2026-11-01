@@ -11,7 +11,9 @@ import {
   pullRequestSurfaceId,
   selectActiveRightPanel,
   selectActiveRightPanelSurface,
+  selectThreadPanelOpen,
   selectThreadPanelVisibility,
+  setThreadPanelInlineOpenByDefault,
   selectThreadRightPanelState,
   useRightPanelStore,
 } from "./rightPanelStore";
@@ -701,8 +703,24 @@ describe("rightPanelStore", () => {
       byThreadKey: {},
       threadPanelVisibilityByThreadKey: {
         "env-1:thread-A": { inlineOpen: false, popoverOpen: false },
+        "env-1:thread-B": { inlineOpen: true, popoverOpen: false },
       },
     });
+  });
+
+  it("keeps a thread's opened details card open when simple layout starts cards closed", () => {
+    setThreadPanelInlineOpenByDefault(false);
+    try {
+      const store = useRightPanelStore.getState();
+      expect(selectThreadPanelOpen({}, refA, "inline")).toBe(false);
+      store.setThreadPanelOpen(refA, "inline", true);
+      const visibility = useRightPanelStore.getState().threadPanelVisibilityByThreadKey;
+      expect(selectThreadPanelOpen(visibility, refA, "inline")).toBe(true);
+      useRightPanelStore.getState().setThreadPanelOpen(refA, "inline", false);
+      expect(useRightPanelStore.getState().threadPanelVisibilityByThreadKey).toEqual({});
+    } finally {
+      setThreadPanelInlineOpenByDefault(true);
+    }
   });
 
   it("closes the popover atomically when the real right panel opens", () => {

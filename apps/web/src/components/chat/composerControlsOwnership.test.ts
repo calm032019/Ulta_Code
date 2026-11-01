@@ -3,14 +3,14 @@ import { describe, expect, it } from "vite-plus/test";
 import { resolveComposerControlsOwnership } from "./composerControlsOwnership";
 
 const base = {
-  matchesDefault: true,
+  shownInStrip: true,
   planModeUiEnabled: false,
   collapsed: false,
   measuredHiddenBlockCount: 0,
 };
 
 describe("resolveComposerControlsOwnership", () => {
-  it("hides the chip at the default and lets the model picker answer composer.mode", () => {
+  it("hides the chip while the new-thread strip names the mode and lets the model picker answer composer.mode", () => {
     const result = resolveComposerControlsOwnership(base);
     expect(result).toMatchObject({
       accessDisplay: "hidden",
@@ -20,8 +20,8 @@ describe("resolveComposerControlsOwnership", () => {
     });
   });
 
-  it("shows a labelled chip that owns composer.mode when the mode differs", () => {
-    const result = resolveComposerControlsOwnership({ ...base, matchesDefault: false });
+  it("shows a labelled chip that owns composer.mode whenever the strip does not name the mode", () => {
+    const result = resolveComposerControlsOwnership({ ...base, shownInStrip: false });
     expect(result).toMatchObject({
       accessDisplay: "label",
       showModeBlock: true,
@@ -32,7 +32,7 @@ describe("resolveComposerControlsOwnership", () => {
   it("gives an overflowed chip's Permissions to the overflow menu when it has no Plan toggle", () => {
     const result = resolveComposerControlsOwnership({
       ...base,
-      matchesDefault: false,
+      shownInStrip: false,
       measuredHiddenBlockCount: 1,
     });
     expect(result.hiddenBlockIds).toEqual(["mode"]);
@@ -55,7 +55,7 @@ describe("resolveComposerControlsOwnership", () => {
   it("overflows only the chip when the Plan toggle gives the overflow menu content", () => {
     const result = resolveComposerControlsOwnership({
       ...base,
-      matchesDefault: false,
+      shownInStrip: false,
       planModeUiEnabled: true,
       measuredHiddenBlockCount: 1,
     });
@@ -68,7 +68,7 @@ describe("resolveComposerControlsOwnership", () => {
   it("shows the non-default chip as an icon in the compacted row", () => {
     const result = resolveComposerControlsOwnership({
       ...base,
-      matchesDefault: false,
+      shownInStrip: false,
       collapsed: true,
     });
     expect(result.accessDisplay).toBe("icon");

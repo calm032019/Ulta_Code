@@ -25,6 +25,7 @@ import { EnvironmentId, MessageId, RunId } from "@t3tools/contracts";
 import { serializeAssistantCitation } from "@t3tools/shared/assistantCitations";
 import {
   computeStableMessagesTimelineRows,
+  deriveLastActivityAt,
   deriveMessagesTimelineRows,
   timelineTurnFoldRunIdsByEntryId,
   deriveMessagesTimelineRowsWithState,
@@ -4341,6 +4342,40 @@ describe("subagent continued by a later turn", () => {
       `turn-fold:${run2}`,
       "closing-2",
     ]);
+  });
+});
+
+describe("deriveLastActivityAt", () => {
+  const message = (id: string, createdAt: string, streaming: boolean): TimelineEntry => ({
+    kind: "message",
+    id,
+    createdAt,
+    message: {
+      id: MessageId.make(id),
+      role: "assistant",
+      text: "…",
+      runId: null,
+      streaming,
+      createdAt,
+      updatedAt: createdAt,
+    },
+  });
+
+  it("never reads a turn as quiet while a reply is streaming", () => {
+    const entries = [message("reply", "2026-11-01T10:00:05.000Z", true)];
+    expect(deriveLastActivityAt(entries, "2026-11-01T10:00:00.000Z")).toBeNull();
+  });
+
+  it("uses the newest entry, falling back to the turn start", () => {
+    const done = message("done", "2026-11-01T10:02:00.000Z", false);
+    expect(deriveLastActivityAt([done], "2026-11-01T10:00:00.000Z")).toBe(
+      "2026-11-01T10:02:00.000Z",
+    );
+    const entries = [message("old", "2026-11-01T09:00:00.000Z", false)];
+    expect(deriveLastActivityAt(entries, "2026-11-01T10:00:00.000Z")).toBe(
+      "2026-11-01T10:00:00.000Z",
+    );
+    expect(deriveLastActivityAt(entries, null)).toBeNull();
   });
 });
 

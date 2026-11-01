@@ -18,7 +18,8 @@ import { ComposerPrimaryActions } from "./ComposerPrimaryActions";
 import { ContextWindowMeter, ContextWindowMeterPlaceholder } from "./ContextWindowMeter";
 import { resolveModelPickerSelectedModel } from "./ModelPickerContent";
 import { ProviderModelPicker } from "./ProviderModelPicker";
-import { runtimeModeConfig } from "./runtimeModeConfig";
+import { cn } from "~/lib/utils";
+import { runtimeModeConfig, runtimeModeToneClassName } from "./runtimeModeConfig";
 import { useComposerMenuState } from "./useComposerMenuState";
 
 export type RuntimeModeOption = { mode: RuntimeMode } & (typeof runtimeModeConfig)[RuntimeMode];
@@ -33,10 +34,8 @@ export const ComposerFooterModeControls = memo(function ComposerFooterModeContro
   runtimeModeOptions: ReadonlyArray<RuntimeModeOption>;
   size?: "sm" | "xs";
   hidden?: boolean;
-  /** How the permissions chip shows: hidden while the thread matches the user's default. */
+  /** How the permissions chip shows: hidden only while the new-thread strip names the mode. */
   accessDisplay?: "label" | "icon" | "hidden";
-  /** Draw the icon in the label color, not muted (the mode differs from the user's default). */
-  emphasized?: boolean;
   onToggleInteractionMode: () => void;
   onRuntimeModeChange: (mode: RuntimeMode) => void;
 }) {
@@ -113,19 +112,14 @@ export const ComposerFooterModeControls = memo(function ComposerFooterModeContro
                   data-composer-shortcut="composer.mode"
                   size={size}
                   // Mirrors the model trigger's trailing pe-1 so the gaps on both sides of the chip match.
-                  className="ps-1.5"
+                  className={cn("ps-1.5", runtimeModeToneClassName[props.runtimeMode])}
                   aria-label={`Permissions: ${runtimeModeOption.label}`}
                 />
               }
             />
           }
         >
-          <ComposerControlIcon
-            icon={RuntimeModeIcon}
-            size={size}
-            // Match the label, not full foreground: the chip's presence already marks the mode.
-            {...(props.emphasized ? { className: "text-current" } : {})}
-          />
+          <ComposerControlIcon icon={RuntimeModeIcon} size={size} className="text-current" />
           <span
             data-composer-control-label
             className={accessDisplay === "icon" ? "sr-only" : undefined}

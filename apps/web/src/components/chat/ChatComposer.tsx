@@ -418,7 +418,6 @@ export interface ChatComposerProps {
   threadSyncPhase: ThreadSyncPhase | null;
 
   runtimeMode: RuntimeMode;
-  defaultRuntimeMode?: RuntimeMode;
   interactionMode: ProviderInteractionMode;
 
   lockedProvider: ProviderDriverKind | null;
@@ -2313,7 +2312,6 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       planModeUiEnabled={planModeUiEnabled}
       interactionMode={interactionMode}
       compatibleRuntimeMode={compatibleRuntimeMode}
-      defaultRuntimeMode={props.defaultRuntimeMode}
       compatibleRuntimeModeOptions={compatibleRuntimeModeOptions}
       toggleInteractionMode={toggleInteractionMode}
       handleRuntimeModeChange={handleRuntimeModeChange}

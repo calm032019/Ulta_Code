@@ -53,7 +53,7 @@ import {
   toolGroupSummaryIconName,
   workEntryIconName,
 } from "./TimelineWorkEntryRow.logic";
-import { formatWorkingTimerNow } from "./TimelineWorkGroupRows.logic";
+import { formatQuietTurnNow, formatWorkingTimerNow } from "./TimelineWorkGroupRows.logic";
 
 export const WorkGroupSection = memo(function WorkGroupSection({
   anchorKey,
@@ -110,6 +110,15 @@ export const WorkGroupSection = memo(function WorkGroupSection({
     </section>
   );
 });
+
+function QuietTurnNotice({ lastActivityAt }: { lastActivityAt: string }) {
+  return (
+    <span
+      ref={tickTextContent(() => formatQuietTurnNow(lastActivityAt), true)}
+      className="tabular-nums text-warning-foreground"
+    />
+  );
+}
 
 function WorkingTimer({ createdAt }: { createdAt: string }) {
   return (
@@ -287,6 +296,7 @@ export function WorkingTimelineRow({ row }: { row: Extract<TimelineRow, { kind: 
   ) : row.createdAt ? (
     <>
       Working for <WorkingTimer createdAt={row.createdAt} />
+      {row.lastActivityAt ? <QuietTurnNotice lastActivityAt={row.lastActivityAt} /> : null}
     </>
   ) : (
     "Working..."

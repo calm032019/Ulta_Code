@@ -348,6 +348,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["reasoning effort thinking bars graph word label level composer"],
   },
   {
+    id: "simple-layout",
+    title: "Simple layout",
+    to: "/settings/appearance",
+    searchTerms: ["calm minimal clean declutter thread details card minimap focus"],
+  },
+  {
     id: "math-rendering",
     title: "Render math",
     to: "/settings/appearance",

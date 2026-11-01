@@ -1,4 +1,5 @@
 import { threadEnvironment } from "../../state/threads";
+import { useClientSettings } from "../../hooks/useSettings";
 import { useAtomCommand } from "../../state/use-atom-command";
 import type { ToolCallDiffTarget } from "../../diffPanelStore";
 import { AudioPreviewUnmountContext } from "../files/AudioPreview";
@@ -404,6 +405,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
   topFadeEnabled = false,
   historyControls,
 }: MessagesTimelineProps) {
+  const simpleLayoutEnabled = useClientSettings((settings) => settings.simpleLayoutEnabled);
   const listIdentityKey = displayThreadKey ?? routeThreadKey;
   // Snapshot restore positions on identity changes; ongoing scroll writes must not move them.
   // Find open at the opening is part of the snapshot: opening find later
@@ -1363,22 +1365,24 @@ const ConversationTimeline = memo(function ConversationTimeline({
               ListHeaderComponent={listHeader}
               ListFooterComponent={timelineListFooter}
             />
-            <TimelineMinimap
-              items={minimapItems}
-              hasPersistentGutter={minimapHasPersistentGutter}
-              hitStripWidth={minimapHitStripWidth}
-              currentIndex={minimapCurrentIndex}
-              stripMap={minimapStripMap}
-              onWheel={forwardMinimapWheel}
-              onSelect={(item) => {
-                navigateTimeline();
-                void listRef.current?.scrollToIndex({
-                  index: item.rowIndex,
-                  animated: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-                  viewOffset: 24,
-                });
-              }}
-            />
+            {simpleLayoutEnabled ? null : (
+              <TimelineMinimap
+                items={minimapItems}
+                hasPersistentGutter={minimapHasPersistentGutter}
+                hitStripWidth={minimapHitStripWidth}
+                currentIndex={minimapCurrentIndex}
+                stripMap={minimapStripMap}
+                onWheel={forwardMinimapWheel}
+                onSelect={(item) => {
+                  navigateTimeline();
+                  void listRef.current?.scrollToIndex({
+                    index: item.rowIndex,
+                    animated: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+                    viewOffset: 24,
+                  });
+                }}
+              />
+            )}
           </TooltipScrollDismissArea>
         </TimelineRowActivityCtx>
       </MarkdownFindContext>

@@ -200,10 +200,20 @@ const EMPTY_THREAD_STATE: ThreadRightPanelState = {
   surfaces: [],
 };
 
-const DEFAULT_THREAD_PANEL_VISIBILITY: ThreadPanelVisibility = {
+// Threads store only how they differ from this; simple layout flips the card to start closed.
+let defaultThreadPanelVisibility: ThreadPanelVisibility = {
   inlineOpen: true,
   popoverOpen: false,
 };
+
+export function setThreadPanelInlineOpenByDefault(inlineOpen: boolean): void {
+  if (defaultThreadPanelVisibility.inlineOpen === inlineOpen) return;
+  defaultThreadPanelVisibility = { inlineOpen, popoverOpen: false };
+  // A fresh map makes subscribed selectors re-read the default.
+  useRightPanelStore.setState((state) => ({
+    threadPanelVisibilityByThreadKey: { ...state.threadPanelVisibilityByThreadKey },
+  }));
+}
 
 const singletonSurface = (
   kind: Exclude<RightPanelKind, "file" | "preview" | "terminal" | "pull-request" | "side-chat">,
@@ -331,9 +341,9 @@ const updateThreadPanelVisibilityMap = (
   threadKey: string,
   updater: (current: ThreadPanelVisibility) => ThreadPanelVisibility,
 ): Record<string, ThreadPanelVisibility> => {
-  const current = byThreadKey[threadKey] ?? DEFAULT_THREAD_PANEL_VISIBILITY;
+  const current = byThreadKey[threadKey] ?? defaultThreadPanelVisibility;
   const next = updater(current);
-  if (next.inlineOpen && !next.popoverOpen) {
+  if (next.inlineOpen === defaultThreadPanelVisibility.inlineOpen && !next.popoverOpen) {
     if (!(threadKey in byThreadKey)) return byThreadKey;
     const { [threadKey]: _removed, ...rest } = byThreadKey;
     return rest;
@@ -605,8 +615,8 @@ export function migratePersistedRightPanelState(persistedState: unknown): {
             persistedState.threadPanelVisibilityByThreadKey as Record<string, unknown>,
           ).flatMap(([threadKey, value]) => {
             if (!value || typeof value !== "object" || !("inlineOpen" in value)) return [];
-            return value.inlineOpen === false
-              ? [[threadKey, { inlineOpen: false, popoverOpen: false }]]
+            return typeof value.inlineOpen === "boolean"
+              ? [[threadKey, { inlineOpen: value.inlineOpen, popoverOpen: false }]]
               : [];
           }),
         )
@@ -1162,10 +1172,11 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
           ),
         ),
         threadPanelVisibilityByThreadKey: Object.fromEntries(
-          Object.entries(state.threadPanelVisibilityByThreadKey).flatMap(
-            ([threadKey, visibility]) =>
-              visibility.inlineOpen ? [] : [[threadKey, { inlineOpen: false, popoverOpen: false }]],
-          ),
+          // Entries exist only where a thread differs from the default, so each is a real choice.
+          Object.entries(state.threadPanelVisibilityByThreadKey).map(([threadKey, visibility]) => [
+            threadKey,
+            { inlineOpen: visibility.inlineOpen, popoverOpen: false },
+          ]),
         ),
       }),
       migrate: migratePersistedRightPanelState,
@@ -1211,8 +1222,8 @@ export function selectThreadPanelVisibility(
   byThreadKey: Record<string, ThreadPanelVisibility>,
   ref: ScopedThreadRef | null | undefined,
 ): ThreadPanelVisibility {
-  if (!ref) return DEFAULT_THREAD_PANEL_VISIBILITY;
-  return byThreadKey[scopedThreadKey(ref)] ?? DEFAULT_THREAD_PANEL_VISIBILITY;
+  if (!ref) return defaultThreadPanelVisibility;
+  return byThreadKey[scopedThreadKey(ref)] ?? defaultThreadPanelVisibility;
 }
 
 export function selectThreadPanelOpen(

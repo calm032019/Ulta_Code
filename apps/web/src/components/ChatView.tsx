@@ -3651,7 +3651,6 @@ export default function ChatView(props: ChatViewProps) {
                                 activeEnvironmentUnavailable ? null : threadSyncPhase
                               }
                               runtimeMode={runtimeMode}
-                              defaultRuntimeMode={defaultRuntimeMode}
                               interactionMode={interactionMode}
                               lockedProvider={modelPickerLockedProvider}
                               providerStatuses={providerStatuses as ServerProvider[]}

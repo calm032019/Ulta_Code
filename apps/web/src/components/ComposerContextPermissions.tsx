@@ -4,7 +4,8 @@ import { useAtomValue } from "@effect/atom-react";
 import { shortcutLabelForCommand } from "../keybindings";
 import { primaryServerKeybindingsAtom } from "../state/server";
 import { ComposerControl } from "./chat/ComposerControl";
-import { runtimeModeConfig } from "./chat/runtimeModeConfig";
+import { runtimeModeConfig, runtimeModeToneClassName } from "./chat/runtimeModeConfig";
+import { cn } from "~/lib/utils";
 import { ComposerContextLabel } from "./ComposerContextLabel";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 
@@ -24,7 +25,7 @@ export function ComposerContextPermissions(props: {
         render={
           <ComposerControl
             size="xs"
-            className="ms-auto min-w-0 shrink-0"
+            className={cn("ms-auto min-w-0 shrink-0", runtimeModeToneClassName[props.runtimeMode])}
             aria-label={`Permissions: ${label}`}
             aria-haspopup="menu"
             data-composer-context-control

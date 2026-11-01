@@ -324,6 +324,31 @@ export function AppearanceSettingsPanel() {
           }
         />
         <SettingsRow
+          {...searchableSetting("simple-layout")}
+          description="Start threads with the details card closed and hide the timeline minimap. The card button and its shortcut still open it."
+          resetAction={
+            settings.simpleLayoutEnabled !== DEFAULT_UNIFIED_SETTINGS.simpleLayoutEnabled ? (
+              <SettingResetButton
+                label="simple layout"
+                onClick={() =>
+                  updateSettings({
+                    simpleLayoutEnabled: DEFAULT_UNIFIED_SETTINGS.simpleLayoutEnabled,
+                  })
+                }
+              />
+            ) : null
+          }
+          control={
+            <Switch
+              checked={settings.simpleLayoutEnabled}
+              onCheckedChange={(checked) =>
+                updateSettings({ simpleLayoutEnabled: Boolean(checked) })
+              }
+              aria-label="Simple layout"
+            />
+          }
+        />
+        <SettingsRow
           {...searchableSetting("math-rendering")}
           description="Typeset LaTeX math, such as $x^2$ or \[x^2\], in messages and Markdown previews. The composer keeps TeX source editable."
           resetAction={

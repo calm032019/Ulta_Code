@@ -528,6 +528,8 @@ type MessagesTimelineRowContent =
       kind: "working";
       id: string;
       createdAt: string | null;
+      /** Newest sign of life in the active turn, so a quiet turn can say so instead of spinning. */
+      lastActivityAt?: string;
       /** A running compaction owns the working row, so its divider appears only once it ends. */
       compacting?: true;
     }
@@ -679,6 +681,23 @@ export function resolveAssistantMessageCopyState({
     text: hasText ? (visible ? renderCodexDirectivesForCopy(text) : text) : null,
     visible,
   };
+}
+
+/**
+ * When the active turn last showed new activity, or null when it is visibly active (a reply is
+ * streaming) or has not started. Uses creation times only, so streamed chunks keep rows stable.
+ */
+export function deriveLastActivityAt(
+  timelineEntries: ReadonlyArray<TimelineEntry>,
+  turnStartedAt: string | null,
+): string | null {
+  if (turnStartedAt === null) return null;
+  let latest = turnStartedAt;
+  for (const entry of timelineEntries) {
+    if (entry.kind === "message" && entry.message.streaming) return null;
+    if (entry.createdAt > latest) latest = entry.createdAt;
+  }
+  return latest;
 }
 
 function deriveTerminalAssistantMessageIds(timelineEntries: ReadonlyArray<TimelineEntry>) {
@@ -1650,6 +1669,10 @@ export function deriveMessagesTimelineRows(input: {
   const activeCompactionRunId = compactsOnReturn
     ? runningCompactionRunId
     : (resumeCompactionEntry?.entry.runId ?? null);
+  const lastActivityAt =
+    input.isWorking && (input.pendingApprovalRequestIds?.size ?? 0) === 0
+      ? deriveLastActivityAt(input.timelineEntries, input.activeTurnStartedAt ?? null)
+      : null;
   const appendWorkingRow = () => {
     if (compactionOnlyRunFinished) return;
     if (runningCompactionRunId !== null && activeCompactionRunId === null) return;
@@ -1661,6 +1684,7 @@ export function deriveMessagesTimelineRows(input: {
         input.activeTurnStartedAt ??
         null,
       ...(activeCompactionRunId !== null ? { compacting: true as const } : {}),
+      ...(lastActivityAt !== null ? { lastActivityAt } : {}),
     });
   };
   let hasActivityRow = false;
@@ -2390,7 +2414,9 @@ function isRowUnchanged(a: MessagesTimelineRow, b: MessagesTimelineRow): boolean
   switch (a.kind) {
     case "working":
       return (
-        a.createdAt === (b as typeof a).createdAt && a.compacting === (b as typeof a).compacting
+        a.createdAt === (b as typeof a).createdAt &&
+        a.compacting === (b as typeof a).compacting &&
+        a.lastActivityAt === (b as typeof a).lastActivityAt
       );
     case "thinking": {
       const bt = b as typeof a;

@@ -58,7 +58,6 @@ export function ComposerControlsBar(props: {
   permissionsShownInStrip: boolean;
   interactionMode: ProviderInteractionMode;
   compatibleRuntimeMode: RuntimeMode;
-  defaultRuntimeMode: RuntimeMode | undefined;
   compatibleRuntimeModeOptions: ReadonlyArray<RuntimeModeOption>;
   toggleInteractionMode: () => void;
   handleRuntimeModeChange: (mode: RuntimeMode) => void;
@@ -106,7 +105,6 @@ export function ComposerControlsBar(props: {
     planModeUiEnabled,
     interactionMode,
     compatibleRuntimeMode,
-    defaultRuntimeMode,
     compatibleRuntimeModeOptions,
     toggleInteractionMode,
     handleRuntimeModeChange,
@@ -137,7 +135,6 @@ export function ComposerControlsBar(props: {
     modelPickerIconClassName,
     getModelDisabledReason,
   } = props;
-  const accessMatchesDefault = compatibleRuntimeMode === defaultRuntimeMode;
   const {
     accessDisplay,
     showModeBlock,
@@ -146,7 +143,7 @@ export function ComposerControlsBar(props: {
     overflowShowsPermissions,
     pickerOwnsModeShortcut,
   } = resolveComposerControlsOwnership({
-    matchesDefault: accessMatchesDefault || props.permissionsShownInStrip,
+    shownInStrip: props.permissionsShownInStrip,
     planModeUiEnabled,
     collapsed: composerControlsCollapsed,
     measuredHiddenBlockCount,
@@ -179,7 +176,6 @@ export function ComposerControlsBar(props: {
               size={controlSize}
               hidden={composerControlsHidden || restingHiddenBlockCount > 0}
               accessDisplay={accessDisplay}
-              emphasized={!accessMatchesDefault}
               onToggleInteractionMode={toggleInteractionMode}
               onRuntimeModeChange={handleRuntimeModeChange}
             />
