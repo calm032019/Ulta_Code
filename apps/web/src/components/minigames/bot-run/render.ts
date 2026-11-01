@@ -288,6 +288,98 @@ function roundedRect(
   context.closePath();
 }
 
+interface GlowSprite {
+  readonly image: HTMLCanvasElement;
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+}
+
+interface RenderCache {
+  readonly gradients: Map<string, CanvasGradient>;
+  readonly glows: Map<string, GlowSprite>;
+}
+
+const CACHE_LIMIT = 64;
+const caches = new WeakMap<Palette, RenderCache>();
+
+function cacheFor(palette: Palette): RenderCache {
+  let cache = caches.get(palette);
+  if (!cache) {
+    cache = { gradients: new Map(), glows: new Map() };
+    caches.set(palette, cache);
+  }
+  return cache;
+}
+
+function remember<T>(map: Map<string, T>, key: string, make: () => T): T {
+  const hit = map.get(key);
+  if (hit) return hit;
+  if (map.size >= CACHE_LIMIT) map.clear();
+  const value = make();
+  map.set(key, value);
+  return value;
+}
+
+function gradient(
+  context: CanvasRenderingContext2D,
+  palette: Palette,
+  key: string,
+  make: (context: CanvasRenderingContext2D) => CanvasGradient,
+): CanvasGradient {
+  return remember(cacheFor(palette).gradients, key, () => make(context));
+}
+
+/**
+ * Pre-renders the shadowBlur halo `trace` would cast, so frames blit an image instead of
+ * blurring. `scale` is the device pixels per unit, since shadowBlur ignores the transform.
+ */
+function glow(
+  palette: Palette,
+  key: string,
+  scale: number,
+  box: Rect,
+  style: {
+    readonly color: string;
+    readonly blur: number;
+    readonly fill: string;
+    readonly dy?: number;
+  },
+  trace: (context: CanvasRenderingContext2D) => void,
+): GlowSprite {
+  return remember(cacheFor(palette).glows, `${key}@${scale}`, () => {
+    const dy = style.dy ?? 0;
+    const pad = Math.ceil(style.blur * 1.5 + Math.abs(dy)) + 2;
+    const image = document.createElement("canvas");
+    image.width = Math.ceil(box.w * scale) + pad * 2;
+    image.height = Math.ceil(box.h * scale) + pad * 2;
+    const context = image.getContext("2d");
+    if (context) {
+      const away = image.width + image.height;
+      context.setTransform(scale, 0, 0, scale, pad - box.x * scale - away, pad - box.y * scale);
+      context.shadowColor = style.color;
+      context.shadowBlur = style.blur;
+      context.shadowOffsetX = away;
+      context.shadowOffsetY = dy;
+      context.fillStyle = style.fill;
+      trace(context);
+      context.fill();
+    }
+    return {
+      image,
+      x: box.x - pad / scale,
+      y: box.y - pad / scale,
+      w: image.width / scale,
+      h: image.height / scale,
+    };
+  });
+}
+
+function drawGlow(context: CanvasRenderingContext2D, sprite: GlowSprite, x: number, y: number) {
+  context.drawImage(sprite.image, x + sprite.x, y + sprite.y, sprite.w, sprite.h);
+}
+
 function duskAmount(state: RunState): number {
   const t = Math.min(1, state.distance / DUSK_DISTANCE);
   return t * t * (3 - 2 * t);
@@ -304,16 +396,20 @@ function drawBackdrop(
 ): void {
   const dusk = duskAmount(state);
   const step = Math.round(dusk * DUSK_STEPS);
-  const sky = context.createLinearGradient(0, 0, 0, groundY);
-  sky.addColorStop(0, palette.skyTop[step]!);
-  sky.addColorStop(1, palette.skyBottom[step]!);
-  context.fillStyle = sky;
+  context.fillStyle = gradient(context, palette, `sky:${groundY}:${step}`, (c) => {
+    const sky = c.createLinearGradient(0, 0, 0, groundY);
+    sky.addColorStop(0, palette.skyTop[step]!);
+    sky.addColorStop(1, palette.skyBottom[step]!);
+    return sky;
+  });
   context.fillRect(0, 0, width, height);
 
-  const horizon = context.createLinearGradient(0, groundY * 0.45, 0, groundY);
-  horizon.addColorStop(0, palette.horizonClear);
-  horizon.addColorStop(1, palette.horizonGlow);
-  context.fillStyle = horizon;
+  context.fillStyle = gradient(context, palette, `horizon:${groundY}`, (c) => {
+    const horizon = c.createLinearGradient(0, groundY * 0.45, 0, groundY);
+    horizon.addColorStop(0, palette.horizonClear);
+    horizon.addColorStop(1, palette.horizonGlow);
+    return horizon;
+  });
   context.fillRect(0, groundY * 0.45, width, groundY * 0.55);
 
   if (palette.stars) {
@@ -330,18 +426,24 @@ function drawBackdrop(
 
   const sunX = width * 0.74;
   const sunY = groundY * (0.36 + dusk * 0.3);
-  const glow = context.createRadialGradient(sunX, sunY, 6, sunX, sunY, 46);
-  glow.addColorStop(0, palette.sunGlow);
-  glow.addColorStop(1, palette.sunGlowClear);
-  context.fillStyle = glow;
-  context.fillRect(sunX - 46, sunY - 46, 92, 92);
-  const disc = context.createRadialGradient(sunX - 3, sunY - 3, 1, sunX, sunY, 13);
-  disc.addColorStop(0, palette.sunCore);
-  disc.addColorStop(1, palette.sun);
-  context.fillStyle = disc;
+  context.translate(sunX, sunY);
+  context.fillStyle = gradient(context, palette, "sun-glow", (c) => {
+    const halo = c.createRadialGradient(0, 0, 6, 0, 0, 46);
+    halo.addColorStop(0, palette.sunGlow);
+    halo.addColorStop(1, palette.sunGlowClear);
+    return halo;
+  });
+  context.fillRect(-46, -46, 92, 92);
+  context.fillStyle = gradient(context, palette, "sun-disc", (c) => {
+    const disc = c.createRadialGradient(-3, -3, 1, 0, 0, 13);
+    disc.addColorStop(0, palette.sunCore);
+    disc.addColorStop(1, palette.sun);
+    return disc;
+  });
   context.beginPath();
-  context.arc(sunX, sunY, 13, 0, Math.PI * 2);
+  context.arc(0, 0, 13, 0, Math.PI * 2);
   context.fill();
+  context.translate(-sunX, -sunY);
 
   const scroll = state.distance;
   const cloudShift = scroll * 0.12 + (fx.reducedMotion ? 0 : fx.time * 0.006);
@@ -459,10 +561,12 @@ function drawGround(
   height: number,
   groundY: number,
 ): void {
-  const ground = context.createLinearGradient(0, groundY, 0, height);
-  ground.addColorStop(0, palette.groundTop);
-  ground.addColorStop(1, palette.groundBottom);
-  context.fillStyle = ground;
+  context.fillStyle = gradient(context, palette, `ground:${groundY}:${height}`, (c) => {
+    const ground = c.createLinearGradient(0, groundY, 0, height);
+    ground.addColorStop(0, palette.groundTop);
+    ground.addColorStop(1, palette.groundBottom);
+    return ground;
+  });
   context.fillRect(0, groundY, width, height - groundY);
 
   context.fillStyle = palette.groundLine;
@@ -621,6 +725,7 @@ function drawBug(
   obstacle: Obstacle,
   groundY: number,
   fx: Fx,
+  scale: number,
 ): void {
   const cx = obstacle.x + obstacle.w / 2 + 1;
   const bob = fx.reducedMotion ? 0 : Math.sin(fx.time * 0.008 + obstacle.x * 0.05) * 1.2;
@@ -640,17 +745,33 @@ function drawBug(
   context.quadraticCurveTo(cx - 8, cy - 8, cx - 10, cy - 9);
   context.stroke();
 
-  context.save();
-  context.shadowColor = palette.bugGlow;
-  context.shadowBlur = 8;
-  const shell = context.createLinearGradient(cx, cy - 5, cx, cy + 5);
-  shell.addColorStop(0, palette.bugLight);
-  shell.addColorStop(1, palette.bugDark);
-  context.fillStyle = shell;
-  context.beginPath();
-  context.ellipse(cx + 1, cy, 7.5, 5, 0, 0, Math.PI * 2);
+  const traceShell = (c: CanvasRenderingContext2D) => {
+    c.beginPath();
+    c.ellipse(1, 0, 7.5, 5, 0, 0, Math.PI * 2);
+  };
+  drawGlow(
+    context,
+    glow(
+      palette,
+      "bug",
+      scale,
+      { x: -6.5, y: -5, w: 15, h: 10 },
+      { color: palette.bugGlow, blur: 8, fill: palette.bugLight },
+      traceShell,
+    ),
+    cx,
+    cy,
+  );
+  context.translate(cx, cy);
+  context.fillStyle = gradient(context, palette, "bug-shell", (c) => {
+    const shell = c.createLinearGradient(0, -5, 0, 5);
+    shell.addColorStop(0, palette.bugLight);
+    shell.addColorStop(1, palette.bugDark);
+    return shell;
+  });
+  traceShell(context);
   context.fill();
-  context.restore();
+  context.translate(-cx, -cy);
 
   context.fillStyle = palette.bugDark;
   context.beginPath();
@@ -693,6 +814,7 @@ function drawObstacle(
   obstacle: Obstacle,
   groundY: number,
   fx: Fx,
+  scale: number,
 ): void {
   const top = groundY - obstacle.y - obstacle.h;
   switch (obstacle.kind) {
@@ -721,7 +843,7 @@ function drawObstacle(
       context.globalAlpha = 0.5;
       drawContactShadow(context, palette, obstacle.x + obstacle.w / 2, groundY, 12);
       context.globalAlpha = 1;
-      drawBug(context, palette, obstacle, groundY, fx);
+      drawBug(context, palette, obstacle, groundY, fx, scale);
   }
 }
 
@@ -731,6 +853,7 @@ function drawEyes(
   positions: ReadonlyArray<readonly [number, number]>,
   dead: boolean,
   blink: boolean,
+  scale: number,
 ): void {
   if (dead) {
     context.strokeStyle = palette.eye;
@@ -745,16 +868,21 @@ function drawEyes(
     context.stroke();
     return;
   }
-  context.save();
-  context.shadowColor = palette.eyeGlow;
-  context.shadowBlur = 6;
-  context.fillStyle = palette.eye;
   const h = blink ? 0.8 : 4.6;
+  const halo = glow(
+    palette,
+    `eye:${h}`,
+    scale,
+    { x: -1.5, y: -h / 2, w: 3, h },
+    { color: palette.eyeGlow, blur: 6, fill: palette.eye },
+    (c) => roundedRect(c, -1.5, -h / 2, 3, h, 1.5),
+  );
+  context.fillStyle = palette.eye;
   for (const [x, y] of positions) {
+    drawGlow(context, halo, x, y);
     roundedRect(context, x - 1.5, y - h / 2, 3, h, 1.5);
     context.fill();
   }
-  context.restore();
 }
 
 function drawTail(
@@ -793,6 +921,7 @@ function drawRobot(
   fx: Fx,
   palette: Palette,
   groundY: number,
+  scale: number,
 ): void {
   const dead = state.phase === "over";
   const blink = isBlinking(fx) && !dead;
@@ -848,20 +977,34 @@ function drawRobot(
   context.moveTo(antennaBaseX, bodyTop + 1);
   context.quadraticCurveTo(antennaBaseX, bodyTop - 3, tipX, tipY);
   context.stroke();
-  context.save();
-  context.shadowColor = palette.eyeGlow;
-  context.shadowBlur = 5;
+  const traceTip = (c: CanvasRenderingContext2D, x: number, y: number) => {
+    c.beginPath();
+    c.arc(x, y, 2.3, 0, Math.PI * 2);
+  };
+  drawGlow(
+    context,
+    glow(
+      palette,
+      "antenna",
+      scale,
+      { x: -2.3, y: -2.3, w: 4.6, h: 4.6 },
+      { color: palette.eyeGlow, blur: 5, fill: palette.hot },
+      (c) => traceTip(c, 0, 0),
+    ),
+    tipX,
+    tipY,
+  );
   context.fillStyle = palette.hot;
-  context.beginPath();
-  context.arc(tipX, tipY, 2.3, 0, Math.PI * 2);
+  traceTip(context, tipX, tipY);
   context.fill();
-  context.restore();
 
-  const body = context.createLinearGradient(0, bodyTop, 0, bodyTop + bodyHeight);
-  body.addColorStop(0, palette.bodyTop);
-  body.addColorStop(1, palette.bodyBottom);
   roundedRect(context, bodyLeft, bodyTop, bodyWidth, bodyHeight, radius);
-  context.fillStyle = body;
+  context.fillStyle = gradient(context, palette, `body:${ducking}`, (c) => {
+    const body = c.createLinearGradient(0, bodyTop, 0, bodyTop + bodyHeight);
+    body.addColorStop(0, palette.bodyTop);
+    body.addColorStop(1, palette.bodyBottom);
+    return body;
+  });
   context.fill();
 
   context.save();
@@ -904,6 +1047,7 @@ function drawRobot(
         ],
     dead,
     blink,
+    scale,
   );
 
   if (!ducking) {
@@ -1107,14 +1251,22 @@ function drawCard(
   context.scale(grow, grow);
   context.translate(-width / 2, -height / 2);
 
-  context.save();
-  context.shadowColor = palette.panelShadow;
-  context.shadowBlur = 18;
-  context.shadowOffsetY = 4;
+  drawGlow(
+    context,
+    glow(
+      palette,
+      `panel:${panel.w}x${panel.h}`,
+      size.pixelRatio,
+      { x: 0, y: 0, w: panel.w, h: panel.h },
+      { color: palette.panelShadow, blur: 18, fill: palette.panel, dy: 4 },
+      (c) => roundedRect(c, 0, 0, panel.w, panel.h, 14),
+    ),
+    panel.x,
+    panel.y,
+  );
   roundedRect(context, panel.x, panel.y, panel.w, panel.h, 14);
   context.fillStyle = palette.panel;
   context.fill();
-  context.restore();
   context.strokeStyle = palette.pillBorder;
   context.lineWidth = 1;
   roundedRect(context, panel.x, panel.y, panel.w, panel.h, 14);
@@ -1296,6 +1448,7 @@ export function render(
   const groundY = view.height - GROUND_OFFSET;
   const shake = shakeOffset(fx);
   const ratio = size.pixelRatio;
+  const sceneScale = ratio * view.scale;
 
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
   context.fillStyle = palette.skyBottom[0]!;
@@ -1315,25 +1468,27 @@ export function render(
   drawGround(context, state, palette, view.width + 8, view.height + 8, groundY);
   for (const obstacle of state.obstacles) {
     if (obstacle.x < view.width + 10 && obstacle.x + obstacle.w > -10) {
-      drawObstacle(context, palette, obstacle, groundY, fx);
+      drawObstacle(context, palette, obstacle, groundY, fx, sceneScale);
     }
   }
-  drawRobot(context, state, fx, palette, groundY);
+  drawRobot(context, state, fx, palette, groundY, sceneScale);
   drawParticles(context, fx.particles, palette, groundY);
   drawSpeedLines(context, state, fx, palette, view.width, groundY);
 
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
-  const vignette = context.createRadialGradient(
-    size.width / 2,
-    size.height * 0.45,
-    Math.min(size.width, size.height) * 0.35,
-    size.width / 2,
-    size.height * 0.45,
-    Math.max(size.width, size.height) * 0.75,
-  );
-  vignette.addColorStop(0, palette.vignetteClear);
-  vignette.addColorStop(1, palette.vignette);
-  context.fillStyle = vignette;
+  context.fillStyle = gradient(context, palette, `vignette:${size.width}x${size.height}`, (c) => {
+    const vignette = c.createRadialGradient(
+      size.width / 2,
+      size.height * 0.45,
+      Math.min(size.width, size.height) * 0.35,
+      size.width / 2,
+      size.height * 0.45,
+      Math.max(size.width, size.height) * 0.75,
+    );
+    vignette.addColorStop(0, palette.vignetteClear);
+    vignette.addColorStop(1, palette.vignette);
+    return vignette;
+  });
   context.fillRect(0, 0, size.width, size.height);
 
   drawHud(context, state, fx, palette, size, ui, view.scale, groundY);
