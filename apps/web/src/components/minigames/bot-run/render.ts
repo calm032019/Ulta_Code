@@ -45,6 +45,9 @@ export interface Palette {
   readonly font: string;
   readonly skyTop: ReadonlyArray<string>;
   readonly skyBottom: ReadonlyArray<string>;
+  readonly horizonGlow: string;
+  readonly horizonClear: string;
+  readonly stars: string | null;
   readonly sun: string;
   readonly sunCore: string;
   readonly sunGlow: string;
@@ -135,72 +138,91 @@ export function normaliseTheme(theme: MiniGameTheme): MiniGameTheme {
   };
 }
 
+/** Scene art palette from the chosen palette image; HUD, text and buttons follow the app theme. */
+const SCENE = {
+  coral: "#c96567",
+  blush: "#e8ada0",
+  sage: "#b9d4c9",
+  teal: "#3c8e99",
+  navy: "#222f52",
+  peach: "#f6c9a8",
+  cream: "#fbf1e6",
+  sand: "#e8cfb0",
+  wood: "#c99a6b",
+  woodDark: "#8a5a3b",
+} as const;
+
 export function buildPalette(theme: MiniGameTheme, font: string): Palette {
+  const { coral, blush, sage, teal, navy, peach, cream, sand, wood, woodDark } = SCENE;
   const bg = theme.background;
-  const surface = theme.surface;
   const fg = theme.foreground;
+  const surface = theme.surface;
   const dark = luminance(bg) < 0.3;
   const hot =
     Math.abs(luminance(theme.accent) - luminance(bg)) > 0.08 ? theme.accent : theme.danger;
-  const ink = dark ? darken(bg, 0.55) : fg;
+  const night = (colour: string, amount: number) => mix(colour, navy, amount);
   const skyTop: string[] = [];
   const skyBottom: string[] = [];
   for (let index = 0; index <= DUSK_STEPS; index += 1) {
     const t = index / DUSK_STEPS;
-    skyTop.push(dark ? darken(bg, 0.25 + t * 0.2) : mix(bg, fg, 0.11 + t * 0.16));
-    skyBottom.push(mix(surface, hot, (dark ? 0.12 : 0.14) + t * 0.2));
+    skyTop.push(
+      dark ? mix(darken(navy, 0.3), darken(navy, 0.5), t) : mix(peach, mix(peach, coral, 0.45), t),
+    );
+    skyBottom.push(
+      dark
+        ? mix(mix(navy, teal, 0.35), mix(navy, coral, 0.3), t)
+        : mix(cream, mix(cream, blush, 0.6), t),
+    );
   }
-  const horizon = skyBottom[0]!;
-  const crate = dark
-    ? mix(mix(theme.secondary, hot, 0.5), fg, 0.12)
-    : mix(mix(theme.secondary, hot, 0.38), fg, 0.06);
-  const spoolFlange = dark ? mix(theme.secondary, fg, 0.3) : mix(theme.secondary, fg, 0.2);
-  const vignette = withAlpha(ink, dark ? 0.4 : 0.1);
+  const crate = dark ? night(wood, 0.3) : wood;
   return {
     font,
     skyTop,
     skyBottom,
-    sun: mix(surface, hot, dark ? 0.55 : 0.45),
-    sunCore: mix("#ffffff", hot, dark ? 0.2 : 0.12),
-    sunGlow: withAlpha(hot, dark ? 0.22 : 0.3),
-    sunGlowClear: withAlpha(hot, 0),
-    duskTint: hot,
-    cloud: dark ? mix(surface, fg, 0.14) : "#ffffff",
-    cloudShade: dark ? mix(surface, fg, 0.06) : mix(surface, fg, 0.12),
-    hillFar: mix(horizon, ink, dark ? 0.12 : 0.08),
-    skyline: mix(horizon, ink, dark ? 0.3 : 0.2),
-    windowLight: mix(hot, "#ffffff", 0.45),
-    hillNear: mix(mix(horizon, hot, 0.12), ink, dark ? 0.5 : 0.34),
-    mote: dark ? mix(fg, hot, 0.2) : mix(theme.muted, hot, 0.3),
-    groundTop: dark ? mix(bg, ink, 0.35) : mix(mix(bg, hot, 0.14), fg, 0.08),
-    groundBottom: dark ? mix(bg, ink, 0.6) : mix(mix(bg, hot, 0.18), fg, 0.2),
-    groundLine: dark ? mix(theme.muted, bg, 0.15) : mix(fg, bg, 0.3),
-    groundDot: dark ? theme.muted : mix(fg, bg, 0.45),
-    shadow: withAlpha(dark ? "#000000" : fg, dark ? 0.45 : 0.22),
-    outline: fg,
-    bodyTop: dark ? mix(surface, fg, 0.32) : "#ffffff",
-    bodyBottom: dark ? mix(surface, fg, 0.1) : mix(surface, fg, 0.14),
-    sheen: withAlpha("#ffffff", dark ? 0.45 : 1),
-    rim: withAlpha(hot, 0.7),
-    visor: dark ? darken(bg, 0.5) : mix(fg, "#000000", 0.15),
-    eye: mix(hot, "#ffffff", 0.5),
-    eyeGlow: withAlpha(hot, 0.9),
-    hot,
+    horizonGlow: withAlpha(peach, dark ? 0.32 : 0.45),
+    horizonClear: withAlpha(peach, 0),
+    stars: dark ? cream : null,
+    sun: dark ? mix(peach, coral, 0.25) : mix(peach, cream, 0.3),
+    sunCore: dark ? mix(peach, cream, 0.5) : "#ffffff",
+    sunGlow: withAlpha(dark ? peach : coral, dark ? 0.22 : 0.26),
+    sunGlowClear: withAlpha(dark ? peach : coral, 0),
+    duskTint: coral,
+    cloud: dark ? mix(navy, teal, 0.3) : "#ffffff",
+    cloudShade: dark ? darken(mix(navy, teal, 0.2), 0.2) : withAlpha(blush, 0.7),
+    hillFar: dark ? night(blush, 0.72) : mix(blush, cream, 0.4),
+    skyline: dark ? night(sage, 0.78) : mix(sage, cream, 0.25),
+    windowLight: peach,
+    hillNear: dark ? night(sage, 0.86) : mix(sand, wood, 0.3),
+    mote: dark ? peach : mix(coral, cream, 0.3),
+    groundTop: dark ? night(sand, 0.8) : sand,
+    groundBottom: dark ? night(sand, 0.9) : mix(sand, wood, 0.35),
+    groundLine: dark ? mix(cream, navy, 0.45) : navy,
+    groundDot: dark ? night(sand, 0.55) : mix(woodDark, sand, 0.35),
+    shadow: withAlpha(dark ? "#000000" : navy, dark ? 0.45 : 0.22),
+    outline: navy,
+    bodyTop: "#ffffff",
+    bodyBottom: mix("#ffffff", sage, 0.3),
+    sheen: withAlpha("#ffffff", 1),
+    rim: withAlpha(coral, 0.6),
+    visor: navy,
+    eye: mix(teal, "#ffffff", 0.45),
+    eyeGlow: withAlpha(teal, 0.95),
+    hot: coral,
     crate,
-    crateDark: mix(crate, dark ? "#000000" : fg, dark ? 0.35 : 0.3),
-    crateLight: lighten(crate, dark ? 0.2 : 0.4),
-    crateEdge: dark ? mix(crate, fg, 0.45) : mix(hot, fg, 0.55),
-    bracket: dark ? mix(fg, crate, 0.3) : mix(fg, hot, 0.15),
-    spoolFlange,
-    spoolRim: lighten(spoolFlange, dark ? 0.3 : 0.6),
-    spoolCable: mix(hot, fg, dark ? 0.2 : 0.35),
-    bugLight: lighten(theme.danger, 0.15),
-    bugDark: darken(theme.danger, 0.3),
-    bugGlow: withAlpha(theme.danger, 0.55),
-    wing: withAlpha(mix(surface, theme.danger, 0.15), 0.75),
-    speedLine: withAlpha(theme.muted, 0.5),
-    vignette,
-    vignetteClear: withAlpha(ink, 0),
+    crateDark: dark ? night(woodDark, 0.3) : woodDark,
+    crateLight: mix(crate, cream, 0.45),
+    crateEdge: dark ? night(woodDark, 0.4) : woodDark,
+    bracket: dark ? darken(navy, 0.25) : navy,
+    spoolFlange: dark ? night(teal, 0.2) : teal,
+    spoolRim: mix(teal, cream, 0.5),
+    spoolCable: mix(teal, navy, 0.5),
+    bugLight: mix(coral, "#ffffff", 0.2),
+    bugDark: mix(coral, navy, 0.35),
+    bugGlow: withAlpha(coral, dark ? 0.7 : 0.5),
+    wing: withAlpha(cream, 0.75),
+    speedLine: withAlpha(dark ? cream : navy, 0.35),
+    vignette: withAlpha(dark ? "#000000" : woodDark, dark ? 0.35 : 0.14),
+    vignetteClear: withAlpha(dark ? "#000000" : woodDark, 0),
     pill: withAlpha(surface, 0.86),
     pillBorder: mix(theme.border, fg, 0.1),
     text: theme.muted,
@@ -216,14 +238,14 @@ export function buildPalette(theme: MiniGameTheme, font: string): Palette {
     buttonShadow: darken(hot, 0.32),
     buttonText: theme.accentForeground,
     particles: [
-      mix(theme.muted, bg, 0.2),
+      mix(sand, woodDark, 0.25),
       crate,
-      mix(crate, ink, 0.3),
-      hot,
-      theme.danger,
-      theme.success,
-      theme.muted,
-      mix(hot, "#ffffff", 0.4),
+      woodDark,
+      coral,
+      teal,
+      sage,
+      peach,
+      mix(cream, coral, 0.3),
     ],
   };
 }
@@ -287,6 +309,24 @@ function drawBackdrop(
   sky.addColorStop(1, palette.skyBottom[step]!);
   context.fillStyle = sky;
   context.fillRect(0, 0, width, height);
+
+  const horizon = context.createLinearGradient(0, groundY * 0.45, 0, groundY);
+  horizon.addColorStop(0, palette.horizonClear);
+  horizon.addColorStop(1, palette.horizonGlow);
+  context.fillStyle = horizon;
+  context.fillRect(0, groundY * 0.45, width, groundY * 0.55);
+
+  if (palette.stars) {
+    context.fillStyle = palette.stars;
+    for (let index = 0; index < 28; index += 1) {
+      const x = positiveModulo(hash(index + 400) * width * 1.4 - state.distance * 0.02, width);
+      const y = groundY * 0.55 * hash(index + 500);
+      const twinkle = fx.reducedMotion ? 0 : Math.sin(fx.time * 0.002 + index * 1.7) * 0.2;
+      context.globalAlpha = 0.35 + hash(index + 600) * 0.4 + twinkle;
+      context.fillRect(x, y, 0.9 + hash(index + 700) * 0.6, 0.9 + hash(index + 700) * 0.6);
+    }
+    context.globalAlpha = 1;
+  }
 
   const sunX = width * 0.74;
   const sunY = groundY * (0.36 + dusk * 0.3);
