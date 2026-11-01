@@ -7,6 +7,7 @@ import {
   lighten,
   luminance,
   mix,
+  parseColor,
   pickDistinct,
   pickVivid,
   toCss,
@@ -37,6 +38,7 @@ import {
 
 const TAU = Math.PI * 2;
 const MAX_FIGURES = MAX_UNITS + 40;
+const GATE_H = 0.9;
 
 export interface RenderUi {
   hoverButton: boolean;
@@ -68,6 +70,7 @@ interface Palette {
   border: string;
   good: ToneSet;
   bad: ToneSet;
+  ui: ToneSet;
   success: string;
   wall: string;
   wallLight: string;
@@ -147,6 +150,21 @@ function toneSet(base: Rgba, bg: Rgba, fg: Rgba, dark: boolean): ToneSet {
   };
 }
 
+const SCENE = {
+  coral: hex("#c96567"),
+  blush: hex("#e8ada0"),
+  sage: hex("#b9d4c9"),
+  teal: hex("#3c8e99"),
+  navy: hex("#222f52"),
+  peach: hex("#f6c9a8"),
+  cream: hex("#fbf1e6"),
+  sand: hex("#e8cfb0"),
+};
+
+function hex(value: string): Rgba {
+  return parseColor(value) ?? BLACK;
+}
+
 function buildPalette(theme: MiniGameTheme, resolve: (css: string) => Rgba): Palette {
   const bg = resolve(theme.background);
   const surface = resolve(theme.surface);
@@ -154,12 +172,18 @@ function buildPalette(theme: MiniGameTheme, resolve: (css: string) => Rgba): Pal
   const border = resolve(theme.border);
   const success = resolve(theme.success);
   const dark = luminance(bg) < 0.3;
-  const bad = pickVivid([resolve(theme.danger), fg], surface, 1.8);
-  const good = pickDistinct([resolve(theme.accent), success, fg], surface, bad);
-  const wall = mix(surface, fg, dark ? 0.34 : 0.3);
-  const shade = dark ? BLACK : fg;
-  const good_ = toneSet(good, bg, fg, dark);
-  const bad_ = toneSet(bad, bg, fg, dark);
+  const { coral, blush, sage, teal, navy, peach, cream, sand } = SCENE;
+  const ink = dark ? cream : navy;
+  const paper = dark ? navy : cream;
+  const good = dark ? lighten(teal, 0.18) : teal;
+  const bad = dark ? lighten(coral, 0.1) : coral;
+  const uiBad = pickVivid([resolve(theme.danger), fg], surface, 1.8);
+  const uiGood = pickDistinct([resolve(theme.accent), success, fg], surface, uiBad);
+  const road = dark ? mix(navy, teal, 0.1) : mix(cream, sand, 0.55);
+  const wall = dark ? mix(navy, sand, 0.45) : mix(sand, navy, 0.28);
+  const shade = dark ? BLACK : navy;
+  const good_ = toneSet(good, paper, ink, dark);
+  const bad_ = toneSet(bad, paper, ink, dark);
   return {
     dark,
     bg: toCss(bg),
@@ -169,26 +193,27 @@ function buildPalette(theme: MiniGameTheme, resolve: (css: string) => Rgba): Pal
     border: toCss(border),
     good: good_,
     bad: bad_,
-    success: toCss(success),
+    ui: toneSet(uiGood, bg, fg, dark),
+    success: toCss(dark ? sage : teal),
     wall: toCss(wall),
-    wallLight: toCss(mix(wall, surface, 0.35)),
-    wallDark: toCss(mix(wall, fg, 0.25)),
-    mortar: toCss(mix(surface, fg, 0.12)),
-    roadTop: toCss(mix(surface, fg, dark ? 0.02 : 0.05)),
-    roadBottom: toCss(dark ? lighten(surface, 0.05) : mix(surface, bg, 0.6)),
-    rail: toCss(mix(border, fg, 0.3)),
-    railLight: toCss(dark ? lighten(border, 0.15) : lighten(surface, 0.7)),
-    laneMark: toCss(withAlpha(mix(surface, fg, 0.4), 0.5)),
-    shadow: toCss(withAlpha(shade, dark ? 0.45 : 0.18)),
+    wallLight: toCss(mix(wall, cream, 0.35)),
+    wallDark: toCss(mix(wall, navy, 0.3)),
+    mortar: toCss(mix(wall, dark ? navy : cream, 0.45)),
+    roadTop: toCss(dark ? mix(road, teal, 0.12) : mix(road, cream, 0.45)),
+    roadBottom: toCss(dark ? darken(road, 0.25) : mix(road, sand, 0.6)),
+    rail: toCss(dark ? mix(navy, teal, 0.4) : mix(sand, navy, 0.45)),
+    railLight: toCss(dark ? mix(navy, sage, 0.55) : cream),
+    laneMark: toCss(dark ? mix(road, sage, 0.2) : mix(road, navy, 0.14)),
+    shadow: toCss(withAlpha(shade, dark ? 0.45 : 0.2)),
     shadowClear: toCss(withAlpha(shade, 0)),
-    sheen: toCss(withAlpha(WHITE, dark ? 0.04 : 0.4)),
-    sheenClear: toCss(withAlpha(WHITE, 0)),
+    sheen: toCss(withAlpha(dark ? sage : WHITE, dark ? 0.05 : 0.35)),
+    sheenClear: toCss(withAlpha(dark ? sage : WHITE, 0)),
     pill: toCss(withAlpha(surface, 0.94)),
     overlay: toCss(withAlpha(bg, 0.62)),
-    skyTop: toCss(bg),
-    skyBottom: toCss(mix(bg, good, 0.07)),
-    far: toCss(mix(mix(bg, fg, 0.06), good, 0.05)),
-    near: toCss(mix(mix(bg, fg, dark ? 0.12 : 0.1), good, 0.08)),
+    skyTop: toCss(dark ? darken(navy, 0.2) : peach),
+    skyBottom: toCss(dark ? mix(navy, peach, 0.38) : cream),
+    far: toCss(dark ? mix(navy, blush, 0.3) : mix(blush, cream, 0.25)),
+    near: toCss(dark ? mix(navy, teal, 0.35) : mix(sage, teal, 0.15)),
     vignette: toCss(withAlpha(shade, dark ? 0.42 : 0.1)),
     vignetteClear: toCss(withAlpha(shade, 0)),
     tones: {
@@ -197,8 +222,8 @@ function buildPalette(theme: MiniGameTheme, resolve: (css: string) => Rgba): Pal
       bad: bad_.base,
       badLight: bad_.light,
       wall: toCss(wall),
-      success: toCss(success),
-      fg: toCss(fg),
+      success: toCss(dark ? sage : teal),
+      fg: toCss(ink),
     },
   };
 }
@@ -282,7 +307,7 @@ export function createRenderer(): Renderer {
     sheen.addColorStop(0, p.sheenClear);
     sheen.addColorStop(0.5, p.sheen);
     sheen.addColorStop(1, p.sheenClear);
-    const panelH = layout.laneH * 0.82;
+    const panelH = layout.laneH * GATE_H;
     const glass = (set: ToneSet) => {
       const gradient = ctx.createLinearGradient(0, 0, 0, panelH);
       gradient.addColorStop(0, set.glassTop);
@@ -390,11 +415,11 @@ export function createRenderer(): Renderer {
     ctx.lineCap = "butt";
 
     ctx.fillStyle = p.rail;
-    ctx.fillRect(0, top - 1, width, 3);
-    ctx.fillRect(0, bottom, width, layout.height - bottom);
+    ctx.fillRect(0, top - 2, width, 4);
+    ctx.fillRect(0, bottom - 1, width, layout.height - bottom + 1);
     ctx.fillStyle = p.railLight;
-    ctx.fillRect(0, top - 1, width, 1);
-    ctx.fillRect(0, bottom, width, 1);
+    ctx.fillRect(0, top + 2, width, 1);
+    ctx.fillRect(0, bottom - 2, width, 1);
     const post = Math.max(28, pxPerM * 3);
     ctx.fillStyle = p.rail;
     for (let x = -(travel % post); x < width; x += post) {
@@ -574,11 +599,12 @@ export function createRenderer(): Renderer {
     const good = isGoodOp(op);
     const set = good ? p.good : p.bad;
     const depth = depthAt(lane);
-    const h = layout.laneH * 0.82;
-    const w = Math.max(10, layout.pxPerM * 1.25) * depth;
+    const h = layout.laneH * GATE_H;
+    const w = Math.max(16, layout.pxPerM * 1.8) * depth;
     const x0 = sx - w / 2;
     const y0 = laneCenter(layout, lane) - h / 2;
     ctx.globalAlpha = faded ? 0.35 : 1;
+    softShadow(ctx, c, sx + w * 0.15, y0 + h, w * 0.95, layout.laneH * 0.07);
     ctx.save();
     ctx.translate(x0, y0);
     ctx.beginPath();
@@ -1126,12 +1152,12 @@ export function createRenderer(): Renderer {
       if (item.side === "left") left += w + gap;
       else right -= w + gap;
       const highlight = item.icon === "star";
-      pill(ctx, x, y, w, h, highlight ? p.good.base : p.pill, highlight ? null : p.border);
-      const ink = highlight ? p.good.ink : p.fg;
+      pill(ctx, x, y, w, h, highlight ? p.ui.base : p.pill, highlight ? null : p.border);
+      const ink = highlight ? p.ui.ink : p.fg;
       let tx = x + h * 0.4;
-      ctx.fillStyle = item.icon === "figure" ? p.good.base : ink;
+      ctx.fillStyle = item.icon === "figure" ? p.ui.base : ink;
       if (item.icon === "flag") {
-        ctx.fillStyle = p.good.base;
+        ctx.fillStyle = p.ui.base;
         ctx.fillRect(tx + h * 0.1, y + h * 0.22, h * 0.07, h * 0.56);
         ctx.beginPath();
         ctx.moveTo(tx + h * 0.17, y + h * 0.22);
@@ -1149,7 +1175,7 @@ export function createRenderer(): Renderer {
       ctx.textAlign = "left";
       ctx.fillText(item.text, tx, y + h / 2 + 0.5);
     });
-    pill(ctx, mute.x, mute.y, mute.w, mute.h, p.pill, ui.hoverMute ? p.good.base : p.border);
+    pill(ctx, mute.x, mute.y, mute.w, mute.h, p.pill, ui.hoverMute ? p.ui.base : p.border);
     speakerIcon(ctx, mute, p, state.muted);
   }
 
@@ -1288,8 +1314,8 @@ export function createRenderer(): Renderer {
       ctx.save();
       ctx.translate(titleX + titleW + 8 + bw / 2, titleY);
       ctx.scale(pulse, pulse);
-      pill(ctx, -bw / 2, -bs * 0.85, bw, bs * 1.7, p.good.base, null);
-      ctx.fillStyle = p.good.ink;
+      pill(ctx, -bw / 2, -bs * 0.85, bw, bs * 1.7, p.ui.base, null);
+      ctx.fillStyle = p.ui.ink;
       starIcon(ctx, -bw / 2 + bs * 0.75, 0, bs * 0.45);
       ctx.textAlign = "left";
       ctx.fillText("NEW BEST", -bw / 2 + bs * 1.35, 0.5);
@@ -1312,7 +1338,7 @@ export function createRenderer(): Renderer {
       const x = statsX + col * i + (wide ? 0 : col / 2);
       ctx.textAlign = wide ? "left" : "center";
       ctx.font = fontOf(800, value);
-      ctx.fillStyle = i === 0 ? p.good.text : p.fg;
+      ctx.fillStyle = i === 0 ? p.ui.text : p.fg;
       ctx.fillText(amount, x, statsY);
       ctx.font = fontOf(600, label);
       ctx.fillStyle = p.muted;
@@ -1324,7 +1350,7 @@ export function createRenderer(): Renderer {
     const hovered = ui.hoverButton && ready;
     const by = button.y + (pressed ? 1.5 : 0);
     if (!pressed) {
-      ctx.fillStyle = p.good.dark;
+      ctx.fillStyle = p.ui.dark;
       ctx.beginPath();
       ctx.roundRect(button.x, button.y + 2.5, button.w, button.h, button.h / 2);
       ctx.fill();
@@ -1335,7 +1361,7 @@ export function createRenderer(): Renderer {
       by,
       button.w,
       button.h,
-      pressed ? p.good.dark : hovered ? p.good.light : p.good.base,
+      pressed ? p.ui.dark : hovered ? p.ui.light : p.ui.base,
       null,
     );
     const fs = clamp(button.h * 0.42, 11, 15);
@@ -1343,7 +1369,7 @@ export function createRenderer(): Renderer {
     const label2 = "Play again";
     const lw = ctx.measureText(label2).width;
     const startX = button.x + (button.w - lw - fs * 1.1) / 2;
-    ctx.fillStyle = hovered && !pressed ? p.good.dark : p.good.ink;
+    ctx.fillStyle = hovered && !pressed ? p.ui.dark : p.ui.ink;
     ctx.beginPath();
     ctx.moveTo(startX, by + button.h / 2 - fs * 0.38);
     ctx.lineTo(startX + fs * 0.62, by + button.h / 2);
