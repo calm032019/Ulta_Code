@@ -9,6 +9,7 @@ import { Button } from "../ui/button";
 import { providerClients } from "../settings/providerDriverMeta";
 import { RedactedSensitiveText } from "../settings/RedactedSensitiveText";
 import { LimitWindows, ResetCredits } from "../usage/UsageLimits";
+import { UsagePlanTodaySummary } from "../usage/UsagePlan";
 import { ComposerBanner } from "./ComposerBanner";
 import type { ComposerBannerStackItem } from "./ComposerBannerStack";
 
@@ -110,6 +111,7 @@ function UsageLimitsBannerBody({
   readonly environmentId: EnvironmentId;
 }) {
   const now = Date.parse(report.createdAt);
+  const [first] = report.accounts;
   return (
     <ComposerBanner.Scroll>
       <ComposerBanner.Body className="flex flex-col gap-2 pt-1 pb-1.5 pe-2">
@@ -158,6 +160,7 @@ function UsageLimitsBannerBody({
             </div>
           );
         })}
+        {first ? <UsagePlanTodaySummary driver={first.driver} now={now} /> : null}
         {report.notices.map((notice) => (
           <span key={notice} className="text-xs text-muted-foreground">
             {notice}

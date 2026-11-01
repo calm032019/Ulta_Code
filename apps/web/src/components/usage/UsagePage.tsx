@@ -12,6 +12,7 @@ import {
 } from "@t3tools/contracts";
 import { CircleAlertIcon, ChevronDownIcon, InfoIcon, SlidersHorizontalIcon } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { settlePromise } from "@t3tools/client-runtime/state/runtime";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Cause from "effect/Cause";
@@ -83,6 +84,7 @@ import {
 } from "../WorkspaceBreadcrumb";
 import { WorkspacePageContainer } from "../WorkspacePageContainer";
 import { UsageLimitsSection } from "./UsageLimits";
+import { UsagePlanSection } from "./UsagePlan";
 import { UsagePriceOverrides } from "./UsagePriceOverrides";
 import { UsageProviderChart } from "./UsageProviderChart";
 import { SpeedPremium, UsageModelDialog } from "./UsageModelDialog";
@@ -194,7 +196,12 @@ export function UsagePage() {
       preferences.windowDays === 1 ? "hour" : "day",
     ),
   }));
-  const metric = preferences.metric;
+  const planRequested = useSearch({
+    strict: false,
+    select: (search) => search.section === "plan",
+  });
+  const navigate = useNavigate();
+  const metric = planRequested ? "limits" : preferences.metric;
   const showingLimits = metric === "limits";
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [limitsNow, setLimitsNow] = useState(() => Date.now());
@@ -249,6 +256,7 @@ export function UsagePage() {
   const selectMetric = (nextMetric: UsageMetric) => {
     if (nextMetric === "limits") setLimitsNow(Date.now());
     updatePreferences({ metric: nextMetric });
+    if (planRequested) void navigate({ to: "/usage", search: {}, replace: true });
   };
   const refreshLimits = (automatic = false, afterPending = false) =>
     // Settled so the timestamp still advances when a refresh throws.
@@ -521,22 +529,35 @@ export function UsagePage() {
                   : `Select an environment to see ${showingLimits ? "limits" : "usage"}.`}
               </p>
             ) : showingLimits ? (
-              <UsageLimitsSection
-                selectedEnvironmentIds={selectedEnvironmentIds}
-                hiddenProviders={hiddenProviders}
-                now={limitsNow}
-                cursorPrompt={
-                  cursorAccessEnvironments.length > 0 ? (
-                    <CursorEnableLimits
-                      environments={cursorAccessEnvironments}
-                      onEnabled={() => {
-                        void refresh();
-                        void refreshLimits(false, true);
-                      }}
-                    />
-                  ) : null
-                }
-              />
+              <div className="flex flex-col gap-8">
+                <UsageLimitsSection
+                  selectedEnvironmentIds={selectedEnvironmentIds}
+                  hiddenProviders={hiddenProviders}
+                  now={limitsNow}
+                  cursorPrompt={
+                    cursorAccessEnvironments.length > 0 ? (
+                      <CursorEnableLimits
+                        environments={cursorAccessEnvironments}
+                        onEnabled={() => {
+                          void refresh();
+                          void refreshLimits(false, true);
+                        }}
+                      />
+                    ) : null
+                  }
+                />
+                <UsagePlanSection
+                  hiddenDrivers={
+                    new Set(
+                      [...hiddenProviders].map(
+                        (provider) => PROVIDER_PRESENTATION[provider].driverKind,
+                      ),
+                    )
+                  }
+                  now={limitsNow}
+                  focusRequested={planRequested}
+                />
+              </div>
             ) : shown === null ? (
               <UsageSkeleton />
             ) : !canReadDiagnostics ? (

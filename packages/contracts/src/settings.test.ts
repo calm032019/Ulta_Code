@@ -128,6 +128,39 @@ describe("ServerSettings usage price overrides", () => {
   });
 });
 
+describe("ServerSettings usage plan", () => {
+  it("defaults to reminders on at 80% with no planned windows", () => {
+    expect(DEFAULT_SERVER_SETTINGS.usagePlan).toEqual({
+      remindersEnabled: true,
+      approachingPercent: 80,
+      windows: {},
+    });
+    expect(decodeServerSettings({ usagePlan: { windows: {} } }).usagePlan.approachingPercent).toBe(
+      80,
+    );
+  });
+
+  it("rejects plans without working days and out-of-range schedules", () => {
+    const plan = { timeZone: "Europe/London", workingDays: [1] };
+    expect(
+      decodeServerSettingsPatch({
+        usagePlan: {
+          windows: { a: { ...plan, reset: { kind: "monthly", day: "last", minuteOfDay: 0 } } },
+        },
+      }).usagePlan?.windows?.a?.reset,
+    ).toEqual({ kind: "monthly", day: "last", minuteOfDay: 0 });
+    for (const windows of [
+      { a: { ...plan, workingDays: [] } },
+      { a: { ...plan, workingDays: [7] } },
+      { a: { ...plan, reset: { kind: "monthly", day: 31, minuteOfDay: 0 } } },
+      { a: { ...plan, reset: { kind: "weekly", weekday: 1, minuteOfDay: 1440 } } },
+    ]) {
+      expect(() => decodeServerSettingsPatch({ usagePlan: { windows } })).toThrow();
+    }
+    expect(() => decodeServerSettingsPatch({ usagePlan: { approachingPercent: 100 } })).toThrow();
+  });
+});
+
 describe("ServerSettings secret providers", () => {
   const onePassword = (account: string) => ({
     kind: "one_password",

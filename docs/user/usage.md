@@ -145,6 +145,31 @@ or endpoint configurations do not report subscription limits.
 API-key accounts may not report subscription limits. This also applies to Claude connections
 using a proxy through `ANTHROPIC_AUTH_TOKEN`.
 
+## Plan daily usage
+
+The **Plan** section under **Usage → Limits** turns a weekly or monthly limit into a daily budget.
+Open it from the command palette with **Set model reset times**, then choose **Plan this window**
+for each limit you want to pace. 5-hour session windows cannot be planned.
+
+- **Reset time.** When the provider reports one, the plan uses it. Choose **Override** or **Set
+  reset time** to enter your own: a weekday and time for weekly limits, or a day of the month
+  (1 to 28, or the last day) and time for monthly ones. Times are read in your current time zone
+  and saved with it, so other devices show the same moment. **Use reported time** goes back to
+  the provider's reset.
+- **Working days.** Pick the days you plan to work. Monday to Friday is the default.
+
+Each day's budget is what was left at the start of the day, split evenly over the working days
+left before the reset, today included. On a rest day nothing is planned, unless no working day
+is left before the reset, in which case today gets everything left. The strip below shows each
+day of the window: the line is the plan and the fill is what you used.
+
+With **Daily budget reminders** on, T3 Code shows an in-app notice when today's use reaches the
+warning level (80% of today's budget by default) and again when it goes over, at most once each
+per day. The composer's `/usage-limits` panel also shows today's budget for planned windows.
+Plans and reminder settings are saved on your primary server. The start-of-day readings that
+budgets are measured from are kept on each device, so a device that was not open earlier in the
+day starts counting from its first reading.
+
 ## Connect a CLIProxyAPI hub
 
 To see pooled accounts, open **Settings → Providers → Usage providers → Add hub**. Choose the
