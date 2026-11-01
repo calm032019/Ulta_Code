@@ -32,6 +32,7 @@ import { describe, expect, it, onTestFinished, vi } from "vite-plus/test";
 import "~/index.css";
 
 import { environmentThreadDetails } from "../../state/threads";
+import { useTimelineJumpStore } from "../../timelineJumpStore";
 import { act, fakeTimers, render, stubGlobal } from "../../../test/render";
 import { ChangedFilesCard } from "./ChangedFilesTree";
 import { MessagesTimeline } from "./MessagesTimeline";
@@ -600,6 +601,48 @@ describe("MessagesTimeline citations", () => {
         "the cited answer",
       ),
     );
+  });
+
+  it("opens the fold that hides an Activity jump's item and settles the request", async () => {
+    const props = baseProps();
+    const runId = RunId.make("run-jump");
+    const attempt = (id: string, ordinal: number, status: "superseded" | "running") => ({
+      id: RunAttemptId.make(id),
+      runId,
+      attemptOrdinal: ordinal,
+      rootNodeId: `node-${id}` as never,
+      status,
+      completedAt: null,
+    });
+    const superseded = attempt("attempt-1", 1, "superseded");
+    const active = attempt("attempt-2", 2, "running");
+    const inAttempt = (entry: Entry, entryAttempt: typeof superseded): Entry => ({
+      ...entry,
+      attempt: entryAttempt,
+    });
+    await using screen = await renderTimeline(
+      [
+        inAttempt(message("Build it", { runId }, "question"), superseded),
+        inAttempt(
+          message("the earlier answer", { role: "assistant", runId }, "earlier"),
+          superseded,
+        ),
+        inAttempt(message("Change direction", { runId }, "steer"), active),
+        inAttempt(message("Current response", { role: "assistant", runId }, "current"), active),
+      ],
+      {
+        ...props,
+        latestRun: { runId, status: "running", startedAt: CREATED_AT, completedAt: null },
+      },
+    );
+    expect(screen.text()).not.toContain("the earlier answer");
+    act(() =>
+      useTimelineJumpStore
+        .getState()
+        .requestJump(props.routeThreadKey, { itemId: "entry-earlier", runId, at: CREATED_AT }),
+    );
+    await vi.waitFor(() => expect(screen.text()).toContain("the earlier answer"));
+    await vi.waitFor(() => expect(useTimelineJumpStore.getState().request).toBeNull());
   });
 
   it("waits for cited history to load before giving up on a response outside the window", async () => {

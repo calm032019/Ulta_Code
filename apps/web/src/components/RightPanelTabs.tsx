@@ -46,6 +46,7 @@ import {
   MessagesSquare,
   Plus,
   TerminalSquare,
+  ActivityIcon,
 } from "lucide-react";
 import { Volume2, VolumeOff } from "lucide";
 import {
@@ -143,6 +144,8 @@ export interface RightPanelTabsProps {
   onAddDevice: () => void;
   /** Absent where side chats are not offered. */
   onAddSideChat?: (() => void) | undefined;
+  /** Absent where there is no thread to read activity from. */
+  onAddActivity?: (() => void) | undefined;
   browserAvailable: boolean;
   terminalAvailable: boolean;
   diffAvailable: boolean;
@@ -324,6 +327,8 @@ function RightPanelEmptyState(props: {
   onAddDevice: () => void;
   /** Absent where side chats are not offered. */
   onAddSideChat?: (() => void) | undefined;
+  /** Absent where there is no thread to read activity from. */
+  onAddActivity?: (() => void) | undefined;
   browserAvailable: boolean;
   terminalAvailable: boolean;
   diffAvailable: boolean;
@@ -404,6 +409,19 @@ function RightPanelEmptyState(props: {
             available: props.sideChatAvailable && !props.sideChatDisabledReason,
             disabledReason: props.sideChatDisabledReason ?? SURFACE_UNAVAILABLE_HINTS.sideChat,
             onClick: props.onAddSideChat,
+          },
+        ]
+      : []),
+    ...(props.onAddActivity
+      ? [
+          {
+            label: "Activity",
+            description: "Commits, pushes, retries, errors, changes and reads in this thread.",
+            icon: ActivityIcon,
+            shortcut: "A",
+            available: true,
+            disabledReason: "",
+            onClick: props.onAddActivity,
           },
         ]
       : []),
@@ -590,6 +608,8 @@ function surfaceTitle(
       return `#${surface.number}`;
     case "pull-requests":
       return "Pull requests";
+    case "activity":
+      return "Activity";
     case "device":
       return surface.title ?? surface.target?.name ?? "Device";
     case "side-chat":
@@ -682,6 +702,8 @@ function SurfaceIcon({
       );
     case "pull-requests":
       return <PullRequestGlyph.link className="size-3 shrink-0" />;
+    case "activity":
+      return <ActivityIcon className="size-3 shrink-0" />;
     case "side-chat":
       return <SideChatTabIcon environmentId={environmentId} threadId={surface.threadId} />;
     case "device":
@@ -1159,6 +1181,18 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
           },
         ]
       : []),
+    ...(props.onAddActivity
+      ? [
+          {
+            label: "Activity",
+            icon: ActivityIcon,
+            shortcut: "A",
+            available: true,
+            disabledReason: "",
+            onClick: props.onAddActivity,
+          },
+        ]
+      : []),
   ] as const;
 
   const handleAddSurfaceMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -1534,6 +1568,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
             onAddPullRequests={props.onAddPullRequests}
             onAddDevice={props.onAddDevice}
             onAddSideChat={props.onAddSideChat}
+            onAddActivity={props.onAddActivity}
             browserAvailable={props.browserAvailable}
             terminalAvailable={props.terminalAvailable}
             diffAvailable={props.diffAvailable}

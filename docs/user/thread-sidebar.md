@@ -235,6 +235,15 @@ from its context menu, or **Copy thread** from its long-press menu on mobile.
 
 ## Inspect agent work
 
+On web and desktop, choose **Activity** from the **+** menu in the right panel, or
+**Show thread activity** in the command palette, to list what happened in the thread,
+newest first: commits, pushes, pull requests, retries, usage limits and errors, file
+changes with each turn's diff stats, files read, and commands. Filter by kind, and
+select an entry to jump to it in the conversation. Commits and pushes are recognised
+from the agent's commands, so ones made with Git actions or outside T3 Code are not
+listed; pull requests created from the thread are. Only
+loaded history is included; choose **Load earlier** to add older turns.
+
 **Limited** means the provider stopped on a usage or rate limit. The conversation
 keeps the provider's explanation. Retry after the limit resets, or switch to
 another provider instance.
