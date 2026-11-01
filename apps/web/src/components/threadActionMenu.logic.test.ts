@@ -32,6 +32,7 @@ describe("buildThreadActionMenuItems", () => {
       const items = buildThreadActionMenuItems({
         ...baseState,
         canOperate: false,
+        continueOnTargets: [{ environmentId: "env-laptop", label: "Laptop" }],
         isPinned: reversed,
         isSettled: reversed,
         isSnoozed: reversed,
@@ -62,6 +63,10 @@ describe("buildThreadActionMenuItems", () => {
         items.find((item) => item.id === "snooze")?.children?.every((child) => child.disabled) ??
           true,
       ).toBe(true);
+      // Continuing elsewhere only reads this thread; the target's grant is checked separately.
+      expect(items.find((item) => item.id === "continue-on")?.children).toEqual([
+        { id: "continue-on:env-laptop", label: "Laptop" },
+      ]);
     },
   );
 

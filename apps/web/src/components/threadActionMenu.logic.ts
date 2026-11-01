@@ -4,6 +4,8 @@ import type { SnoozePreset } from "@t3tools/client-runtime/state/thread-settled"
 export type ThreadActionMenuId =
   | "find"
   | "new-thread-on-branch"
+  | "continue-on"
+  | `continue-on:${string}`
   | "filter-by-project"
   | "turn-into-project"
   | "project-settings"
@@ -95,10 +97,16 @@ export interface ThreadActionMenuState {
   readonly canShareWithGuest?: boolean;
   /** A No project thread with its own folder, on a server that can promote it. */
   readonly canTurnIntoProject?: boolean;
+  /** Other machines with this project; the caller checks they accept new threads. */
+  readonly continueOnTargets?: ReadonlyArray<{
+    readonly environmentId: string;
+    readonly label: string;
+  }>;
 }
 
 /** Local navigation, read markers, and copying remain available to read-only clients. */
 export function threadActionRequiresOperate(action: ThreadActionMenuId): boolean {
+  if (action === "continue-on" || action.startsWith("continue-on:")) return false;
   return ![
     "find",
     "new-thread-on-branch",
@@ -126,6 +134,19 @@ export function buildThreadActionMenuItems(
             id: "new-thread-on-branch" as const,
             label: `New thread on ${state.branch}`,
             icon: "message-square-plus",
+          },
+        ]
+      : []),
+    ...(state.continueOnTargets && state.continueOnTargets.length > 0
+      ? [
+          {
+            id: "continue-on" as const,
+            label: "Continue on another machine",
+            icon: "laptop",
+            children: state.continueOnTargets.map((target) => ({
+              id: `continue-on:${target.environmentId}` as const,
+              label: target.label,
+            })),
           },
         ]
       : []),
