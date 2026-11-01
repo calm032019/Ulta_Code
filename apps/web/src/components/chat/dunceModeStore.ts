@@ -51,6 +51,12 @@ export const useDunceModeStore = create<DunceModeState>(() => ({
 }));
 
 const explanations = new Map<string, string>();
+const inFlight = new Map<string, { readonly key: string; readonly controller: AbortController }>();
+
+function cancelRequest(threadKey: string) {
+  inFlight.get(threadKey)?.controller.abort();
+  inFlight.delete(threadKey);
+}
 
 export function isDunceMessageSelected(
   state: DunceModeState,
@@ -152,6 +158,7 @@ function explainMessages(input: {
     input.threadKey,
     ...input.messages.map((message) => `${message.id}@${message.updatedAt}`),
   ].join("\n");
+  if (inFlight.get(input.threadKey)?.key === key) return;
   const cached = explanations.get(key);
   const card: PlainEnglishCard = {
     key,
@@ -163,9 +170,13 @@ function explainMessages(input: {
   };
   useDunceModeStore.setState((state) => ({ cards: { ...state.cards, [input.threadKey]: card } }));
   if (cached === undefined) void request(input.threadKey, card);
+  else cancelRequest(input.threadKey);
 }
 
 async function request(threadKey: string, card: PlainEnglishCard) {
+  cancelRequest(threadKey);
+  const pending = { key: card.key, controller: new AbortController() };
+  inFlight.set(threadKey, pending);
   const result = await runAtomCommand(
     appAtomRegistry,
     orchestrationEnvironment.explainPlainLanguage,
@@ -173,9 +184,11 @@ async function request(threadKey: string, card: PlainEnglishCard) {
       environmentId: card.threadRef.environmentId,
       input: { threadId: card.threadRef.threadId, messageIds: card.messageIds },
     },
-    { reportFailure: false },
+    { reportFailure: false, signal: pending.controller.signal },
   );
+  if (inFlight.get(threadKey) === pending) inFlight.delete(threadKey);
   if (result._tag === "Success") explanations.set(card.key, result.value.explanation);
+  if (pending.controller.signal.aborted) return;
   const current = useDunceModeStore.getState().cards[threadKey];
   if (current?.key !== card.key) return;
   const error =
@@ -207,6 +220,7 @@ export function retryPlainEnglishCard(threadKey: string) {
 }
 
 export function closePlainEnglishCard(threadKey: string) {
+  cancelRequest(threadKey);
   useDunceModeStore.setState((state) => {
     const { [threadKey]: _closed, ...cards } = state.cards;
     return { cards };

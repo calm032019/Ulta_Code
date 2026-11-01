@@ -1,13 +1,17 @@
 import { assert, describe, it, vi } from "@effect/vitest";
 import {
   MessageId,
+  TextGenerationError,
   ProjectId,
   ProviderInstanceId,
   ThreadId,
   type OrchestrationV2ConversationMessage,
 } from "@t3tools/contracts";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
+import * as Queue from "effect/Queue";
 
 import * as ServerSettings from "../serverSettings.ts";
 import * as TextGeneration from "../textGeneration/TextGeneration.ts";
@@ -31,10 +35,13 @@ const stored = [
   message("m3", "system", "internal"),
 ];
 
-function makeHarness() {
-  const explainPlainLanguage = vi.fn<
-    TextGeneration.TextGeneration["Service"]["explainPlainLanguage"]
-  >(() => Effect.succeed({ explanation: "The automatic checks failed." }));
+type ExplainPlainLanguage = TextGeneration.TextGeneration["Service"]["explainPlainLanguage"];
+
+function makeHarness(
+  generate: ExplainPlainLanguage = () =>
+    Effect.succeed({ explanation: "The automatic checks failed." }),
+) {
+  const explainPlainLanguage = vi.fn<ExplainPlainLanguage>(generate);
   const getThreadRecords = vi.fn(
     (
       _threadId: ThreadId,
@@ -114,4 +121,51 @@ describe("PlainLanguageService", () => {
       assert.strictEqual(harness.explainPlainLanguage.mock.calls.length, 0);
     }).pipe(Effect.provide(harness.layer));
   });
+
+  it.effect("sends a plain message instead of the provider's raw output", () => {
+    const harness = makeHarness(() =>
+      Effect.fail(
+        new TextGenerationError({
+          operation: "explainPlainLanguage",
+          detail: "Codex CLI exited: secret stderr",
+          cause: new Error("raw stdout"),
+        }),
+      ),
+    );
+    return Effect.gen(function* () {
+      const error = yield* explain(["m1"]).pipe(Effect.flip);
+
+      assert.strictEqual(error.message, "The model could not explain these messages.");
+      assert.notProperty(error, "cause");
+    }).pipe(Effect.provide(harness.layer));
+  });
+
+  it.effect("generates at most two explanations at once", () =>
+    Effect.gen(function* () {
+      const started = yield* Queue.unbounded<void>();
+      const release = yield* Deferred.make<void>();
+      let active = 0;
+      let peak = 0;
+      const harness = makeHarness(() =>
+        Effect.gen(function* () {
+          active++;
+          peak = Math.max(peak, active);
+          yield* Queue.offer(started, undefined);
+          yield* Deferred.await(release);
+          active--;
+          return { explanation: "done" };
+        }),
+      );
+      yield* Effect.gen(function* () {
+        const fibers = yield* Effect.forEach([1, 2, 3], () => Effect.forkChild(explain(["m1"])));
+        yield* Queue.take(started);
+        yield* Queue.take(started);
+        yield* Deferred.succeed(release, undefined);
+        yield* Fiber.joinAll(fibers);
+      }).pipe(Effect.provide(harness.layer));
+
+      assert.strictEqual(peak, 2);
+      assert.strictEqual(harness.explainPlainLanguage.mock.calls.length, 3);
+    }),
+  );
 });

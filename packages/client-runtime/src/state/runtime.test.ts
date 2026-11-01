@@ -45,6 +45,7 @@ import {
   environmentSessionGenerationAtom,
   scheduleAtomCommandEffect,
   executeAtomQuery,
+  runAtomCommand,
   type QueryAnswerHandler,
 } from "./runtime.ts";
 
@@ -1159,6 +1160,33 @@ describe("runtime command runner", () => {
       registry.dispose();
     }),
   );
+
+  it.effect("interrupts the command's effect when its caller aborts", () => {
+    const controller = new AbortController();
+    return Effect.gen(function* () {
+      const started = yield* Deferred.make<void>();
+      const interrupted = yield* Deferred.make<void>();
+      const runtime = Atom.runtime(Layer.empty);
+      const command = createRuntimeCommand(runtime, {
+        label: "test.abortable",
+        execute: () =>
+          Deferred.succeed(started, undefined).pipe(
+            Effect.andThen(Effect.never),
+            Effect.onInterrupt(() => Deferred.succeed(interrupted, undefined)),
+          ),
+      });
+      const registry = AtomRegistry.make();
+
+      const result = runAtomCommand(registry, command, undefined, { signal: controller.signal });
+      yield* Deferred.await(started);
+      controller.abort();
+
+      const settled = yield* Effect.promise(() => result);
+      expect(settled._tag === "Failure" && Cause.hasInterruptsOnly(settled.cause)).toBe(true);
+      yield* Deferred.await(interrupted);
+      registry.dispose();
+    });
+  });
 
   it("deduplicates single-flight commands by key", async () => {
     const latch = Latch.makeUnsafe();
