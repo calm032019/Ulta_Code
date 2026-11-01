@@ -18,7 +18,9 @@ import {
 export interface Palette {
   readonly dark: boolean;
   readonly skyTop: string;
+  readonly skyMid: string;
   readonly skyBottom: string;
+  readonly skyStar: string;
   readonly glow: string;
   readonly glowFade: string;
   readonly far: string;
@@ -54,7 +56,11 @@ export interface Palette {
   readonly accent: string;
   readonly accentDark: string;
   readonly accentLight: string;
-  readonly accentGlow: string;
+  readonly coral: string;
+  readonly coralLight: string;
+  readonly coralGlow: string;
+  readonly flash: string;
+  readonly sceneText: string;
   readonly accentForeground: string;
   readonly hero: string;
   readonly heroSheen: string;
@@ -70,11 +76,35 @@ export interface Palette {
   readonly scrim: string;
   readonly success: string;
   readonly danger: string;
-  readonly secondary: string;
   readonly dust: string;
 }
 
-/** Derives every colour the game paints from the theme, so light and dark both stay on palette. */
+const hex = (value: string): Rgba => ({
+  r: Number.parseInt(value.slice(1, 3), 16),
+  g: Number.parseInt(value.slice(3, 5), 16),
+  b: Number.parseInt(value.slice(5, 7), 16),
+  a: 1,
+});
+
+/** Curated dusk palette for the scenery; the HUD, text and buttons follow the app theme instead. */
+const SCENE = {
+  coral: hex("#c96567"),
+  blush: hex("#e8ada0"),
+  sage: hex("#b9d4c9"),
+  teal: hex("#3c8e99"),
+  navy: hex("#222f52"),
+  violet: hex("#4b4874"),
+  peach: hex("#f6c9a8"),
+  cream: hex("#fbf1e6"),
+  sand: hex("#e8cfb0"),
+  wood: hex("#c99a6b"),
+  woodDark: hex("#8a5a3b"),
+  windowGlow: hex("#ffd9a0"),
+  gold: hex("#ffe08a"),
+  white: hex("#ffffff"),
+};
+
+/** Builds the palette: the scene is a dusk city in both themes, a step brighter on light themes. */
 export function buildPalette(theme: MiniGameTheme, resolve: (css: string) => Rgba): Palette {
   const background = resolve(theme.background);
   const surface = resolve(theme.surface);
@@ -82,80 +112,77 @@ export function buildPalette(theme: MiniGameTheme, resolve: (css: string) => Rgb
   const muted = resolve(theme.muted);
   const border = resolve(theme.border);
   const accent = resolve(theme.accent);
-  const secondary = resolve(theme.secondary);
   const success = resolve(theme.success);
   const danger = resolve(theme.danger);
   const dark = luminance(background) < 0.3;
-  const shade = (color: Rgba, amount: number) =>
-    dark ? lighten(color, amount) : darken(color, amount);
-  const sink = (color: Rgba, amount: number) =>
-    dark ? darken(color, amount) : darken(color, amount * 0.6);
-  const roof = mix(mix(secondary, border, 0.4), foreground, dark ? 0.2 : 0.3);
-  const sky = mix(background, accent, 0.08);
+  const brighten = (color: Rgba, amount: number) => (dark ? color : lighten(color, amount));
+  const { coral, blush, sage, teal, navy, violet, peach, cream, sand, wood, woodDark } = SCENE;
+  const skyTop = dark ? darken(navy, 0.25) : mix(navy, violet, 0.55);
+  const skyMid = dark ? mix(navy, violet, 0.7) : lighten(mix(violet, blush, 0.25), 0.18);
+  const horizon = dark ? mix(violet, peach, 0.5) : mix(peach, cream, 0.25);
+  const roof = dark ? darken(navy, 0.18) : lighten(navy, 0.1);
   return {
     dark,
-    skyTop: toCss(dark ? darken(sky, 0.25) : mix(sky, accent, 0.12)),
-    skyBottom: toCss(mix(surface, accent, dark ? 0.12 : 0.05)),
-    glow: toCss(
-      withAlpha(
-        dark ? lighten(muted, 0.5) : mix(accent, { r: 255, g: 236, b: 200, a: 1 }, 0.5),
-        0.55,
-      ),
-    ),
-    glowFade: toCss(withAlpha(dark ? lighten(muted, 0.5) : accent, 0)),
-    far: toCss(mix(background, muted, dark ? 0.16 : 0.14)),
-    farWindow: toCss(
-      withAlpha(mix(accent, { r: 255, g: 220, b: 150, a: 1 }, 0.5), dark ? 0.75 : 0.45),
-    ),
-    bird: toCss(withAlpha(mix(muted, background, 0.2), 0.8)),
-    mid: toCss(mix(background, muted, dark ? 0.3 : 0.26)),
-    midDetail: toCss(mix(background, muted, dark ? 0.38 : 0.34)),
-    midLight: toCss(withAlpha(danger, 0.8)),
-    mote: toCss(withAlpha(dark ? lighten(muted, 0.4) : darken(muted, 0.1), 0.35)),
+    skyTop: toCss(skyTop),
+    skyMid: toCss(skyMid),
+    skyBottom: toCss(horizon),
+    skyStar: toCss(withAlpha(cream, dark ? 0.85 : 0.5)),
+    glow: toCss(withAlpha(dark ? cream : peach, dark ? 0.5 : 0.65)),
+    glowFade: toCss(withAlpha(dark ? cream : peach, 0)),
+    far: toCss(mix(skyMid, horizon, dark ? 0.3 : 0.35)),
+    farWindow: toCss(withAlpha(SCENE.windowGlow, dark ? 0.85 : 0.7)),
+    bird: toCss(withAlpha(navy, 0.7)),
+    mid: toCss(dark ? mix(navy, violet, 0.45) : mix(navy, skyMid, 0.55)),
+    midDetail: toCss(dark ? mix(navy, violet, 0.25) : mix(navy, skyMid, 0.4)),
+    midLight: toCss(coral),
+    mote: toCss(withAlpha(cream, dark ? 0.3 : 0.4)),
     roof: toCss(roof),
-    roofTop: toCss(shade(roof, 0.12)),
-    roofEdge: toCss(withAlpha(lighten(roof, 0.45), 0.9)),
-    roofSide: toCss(sink(roof, 0.22)),
-    roofWindow: toCss(withAlpha(sink(roof, 0.28), 0.8)),
-    shadow: toCss(withAlpha(darken(background, 0.6), dark ? 0.45 : 0.22)),
-    crate: toCss(mix(secondary, accent, 0.18)),
-    crateDark: toCss(sink(mix(secondary, accent, 0.18), 0.3)),
-    crateLight: toCss(lighten(mix(secondary, accent, 0.18), 0.25)),
-    lift: toCss(mix(border, secondary, 0.4)),
-    liftTrack: toCss(withAlpha(border, 0.7)),
-    chevron: toCss(withAlpha(accent, 0.85)),
-    spike: toCss(danger),
-    spikeDark: toCss(darken(danger, 0.3)),
-    spikeLight: toCss(lighten(danger, 0.55)),
-    star: toCss(success),
-    starGlow: toCss(withAlpha(success, 0.22)),
-    starLight: toCss(lighten(success, 0.7)),
-    drone: toCss(danger),
-    droneDark: toCss(darken(danger, 0.35)),
-    droneLight: toCss(withAlpha(lighten(danger, 0.5), 0.8)),
-    rotor: toCss(withAlpha(foreground, 0.28)),
-    eye: toCss(lighten(mix(danger, { r: 255, g: 240, b: 200, a: 1 }, 0.7), 0.3)),
+    roofTop: toCss(lighten(roof, 0.1)),
+    roofEdge: toCss(withAlpha(mix(blush, cream, 0.5), 0.95)),
+    roofSide: toCss(darken(roof, 0.3)),
+    roofWindow: toCss(darken(roof, 0.35)),
+    shadow: toCss(withAlpha(darken(navy, 0.6), dark ? 0.5 : 0.35)),
+    crate: toCss(wood),
+    crateDark: toCss(woodDark),
+    crateLight: toCss(sand),
+    lift: toCss(brighten(mix(navy, sage, 0.3), 0.08)),
+    liftTrack: toCss(withAlpha(sage, 0.55)),
+    chevron: toCss(blush),
+    spike: toCss(mix(coral, navy, 0.2)),
+    spikeDark: toCss(mix(coral, navy, 0.6)),
+    spikeLight: toCss(blush),
+    star: toCss(SCENE.gold),
+    starGlow: toCss(withAlpha(SCENE.gold, dark ? 0.22 : 0.18)),
+    starLight: toCss(cream),
+    drone: toCss(coral),
+    droneDark: toCss(darken(coral, 0.35)),
+    droneLight: toCss(withAlpha(blush, 0.9)),
+    rotor: toCss(withAlpha(cream, 0.35)),
+    eye: toCss(SCENE.windowGlow),
+    coral: toCss(coral),
+    coralLight: toCss(blush),
+    coralGlow: toCss(withAlpha(coral, 0.5)),
+    flash: toCss(peach),
+    sceneText: toCss(cream),
     accent: toCss(accent),
     accentDark: toCss(darken(accent, 0.25)),
-    accentLight: toCss(lighten(accent, 0.35)),
-    accentGlow: toCss(withAlpha(accent, 0.35)),
+    accentLight: toCss(lighten(accent, 0.2)),
     accentForeground: theme.accentForeground,
-    hero: toCss(dark ? lighten(surface, 0.85) : surface),
-    heroSheen: toCss(withAlpha({ r: 255, g: 255, b: 255, a: 1 }, 0.55)),
-    cap: toCss(mix(foreground, accent, 0.2)),
-    satchel: toCss(mix(secondary, foreground, 0.35)),
-    outline: toCss(dark ? darken(background, 0.45) : foreground),
+    hero: toCss(SCENE.white),
+    heroSheen: toCss(withAlpha(SCENE.white, 0.9)),
+    cap: toCss(teal),
+    satchel: toCss(darken(teal, 0.12)),
+    outline: toCss(darken(navy, 0.25)),
     foreground: toCss(foreground),
     foregroundSoft: toCss(withAlpha(foreground, 0.7)),
     muted: toCss(muted),
-    pill: toCss(withAlpha(surface, 0.82)),
+    pill: toCss(withAlpha(surface, 0.88)),
     pillBorder: toCss(withAlpha(border, 0.9)),
-    card: toCss(withAlpha(surface, 0.95)),
+    card: toCss(withAlpha(surface, 0.96)),
     scrim: toCss(withAlpha(background, 0.78)),
     success: toCss(success),
     danger: toCss(danger),
-    secondary: toCss(secondary),
-    dust: toCss(withAlpha(mix(muted, foreground, 0.2), 0.55)),
+    dust: toCss(withAlpha(dark ? blush : sand, 0.6)),
   };
 }
 
@@ -286,9 +313,10 @@ function cached(ctx: CanvasRenderingContext2D, view: RenderView): Cache {
   if (existing && existing.key === key) return existing;
   const sky = ctx.createLinearGradient(0, 0, 0, view.height);
   sky.addColorStop(0, view.palette.skyTop);
+  sky.addColorStop(0.55, view.palette.skyMid);
   sky.addColorStop(1, view.palette.skyBottom);
   const gx = view.width * 0.78;
-  const gy = view.height * 0.28;
+  const gy = view.height * (view.palette.dark ? 0.28 : 0.62);
   const glow = ctx.createRadialGradient(gx, gy, 0, gx, gy, view.height * 0.9);
   glow.addColorStop(0, view.palette.glow);
   glow.addColorStop(1, view.palette.glowFade);
@@ -310,7 +338,7 @@ function drawBackdrop(
   ctx.fillStyle = store.glow ?? palette.glow;
   ctx.fillRect(0, 0, width, height);
   const orbX = width * 0.78 - state.camX * ts * 0.02;
-  const orbY = height * 0.28;
+  const orbY = height * (palette.dark ? 0.28 : 0.62);
   ctx.fillStyle = palette.glow;
   ctx.beginPath();
   ctx.arc(orbX, orbY, ts * 0.75, 0, Math.PI * 2);
@@ -323,6 +351,17 @@ function drawBackdrop(
   }
 
   const clock = state.clock;
+  ctx.fillStyle = palette.skyStar;
+  const starScroll = state.camX * ts * 0.04;
+  for (let index = 0; index < 36; index++) {
+    const sx = (((hash(index, 31) * width * 1.5 - starScroll) % width) + width) % width;
+    const sy = hash(index, 32) * height * 0.5;
+    const twinkle = 0.45 + 0.55 * Math.abs(Math.sin(clock * (0.4 + hash(index, 33)) + index));
+    ctx.globalAlpha = twinkle * (1 - sy / (height * 0.55));
+    const size = hash(index, 34) < 0.15 ? 2 : 1.2;
+    ctx.fillRect(sx, sy, size, size);
+  }
+  ctx.globalAlpha = 1;
   ctx.strokeStyle = palette.bird;
   ctx.lineWidth = 1.25;
   for (let index = 0; index < 3; index++) {
@@ -685,12 +724,12 @@ function drawBeacon(
   const burst = state.phase === "complete" ? Math.min(1, state.phaseTime / 0.8) : 0;
   const glowRadius = ts * (1.4 + pulse * 0.4 + burst * 3);
   const glow = ctx.createRadialGradient(cx, lampY, 0, cx, lampY, glowRadius);
-  glow.addColorStop(0, palette.accentGlow);
+  glow.addColorStop(0, palette.coralGlow);
   glow.addColorStop(1, "rgba(0, 0, 0, 0)");
   ctx.fillStyle = glow;
   ctx.fillRect(cx - glowRadius, lampY - glowRadius, glowRadius * 2, glowRadius * 2);
 
-  ctx.fillStyle = palette.accent;
+  ctx.fillStyle = palette.coral;
   for (let index = 0; index < 6; index++) {
     const t = (clock * 0.6 + index / 6) % 1;
     const px = cx + Math.sin(index * 2.3 + clock * 1.5) * ts * 0.35;
@@ -710,11 +749,11 @@ function drawBeacon(
     Math.max(2, ts * 0.1),
     (base - 0.3) * ts - lampY,
   );
-  ctx.fillStyle = palette.accent;
+  ctx.fillStyle = palette.coral;
   ctx.beginPath();
   ctx.arc(cx, lampY, ts * (0.22 + pulse * 0.05), 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = palette.accentLight;
+  ctx.fillStyle = palette.coralLight;
   ctx.beginPath();
   ctx.arc(cx - ts * 0.06, lampY - ts * 0.06, ts * 0.08, 0, Math.PI * 2);
   ctx.fill();
@@ -724,7 +763,7 @@ function drawBeacon(
   ctx.arc(cx, lampY, ts * (0.22 + pulse * 0.05), 0, Math.PI * 2);
   ctx.stroke();
   if (burst > 0 && burst < 1) {
-    ctx.strokeStyle = palette.accent;
+    ctx.strokeStyle = palette.coral;
     ctx.globalAlpha = 1 - burst;
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -771,7 +810,7 @@ function drawScarf(
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   for (const pass of [0, 1]) {
-    ctx.strokeStyle = pass === 0 ? palette.outline : palette.accent;
+    ctx.strokeStyle = pass === 0 ? palette.outline : palette.coral;
     ctx.lineWidth = pass === 0 ? ts * 0.16 + 2.5 : ts * 0.16;
     ctx.beginPath();
     fx.scarf.forEach((point, index) => {
@@ -840,7 +879,7 @@ function drawCourier(ctx: CanvasRenderingContext2D, palette: Palette, ts: number
   ctx.lineWidth = line;
   ctx.strokeStyle = palette.outline;
 
-  ctx.fillStyle = palette.accent;
+  ctx.fillStyle = palette.coral;
   roundRect(ctx, -0.31, -0.5, 0.62, 0.11, 0.05);
   ctx.fill();
   ctx.stroke();
@@ -922,11 +961,11 @@ function drawParticles(
   const { palette, fx } = view;
   const tints = [
     palette.dust,
-    palette.success,
-    palette.danger,
-    palette.accent,
-    palette.foreground,
-    palette.secondary,
+    palette.star,
+    palette.drone,
+    palette.coral,
+    palette.sceneText,
+    palette.coralLight,
   ];
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -939,7 +978,7 @@ function drawParticles(
     ctx.fillStyle = tints[particle.tint] ?? palette.foreground;
     if (particle.kind === PARTICLE_TEXT) {
       ctx.font = `700 ${Math.round(Math.max(10, ts * 0.4))}px ${view.font}`;
-      ctx.strokeStyle = palette.card;
+      ctx.strokeStyle = palette.outline;
       ctx.lineWidth = 3;
       ctx.strokeText(particle.text, x, y);
       ctx.fillText(particle.text, x, y);
@@ -1357,7 +1396,7 @@ export function render(ctx: CanvasRenderingContext2D, state: GameState, view: Re
   ctx.restore();
   if (fx.flash > 0) {
     ctx.globalAlpha = fx.flash * 0.45;
-    ctx.fillStyle = view.palette.accentLight;
+    ctx.fillStyle = view.palette.flash;
     ctx.fillRect(0, 0, view.width, view.height);
     ctx.globalAlpha = 1;
   }
