@@ -76,8 +76,10 @@ import {
   TextSearchIcon,
   UserPlusIcon,
   ActivityIcon,
+  Gamepad2Icon,
 } from "lucide-react";
 import { openThreadFind } from "./chat/threadFindStore";
+import { openMiniGameDock } from "./minigames/miniGameDockStore";
 import {
   useDeferredValue,
   useEffect,
@@ -1329,6 +1331,19 @@ function OpenCommandPaletteDialog(props: {
       shortcutCommand: "chat.find",
       run: async () => {
         openThreadFind(activeThreadKey);
+      },
+    });
+  }
+
+  if (activeThreadKey !== null) {
+    actionItems.push({
+      kind: "action",
+      value: "action:play-minigame",
+      title: "Play a minigame",
+      searchTerms: ["game", "games", "play", "wait", "waiting", "bored", "break"],
+      icon: <Gamepad2Icon className={ITEM_ICON_CLASS} />,
+      run: async () => {
+        openMiniGameDock(activeThreadKey);
       },
     });
   }

@@ -88,6 +88,58 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   }
 }
 
+/* The minigame dock grows out of the composer's height and shrinks back into it.
+   One-shot animations only: nothing keeps running once the dock settles. */
+@keyframes t3-minigame-dock-height-in {
+  from {
+    height: var(--minigame-dock-collapsed-height);
+  }
+}
+
+@keyframes t3-minigame-dock-height-out {
+  to {
+    height: var(--minigame-dock-collapsed-height);
+  }
+}
+
+@keyframes t3-minigame-dock-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes t3-minigame-dock-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+.minigame-dock {
+  --minigame-dock-collapsed-height: 7rem;
+  animation: t3-minigame-dock-fade-in 220ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.minigame-dock-body {
+  animation: t3-minigame-dock-height-in 220ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.minigame-dock[data-closing] {
+  animation: t3-minigame-dock-fade-out 180ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+.minigame-dock[data-closing] .minigame-dock-body {
+  animation: t3-minigame-dock-height-out 180ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .minigame-dock,
+  .minigame-dock[data-closing],
+  .minigame-dock-body,
+  .minigame-dock[data-closing] .minigame-dock-body {
+    animation: none;
+  }
+}
+
 :root {
   --app-scrollbar-width: 6px;
   --appearance-contrast-base: 100%;

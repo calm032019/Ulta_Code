@@ -501,6 +501,9 @@ export function useSettingsRestore(onRestored?: () => void) {
     ...(settings.composerRichTextEnabled !== DEFAULT_UNIFIED_SETTINGS.composerRichTextEnabled
       ? ["Rich text composer"]
       : []),
+    ...(settings.minigameAutoPauseEnabled !== DEFAULT_UNIFIED_SETTINGS.minigameAutoPauseEnabled
+      ? ["Auto-pause minigames"]
+      : []),
     ...(settings.sendShortcut !== DEFAULT_UNIFIED_SETTINGS.sendShortcut ? ["Send shortcut"] : []),
     ...(settings.followUpBehavior !== DEFAULT_UNIFIED_SETTINGS.followUpBehavior
       ? ["Follow-up behavior"]
@@ -618,6 +621,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       proactivePanelsEnabled: DEFAULT_UNIFIED_SETTINGS.proactivePanelsEnabled,
       showSkillsInSlashMenu: DEFAULT_UNIFIED_SETTINGS.showSkillsInSlashMenu,
       composerRichTextEnabled: DEFAULT_UNIFIED_SETTINGS.composerRichTextEnabled,
+      minigameAutoPauseEnabled: DEFAULT_UNIFIED_SETTINGS.minigameAutoPauseEnabled,
       sendShortcut: DEFAULT_UNIFIED_SETTINGS.sendShortcut,
       followUpBehavior: DEFAULT_UNIFIED_SETTINGS.followUpBehavior,
       contextWindowMeterEnabled: DEFAULT_UNIFIED_SETTINGS.contextWindowMeterEnabled,
@@ -1204,6 +1208,35 @@ export function ChatSettingsPanel() {
                 <SelectItem value="steer">Steer</SelectItem>
               </SelectPopup>
             </Select>
+          }
+        />
+      </SettingsSection>
+
+      <SettingsSection id="minigames" title="Minigames">
+        <SettingsRow
+          {...searchableSetting("minigame-auto-pause")}
+          description="Pause the game when your agent finishes so you can get back to the chat."
+          resetAction={
+            settings.minigameAutoPauseEnabled !==
+            DEFAULT_UNIFIED_SETTINGS.minigameAutoPauseEnabled ? (
+              <SettingResetButton
+                label="auto-pause minigames"
+                onClick={() =>
+                  updateSettings({
+                    minigameAutoPauseEnabled: DEFAULT_UNIFIED_SETTINGS.minigameAutoPauseEnabled,
+                  })
+                }
+              />
+            ) : null
+          }
+          control={
+            <Switch
+              checked={settings.minigameAutoPauseEnabled}
+              onCheckedChange={(checked) =>
+                updateSettings({ minigameAutoPauseEnabled: Boolean(checked) })
+              }
+              aria-label="Auto-pause minigames"
+            />
           }
         />
       </SettingsSection>

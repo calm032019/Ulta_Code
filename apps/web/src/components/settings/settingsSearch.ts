@@ -608,6 +608,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["queue steer running turn send default behavior composer"],
   },
   {
+    id: "minigame-auto-pause",
+    title: "Auto-pause minigames",
+    to: "/settings/chat",
+    searchTerms: ["game games play waiting pause resume agent finished done"],
+  },
+  {
     id: "provider-update-checks",
     title: "Provider update checks",
     to: "/settings/maintenance",
