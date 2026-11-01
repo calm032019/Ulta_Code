@@ -104,6 +104,9 @@ vi.mock("../components/Sidebar.snooze", () => ({
   ],
   snoozeWakeDescription: () => "later",
 }));
+vi.mock("./useContinueOnMachine", () => ({
+  useContinueOnMachine: () => ({ readTargets: () => [], continueOn: vi.fn() }),
+}));
 vi.mock("./useCopyToClipboard", () => ({
   useCopyToClipboard: () => ({ copyToClipboard: () => recordEffect("copy") }),
 }));

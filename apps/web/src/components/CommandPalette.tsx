@@ -62,6 +62,7 @@ import {
   FolderGit2Icon,
   FolderIcon,
   FolderPlusIcon,
+  LaptopIcon,
   MessageSquareDashedIcon,
   LinkIcon,
   MessageSquareIcon,
@@ -90,6 +91,7 @@ import { useAtomValue } from "@effect/atom-react";
 
 import { isDesktopLocalConnectionTarget } from "../connection/desktopLocal";
 import { useDesktopLocalBootstraps } from "../connection/useDesktopLocalBootstraps";
+import { useContinueOnMachine } from "../hooks/useContinueOnMachine";
 import { useHandleNewThread } from "../hooks/useHandleNewThread";
 import { useOpenPanelPullRequestUrl } from "../hooks/useOpenPanelPullRequestUrl";
 import { copyThreadReference } from "../lib/copyThreadReference";
@@ -443,6 +445,7 @@ function OpenCommandPaletteDialog(props: {
   const desktopLocalBootstraps = useDesktopLocalBootstraps();
   const primaryEnvironmentId = usePrimaryEnvironmentId();
   const availableSettingsSearchItems = useAvailableSettingsSearchItems();
+  const continueOnMachine = useContinueOnMachine();
   const { activeDraftThread, activeThread, defaultProjectRef, handleNewThread } =
     useHandleNewThread();
   const paletteRouteTarget = useThreadRouteTarget();
@@ -1395,6 +1398,36 @@ function OpenCommandPaletteDialog(props: {
       run: async () => {
         openGuestShareDialog(threadRef);
       },
+    });
+  }
+
+  const continueOnThreadRef =
+    activeThread === null ? null : scopeThreadRef(activeThread.environmentId, activeThread.id);
+  const continueOnTargets =
+    continueOnThreadRef === null ? [] : continueOnMachine.readTargets(continueOnThreadRef);
+  if (continueOnThreadRef !== null && continueOnTargets.length > 0) {
+    actionItems.push({
+      kind: "submenu",
+      value: "action:continue-on-machine",
+      searchTerms: ["continue", "move", "machine", "environment", "handoff", "transfer"],
+      title: "Continue on another machine…",
+      icon: <LaptopIcon className={ITEM_ICON_CLASS} />,
+      addonIcon: <LaptopIcon className={ADDON_ICON_CLASS} />,
+      groups: [
+        {
+          value: "continue-on-machine",
+          label: "Machines with this project",
+          items: continueOnTargets.map((target) => ({
+            kind: "action" as const,
+            value: `continue-on:${target.environmentId}`,
+            searchTerms: [target.label],
+            title: target.label,
+            description: "Starts a draft there with this thread's transcript attached",
+            icon: <LaptopIcon className={ITEM_ICON_CLASS} />,
+            run: () => continueOnMachine.continueOn(continueOnThreadRef, target),
+          })),
+        },
+      ],
     });
   }
 
