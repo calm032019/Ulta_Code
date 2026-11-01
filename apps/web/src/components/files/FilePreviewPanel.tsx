@@ -1,4 +1,4 @@
-import { DownloadIcon, CopyIcon, CheckIcon } from "lucide-react";
+import { DownloadIcon, CopyIcon, CheckIcon, WandSparklesIcon } from "lucide-react";
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import { Spinner } from "~/components/ui/spinner";
 import {
@@ -785,6 +785,26 @@ function EditableFileSurface({
     );
   };
 
+  const askAgentToEdit = (entryId: string, text: string) => {
+    const entry = lineAnnotations
+      .flatMap((annotation) => annotation.metadata.entries)
+      .find((candidate) => candidate.id === entryId);
+    removeAnnotationEntry(entryId);
+    if (!entry) return;
+    addReviewComment(
+      composerDraftTarget,
+      buildFileReviewComment({
+        id: nextFileCommentId(),
+        filePath: relativePath,
+        startLine: entry.startLine,
+        endLine: entry.endLine,
+        text,
+        contents,
+        sectionTitle: "Edit request",
+      }),
+    );
+  };
+
   const beginComment = (range: SelectedLineRange) => {
     editorRef.current?.setSelections([]);
     editorRef.current?.blur();
@@ -903,6 +923,12 @@ function EditableFileSurface({
                     onCancel={() => removeAnnotationEntry(entry.id)}
                     onComment={(text) => submitAnnotationEntry(entry.id, text)}
                     onDelete={() => removeAnnotationEntry(entry.id)}
+                    secondaryAction={{
+                      label: "Ask agent to edit",
+                      icon: <WandSparklesIcon />,
+                      allowEmpty: true,
+                      onAction: (text) => askAgentToEdit(entry.id, text),
+                    }}
                   />
                 ))}
               </div>

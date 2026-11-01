@@ -1,5 +1,9 @@
 import type { FileDiffMetadata, SelectedLineRange, SelectionSide } from "@pierre/diffs";
-import { PullRequestContextMetadata, type PullRequestReviewPosition } from "@t3tools/contracts";
+import {
+  COMPOSER_CONTEXT_REVIEW_DIFF_MAX_CHARS,
+  PullRequestContextMetadata,
+  type PullRequestReviewPosition,
+} from "@t3tools/contracts";
 import * as Schema from "effect/Schema";
 
 import { isLineInFileDiff } from "./components/pullRequest/pullRequestDiff.logic";
@@ -58,6 +62,9 @@ export function formatReviewCommentFence(language: string, contents: string): st
   return [`${fence}${language}`, contents.trimEnd(), fence].join("\n");
 }
 
+// Capped at the wire limit so a huge selection never sits whole in the persisted draft.
+const FILE_SELECTION_TRUNCATION_MARKER = "\n… selection truncated, read the file for the rest …";
+
 export function buildFileReviewComment(input: {
   id: string;
   filePath: string;
@@ -65,20 +72,27 @@ export function buildFileReviewComment(input: {
   endLine: number;
   text: string;
   contents: string;
+  sectionTitle?: string;
 }): ReviewCommentContext {
   const startLine = Math.max(1, Math.min(input.startLine, input.endLine));
   const endLine = Math.max(startLine, Math.max(input.startLine, input.endLine));
-  const selectedLines = input.contents.split("\n").slice(startLine - 1, endLine);
+  const selectedText = input.contents
+    .split("\n")
+    .slice(startLine - 1, endLine)
+    .join("\n");
   return {
     id: input.id,
     sectionId: `file:${input.filePath}`,
-    sectionTitle: "File comment",
+    sectionTitle: input.sectionTitle ?? "File comment",
     filePath: input.filePath,
     startIndex: startLine - 1,
     endIndex: endLine - 1,
     rangeLabel: startLine === endLine ? `L${startLine}` : `L${startLine} to L${endLine}`,
     text: input.text.trim(),
-    diff: selectedLines.join("\n"),
+    diff:
+      selectedText.length <= COMPOSER_CONTEXT_REVIEW_DIFF_MAX_CHARS
+        ? selectedText
+        : `${selectedText.slice(0, COMPOSER_CONTEXT_REVIEW_DIFF_MAX_CHARS - FILE_SELECTION_TRUNCATION_MARKER.length)}${FILE_SELECTION_TRUNCATION_MARKER}`,
     fenceLanguage: inferReviewCommentFenceLanguage(input.filePath),
   };
 }
