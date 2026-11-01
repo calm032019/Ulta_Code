@@ -19,7 +19,7 @@ export interface ProblemFileGroup {
 }
 
 export const MAX_FIX_PROBLEMS = 20;
-export const MAX_PARSED_PROBLEMS = 1_000;
+const MAX_PARSED_PROBLEMS = 1_000;
 const MAX_OUTPUT_CHARS = 1024 * 1024;
 
 const TSC_CLASSIC = /(\S+?)\((\d+),(\d+)\):\s+(error|warning)\s+(TS\d+):\s*(.*)$/;
@@ -181,7 +181,7 @@ export function groupProblemsByFile(problems: ReadonlyArray<Problem>): ProblemFi
   });
 }
 
-export function formatProblemLocation(problem: Problem): string {
+function formatProblemLocation(problem: Problem): string {
   return `${problem.file}:${problem.line}${problem.column === null ? "" : `:${problem.column}`}`;
 }
 

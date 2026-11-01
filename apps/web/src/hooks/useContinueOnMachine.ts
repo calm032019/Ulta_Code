@@ -1,6 +1,11 @@
 import { scopeProjectRef } from "@t3tools/client-runtime/environment";
 import { selectProjectGroupingSettings } from "@t3tools/client-runtime/state/project-grouping";
-import { settlePromise, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
+import {
+  type AtomCommand,
+  type AtomCommandResult,
+  settlePromise,
+  squashAtomCommandFailure,
+} from "@t3tools/client-runtime/state/runtime";
 import {
   AuthOrchestrationOperateScope,
   EnvironmentRequestInvalidError,
@@ -25,6 +30,11 @@ import { buildThreadRouteParams } from "../threadRoutes";
 import { useNewThreadHandler } from "./useHandleNewThread";
 import { getClientSettings } from "./useSettings";
 
+type LoadThreadTranscript =
+  typeof orchestrationEnvironment.threadTranscript extends AtomCommand<infer W, infer A, infer E>
+    ? (value: W) => Promise<AtomCommandResult<A, E>>
+    : never;
+
 const isEnvironmentRequestInvalidError = Schema.is(EnvironmentRequestInvalidError);
 
 function machineLabel(environmentId: EnvironmentId): string {
@@ -36,6 +46,97 @@ function machineLabel(environmentId: EnvironmentId): string {
 
 const canOperate = (environmentId: EnvironmentId) =>
   readEnvironmentScope(environmentId, AuthOrchestrationOperateScope);
+
+// Kept outside the hook: the try/finally below would make the React Compiler skip the hook.
+async function continueOnMachine(
+  deps: {
+    router: ReturnType<typeof useRouter>;
+    handleNewThread: ReturnType<typeof useNewThreadHandler>;
+    loadThreadTranscript: LoadThreadTranscript;
+  },
+  threadRef: ScopedThreadRef,
+  target: ContinueOnMachineTarget,
+) {
+  const { router, handleNewThread, loadThreadTranscript } = deps;
+  const sourceLabel = machineLabel(threadRef.environmentId);
+  const fail = (description: string) =>
+    toastManager.add({
+      type: "error",
+      title: `Couldn't continue on ${target.label}`,
+      description,
+    });
+  if (!canOperate(target.environmentId)) {
+    fail(`This connection cannot start threads on ${target.label}.`);
+    return;
+  }
+  const loadingToast = toastManager.add({
+    type: "loading",
+    title: `Bringing this thread to ${target.label}…`,
+    timeout: 0,
+    data: { hideCopyButton: true },
+  });
+  try {
+    const transcript = await loadThreadTranscript({
+      environmentId: threadRef.environmentId,
+      input: { threadId: threadRef.threadId },
+    });
+    if (transcript._tag !== "Success") {
+      const error = squashAtomCommandFailure(transcript);
+      fail(
+        isEnvironmentRequestInvalidError(error) && error.reason === "thread_transcript_too_large"
+          ? "This thread is too long to carry over as an attachment."
+          : `Check that ${sourceLabel} is connected, then try again.`,
+      );
+      return;
+    }
+    const file = threadContextAttachment(threadRef.environmentId, transcript.value);
+    const opened = await settlePromise(() =>
+      handleNewThread(scopeProjectRef(target.environmentId, target.projectId), {
+        prompt: `Continue the work from this thread on ${sourceLabel}. `,
+      }),
+    );
+    if (opened._tag === "Failure") {
+      const error = squashAtomCommandFailure(opened);
+      fail(error instanceof Error ? error.message : "The new thread could not be opened.");
+      return;
+    }
+    if (opened.value === null) return;
+    const attached = useComposerDraftStore.getState().addFiles(
+      opened.value.draftId,
+      [
+        {
+          type: "file",
+          id: randomUUID(),
+          name: file.name,
+          mimeType: file.type,
+          sizeBytes: file.size,
+          file,
+        },
+      ],
+      { appendReference: true },
+    );
+    if (attached.length === 0) {
+      fail("The draft there has no room for another attachment.");
+      return;
+    }
+    toastManager.add({
+      type: "success",
+      title: `Continuing on ${target.label}`,
+      description: `The transcript is attached to this draft and the original thread is unchanged. Your uncommitted changes stay on ${sourceLabel}.`,
+      actionProps: {
+        children: "Open original",
+        onClick: () => {
+          void router.navigate({
+            to: "/$environmentId/$threadId",
+            params: buildThreadRouteParams(threadRef),
+          });
+        },
+      },
+    });
+  } finally {
+    toastManager.close(loadingToast);
+  }
+}
 
 /** Starts a draft on another machine's copy of the project, carrying the thread's transcript. */
 export function useContinueOnMachine() {
@@ -63,86 +164,8 @@ export function useContinueOnMachine() {
     });
   };
 
-  const continueOn = async (threadRef: ScopedThreadRef, target: ContinueOnMachineTarget) => {
-    const sourceLabel = machineLabel(threadRef.environmentId);
-    const fail = (description: string) =>
-      toastManager.add({
-        type: "error",
-        title: `Couldn't continue on ${target.label}`,
-        description,
-      });
-    if (!canOperate(target.environmentId)) {
-      fail(`This connection cannot start threads on ${target.label}.`);
-      return;
-    }
-    const loadingToast = toastManager.add({
-      type: "loading",
-      title: `Bringing this thread to ${target.label}…`,
-      timeout: 0,
-      data: { hideCopyButton: true },
-    });
-    try {
-      const transcript = await loadThreadTranscript({
-        environmentId: threadRef.environmentId,
-        input: { threadId: threadRef.threadId },
-      });
-      if (transcript._tag !== "Success") {
-        const error = squashAtomCommandFailure(transcript);
-        fail(
-          isEnvironmentRequestInvalidError(error) && error.reason === "thread_transcript_too_large"
-            ? "This thread is too long to carry over as an attachment."
-            : `Check that ${sourceLabel} is connected, then try again.`,
-        );
-        return;
-      }
-      const file = threadContextAttachment(threadRef.environmentId, transcript.value);
-      const opened = await settlePromise(() =>
-        handleNewThread(scopeProjectRef(target.environmentId, target.projectId), {
-          prompt: `Continue the work from this thread on ${sourceLabel}. `,
-        }),
-      );
-      if (opened._tag === "Failure") {
-        const error = squashAtomCommandFailure(opened);
-        fail(error instanceof Error ? error.message : "The new thread could not be opened.");
-        return;
-      }
-      if (opened.value === null) return;
-      const attached = useComposerDraftStore.getState().addFiles(
-        opened.value.draftId,
-        [
-          {
-            type: "file",
-            id: randomUUID(),
-            name: file.name,
-            mimeType: file.type,
-            sizeBytes: file.size,
-            file,
-          },
-        ],
-        { appendReference: true },
-      );
-      if (attached.length === 0) {
-        fail("The draft there has no room for another attachment.");
-        return;
-      }
-      toastManager.add({
-        type: "success",
-        title: `Continuing on ${target.label}`,
-        description: `The transcript is attached to this draft and the original thread is unchanged. Your uncommitted changes stay on ${sourceLabel}.`,
-        actionProps: {
-          children: "Open original",
-          onClick: () => {
-            void router.navigate({
-              to: "/$environmentId/$threadId",
-              params: buildThreadRouteParams(threadRef),
-            });
-          },
-        },
-      });
-    } finally {
-      toastManager.close(loadingToast);
-    }
-  };
+  const continueOn = (threadRef: ScopedThreadRef, target: ContinueOnMachineTarget) =>
+    continueOnMachine({ router, handleNewThread, loadThreadTranscript }, threadRef, target);
 
   return { readTargets, continueOn };
 }

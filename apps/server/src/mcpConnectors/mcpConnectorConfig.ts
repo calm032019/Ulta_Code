@@ -19,7 +19,7 @@ const KNOWN_SECRET_PREFIX =
   /^(sk-|sk_|pk_live_|rk_live_|ghp_|gho_|ghu_|ghs_|ghr_|github_pat_|glpat-|xox[abprs]-|AKIA|ASIA|AIza|ya29\.|eyJ|shpat_|lin_api_|ntn_|npm_)/;
 const OPAQUE_TOKEN = /^[A-Za-z0-9_\-+=.]{32,}$/;
 
-export function looksLikeSecret(value: string): boolean {
+function looksLikeSecret(value: string): boolean {
   if (value.length >= 16 && KNOWN_SECRET_PREFIX.test(value)) return true;
   return OPAQUE_TOKEN.test(value) && /[A-Za-z]/.test(value) && /\d/.test(value);
 }
@@ -91,12 +91,12 @@ const keysOf = (value: unknown): ReadonlyArray<string> =>
 
 const decodeLenientJson = Schema.decodeUnknownSync(fromLenientJson(Schema.Unknown));
 
-export function parseJsonConfig(text: string): unknown {
+function parseJsonConfig(text: string): unknown {
   return decodeLenientJson(text);
 }
 
 /** Claude `.mcp.json`, `~/.claude.json`, and Cursor `mcp.json` share the `mcpServers` shape. */
-export function parseMcpServersRecord(value: unknown): ReadonlyArray<ParsedMcpServer> {
+function parseMcpServersRecord(value: unknown): ReadonlyArray<ParsedMcpServer> {
   if (!isRecord(value)) return [];
   return Object.entries(value).flatMap(([name, entry]): ParsedMcpServer[] => {
     if (!isRecord(entry) || name.trim() === "") return [];
