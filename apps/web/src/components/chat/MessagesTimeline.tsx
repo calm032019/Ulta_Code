@@ -77,6 +77,7 @@ import { type AssistantCitationRequest } from "./AssistantCitationSource";
 import { useAssistantCitationTarget } from "./useAssistantCitationTarget";
 import { findTimelineRowIndexForActivity } from "../activity/sessionActivity.logic";
 import { useTimelineJumpStore } from "../../timelineJumpStore";
+import { useTimelineViewportStore } from "../../timelineViewportStore";
 import { toastManager } from "../ui/toast";
 import { worktreeSetupAgentStarted } from "@t3tools/client-runtime/worktree-setup";
 import { resolveCitationPhase, type CitedHistory } from "./citationProcedure";
@@ -948,6 +949,19 @@ const ConversationTimeline = memo(function ConversationTimeline({
     );
   });
 
+  const publishViewport = useStableCallback(() => {
+    const state = listRef.current?.getState?.();
+    if (restoringThreadPosition || !state || state.data !== rows) return;
+    const { end } = resolveTimelineMinimapVisibleRange(state);
+    let at: string | null = null;
+    for (let index = end ?? -1; index >= 0 && at === null; index -= 1) {
+      at = rows[index]?.createdAt ?? null;
+    }
+    useTimelineViewportStore
+      .getState()
+      .publish(listIdentityKey, at, resolveTimelineIsAtEnd(state) === true);
+  });
+
   const minimapRefreshFrameRef = useRef<number | null>(null);
   const scheduleMinimapRefresh = () => {
     if (minimapRefreshFrameRef.current !== null) return;
@@ -955,6 +969,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
     minimapRefreshFrameRef.current = requestAnimationFrame(() => {
       minimapRefreshFrameRef.current = null;
       refreshMinimap();
+      publishViewport();
     });
   };
 

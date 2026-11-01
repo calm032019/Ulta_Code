@@ -1135,8 +1135,8 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --guest: var(--color-fuchsia-500);
   --guest-foreground: var(--color-fuchsia-600);
   --guest-surface: color-mix(in srgb, var(--guest) 14%, var(--message-surface));
-  --success: var(--color-emerald-600);
-  --success-foreground: var(--color-emerald-700);
+  --success: #3c8e99;
+  --success-foreground: #2f737c;
   --warning-surface: color-mix(in srgb, var(--warning) 8%, transparent);
   --update: var(--primary);
   --sidebar-muted-foreground: var(--muted-foreground);
@@ -1188,7 +1188,8 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
     --tool-error-icon: #fca5a5;
     --error-surface: color-mix(in srgb, var(--error) 16%, transparent);
     --guest-foreground: var(--color-fuchsia-300);
-    --success-foreground: var(--color-emerald-400);
+    --success: #6fb3bb;
+    --success-foreground: #8fc9cf;
     --warning-surface: color-mix(in srgb, var(--warning) 16%, transparent);
     --background: #1f2b4a;
     --surface-raised: #273559;
