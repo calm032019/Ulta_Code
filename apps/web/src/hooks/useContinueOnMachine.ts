@@ -17,7 +17,11 @@ import * as Schema from "effect/Schema";
 
 import { toastManager } from "../components/ui/toast";
 import { useComposerDraftStore } from "../composerDraftStore";
-import { type ContinueOnMachineTarget, continueOnMachineTargets } from "../lib/continueOnMachine";
+import {
+  type ContinueOnMachineTarget,
+  continueOnMachinePrompt,
+  continueOnMachineTargets,
+} from "../lib/continueOnMachine";
 import { threadContextAttachment } from "../lib/threadContextAttachment";
 import { randomUUID } from "../lib/utils";
 import { appAtomRegistry } from "../rpc/atomRegistry";
@@ -92,7 +96,7 @@ async function continueOnMachine(
     const file = threadContextAttachment(threadRef.environmentId, transcript.value);
     const opened = await settlePromise(() =>
       handleNewThread(scopeProjectRef(target.environmentId, target.projectId), {
-        prompt: `Continue the work from this thread on ${sourceLabel}. `,
+        prompt: continueOnMachinePrompt(sourceLabel),
       }),
     );
     if (opened._tag === "Failure") {

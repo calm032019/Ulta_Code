@@ -156,8 +156,10 @@ function ConnectorsSettingsBody() {
     <SettingsPageContainer>
       <p className="px-3 text-sm text-muted-foreground sm:px-4">
         MCP servers that Claude, Codex, Cursor and OpenCode on this environment load from their own
-        config files. Environment and header values are hidden, and secret-looking command arguments
-        are redacted. To add or change a server, edit the provider&apos;s config file.
+        config files. Environment and header values are hidden. Command arguments that look like
+        secrets are usually hidden too, but not every form is caught, so keep secrets in environment
+        variables rather than arguments. To add or change a server, edit the provider&apos;s config
+        file.
       </p>
       {error !== null ? (
         <p className="px-3 text-sm text-destructive-foreground sm:px-4">{error}</p>

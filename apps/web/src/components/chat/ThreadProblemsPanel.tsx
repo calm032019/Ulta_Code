@@ -17,6 +17,7 @@ import {
   buildFixProblemsPrompt,
   groupProblemsByFile,
   MAX_FIX_PROBLEMS,
+  problemsScriptBody,
   suggestProblemsCommands,
   type Problem,
 } from "./problems.logic";
@@ -47,10 +48,11 @@ export function ThreadProblemsPanel(props: {
   const run = useProblemsRunStore((state) => state.runByThreadKey[key]);
   const setCommand = useProblemsRunStore((state) => state.setCommand);
   const packageJson = useProjectFileQuery(props.environmentId, props.cwd, "package.json");
-  const suggestions = suggestProblemsCommands(
-    packageJson.data && !packageJson.data.truncated ? packageJson.data.contents : null,
-  );
+  const packageJsonText =
+    packageJson.data && !packageJson.data.truncated ? packageJson.data.contents : null;
+  const suggestions = suggestProblemsCommands(packageJsonText);
   const command = storedCommand ?? suggestions[0] ?? "";
+  const scriptBody = problemsScriptBody(packageJsonText, command);
   const running = run?.status === "running";
   const canRun = canOperate && canRead && command.trim().length > 0 && !running;
 
@@ -127,6 +129,12 @@ export function ThreadProblemsPanel(props: {
                 </ThreadDetailsControl>
               ))}
           </div>
+        ) : null}
+        {scriptBody !== null && !running ? (
+          <p className="m-0 min-w-0 text-2xs text-muted-foreground">
+            Runs this project's script (and any pre or post hooks):{" "}
+            <code className="break-all font-mono">{scriptBody}</code>
+          </p>
         ) : null}
         <p className="m-0 text-2xs text-muted-foreground" role="status">
           {!canOperate || !canRead

@@ -56,7 +56,8 @@ export const AUTH_SCOPE_OPTIONS: ReadonlyArray<{
   {
     scope: AuthDiagnosticsReadScope,
     title: "View diagnostics and usage",
-    description: "Read process diagnostics, resource history, and usage totals.",
+    description:
+      "Read process diagnostics (including command lines), resource history, usage totals, and the MCP servers configured for each provider.",
   },
   {
     scope: AuthTerminalReadScope,
