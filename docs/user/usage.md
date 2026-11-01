@@ -164,7 +164,7 @@ is left before the reset, in which case today gets everything left. A reset befo
 does not count its own day, so a Monday 09:00 reset splits the budget up to Friday. The strip below shows each
 day of the window: the line is the plan and the fill is what you used.
 
-With **Daily budget reminders** on, T3 Code shows an in-app notice when today's use reaches the
+With **Daily budget reminders** on, Ulta Code shows an in-app notice when today's use reaches the
 warning level (80% of today's budget by default) and again when it goes over, at most once each
 per day. The composer's `/usage-limits` panel also shows today's budget for planned windows.
 Plans and reminder settings are saved on your primary server. The start-of-day readings that

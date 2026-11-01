@@ -16,7 +16,7 @@ project picker opens. Turn off **Settings → General → Use last project** to
 choose a project every time. When you pick a project that is on more than one
 machine, the thread starts on a connected one if any is connected.
 
-When you change a new thread's project, T3 Code stays in the current environment
+When you change a new thread's project, Ulta Code stays in the current environment
 if that project exists there. Otherwise it selects an environment that has it.
 
 ### Start without a project
@@ -111,7 +111,7 @@ position, so using **Un-settle** returns it to the top. Pinning and snoozing pre
 position until you move it again. Thread activity does not change the order. The settled shelf
 continues to use settlement time.
 
-If dragging is unavailable for one environment, update the T3 Code server running in that
+If dragging is unavailable for one environment, update the Ulta Code server running in that
 environment. Pinned and active reordering require server support. Threads from older servers keep
 their default order until the server is updated.
 
@@ -123,7 +123,7 @@ To change how titles are written, add **Thread title instructions** in **Setting
 Text generation**, under Advanced, such as a length limit or an identifier to put first. They apply to new and
 regenerated titles. Select a project to give it its own instructions.
 
-Agents connected through T3 Code can use the same server-owned metadata workflow to
+Agents connected through Ulta Code can use the same server-owned metadata workflow to
 rename a thread, regenerate its title, or link and unlink a pull request. These changes
 appear on web, desktop, and mobile without requiring the originating browser to remain
 open.
@@ -240,7 +240,7 @@ On web and desktop, choose **Activity** from the **+** menu in the right panel, 
 newest first: commits, pushes, pull requests, retries, usage limits and errors, file
 changes with each turn's diff stats, files read, and commands. Filter by kind, and
 select an entry to jump to it in the conversation. Commits and pushes are recognised
-from the agent's commands, so ones made with Git actions or outside T3 Code are not
+from the agent's commands, so ones made with Git actions or outside Ulta Code are not
 listed; pull requests created from the thread are. Only
 loaded history is included; choose **Load earlier** to add older turns.
 
@@ -286,7 +286,7 @@ thread's terminals or its Claude agent started, with their ports. Not every one
 serves a web page. A server the agent started stays listed after the agent's
 turn ends.
 Select a server to open it in the browser panel. **Stop** ends the server's job
-and keeps the agent, the terminal, and T3 Code running. Stop needs terminal
+and keeps the agent, the terminal, and Ulta Code running. Stop needs terminal
 access to the environment and is not available on Windows.
 
 **Problems** in the thread details card runs your project's own check, such as
@@ -304,7 +304,7 @@ back the standard rows.
 ## Continue on another machine
 
 To pick up a thread on another machine that has the same project, choose **Continue on another
-machine** from the thread's menu or the command palette. T3 Code opens a new draft there with the
+machine** from the thread's menu or the command palette. Ulta Code opens a new draft there with the
 thread's transcript attached; the original thread stays as it is. Uncommitted changes, branches
 and files stay on the original machine, so commit and push first if the work needs them.
 
