@@ -206,7 +206,18 @@ export function PlainEnglishCardSlot({ messageId }: { readonly messageId: Messag
       ) : null}
       {card.result.status === "error" ? (
         <div role="alert" className="flex flex-wrap items-center gap-2 pt-2 text-sm">
-          <p className="min-w-0 flex-1 text-destructive-foreground">{card.result.message}</p>
+          <div className="min-w-0 flex-1">
+            <p className="m-0 text-destructive-foreground">
+              Couldn&apos;t get an explanation right now.
+            </p>
+            <p className="m-0 text-muted-foreground text-xs">
+              The model that writes these (the same one that names your threads) didn&apos;t answer.
+              Check it is set up in Settings, Providers, then try again.
+            </p>
+            <p className="m-0 mt-1 break-words font-mono text-2xs text-muted-foreground/80">
+              {card.result.message}
+            </p>
+          </div>
           <Button
             type="button"
             size="xs"
