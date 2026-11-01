@@ -21,6 +21,7 @@ import { useAtomCommand } from "../../state/use-atom-command";
 import { Button, InlineButton } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { RedactedSensitiveText } from "./RedactedSensitiveText";
+import { appLocale } from "~/timestampFormat";
 
 type SignInState =
   | { readonly status: "idle" }
@@ -34,7 +35,7 @@ const failureMessage = (cause: Cause.Cause<unknown>) => {
 };
 
 const expiryTime = (expiresAt: number) =>
-  new Date(expiresAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  new Date(expiresAt).toLocaleTimeString(appLocale, { hour: "numeric", minute: "2-digit" });
 
 function ExternalLink(props: { readonly href: string; readonly children: ReactNode }) {
   return (

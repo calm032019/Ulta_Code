@@ -26,8 +26,9 @@ import {
   ClerkUserProfileRow,
 } from "./ClerkUserProfilePage";
 import { useT3ChatLink } from "./useT3ChatLink";
+import { appLocale } from "~/timestampFormat";
 
-const linkedAtFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
+const linkedAtFormatter = new Intl.DateTimeFormat(appLocale, { dateStyle: "medium" });
 
 function linkedAtLabel(value: string): string {
   const linkedAt = new Date(value);

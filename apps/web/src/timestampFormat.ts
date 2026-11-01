@@ -33,12 +33,15 @@ function resolveTimestampLocale(systemLocale: string | null | undefined): string
   }
 }
 
+// Desktop knows the OS region. A browser's default is its own UI language, which is
+// often en-US on a UK machine, so prefer the user's first preferred language instead.
 function readHostSystemLocale(): string | null {
   if (typeof window === "undefined") return null;
-  return window.desktopBridge?.getSystemLocale() ?? null;
+  return window.desktopBridge?.getSystemLocale() ?? navigator.languages?.[0] ?? null;
 }
 
-const timestampLocale = resolveTimestampLocale(readHostSystemLocale());
+/** The locale every date and time in the app is formatted with. */
+export const appLocale = resolveTimestampLocale(readHostSystemLocale());
 
 const WEEKDAY_INDEXES = [0, 1, 2, 3, 4, 5, 6] as const;
 type WeekdayIndex = (typeof WEEKDAY_INDEXES)[number];
@@ -66,7 +69,7 @@ function resolveWeekStartsOn(locale: string | undefined): WeekdayIndex | undefin
   }
 }
 
-export const weekStartsOn = resolveWeekStartsOn(timestampLocale);
+export const weekStartsOn = resolveWeekStartsOn(appLocale);
 
 const timestampFormatterCache = new Map<string, Intl.DateTimeFormat>();
 
@@ -81,7 +84,7 @@ function getTimestampFormatter(
   }
 
   const formatter = new Intl.DateTimeFormat(
-    timestampLocale,
+    appLocale,
     getTimestampFormatOptions(timestampFormat, includeSeconds),
   );
   timestampFormatterCache.set(cacheKey, formatter);
@@ -136,11 +139,11 @@ export function formatShortTimestamp(isoDate: string, timestampFormat: Timestamp
   return getTimestampFormatter(timestampFormat, false).format(date);
 }
 
-const numericDateFormatter = new Intl.DateTimeFormat(timestampLocale, {
+const numericDateFormatter = new Intl.DateTimeFormat(appLocale, {
   month: "numeric",
   day: "numeric",
 });
-const numericDateWithYearFormatter = new Intl.DateTimeFormat(timestampLocale, {
+const numericDateWithYearFormatter = new Intl.DateTimeFormat(appLocale, {
   month: "numeric",
   day: "numeric",
   year: "numeric",

@@ -81,6 +81,7 @@ import { PullRequestMarkdownEditor } from "./PullRequestMarkdownEditor";
 import { PullRequestReactionBar } from "./PullRequestReactions";
 import { PullRequestConversationGhost } from "./PullRequestGhosts";
 import { sectionCollapseAnchorScrollTop } from "./pullRequestSummaryScroll.logic";
+import { appLocale } from "~/timestampFormat";
 
 function reviewerKey(login: string): string {
   return login.toLowerCase();
@@ -120,7 +121,7 @@ function CommentIdentity({
           </time>
         </TooltipTrigger>
         <TooltipPopup>
-          {new Date(comment.createdAt).toLocaleString()}
+          {new Date(comment.createdAt).toLocaleString(appLocale)}
           {comment.url ? " · Open comment on host" : ""}
         </TooltipPopup>
       </Tooltip>

@@ -10,7 +10,7 @@ import {
 import { Button } from "./ui/button";
 import { CalendarIcon, Settings2Icon } from "lucide-react";
 import { Calendar } from "./ui/calendar";
-import { weekStartsOn } from "../timestampFormat";
+import { appLocale, weekStartsOn } from "../timestampFormat";
 import { useNowMinute } from "../hooks/useNowMinute";
 import { Popover, PopoverTrigger, PopoverPopup } from "./ui/popover";
 import { Input } from "./ui/input";
@@ -136,7 +136,7 @@ function CustomSnoozeDialog() {
                             />
                           }
                         >
-                          {date.toLocaleDateString(undefined, {
+                          {date.toLocaleDateString(appLocale, {
                             month: "short",
                             day: "numeric",
                             year: "numeric",

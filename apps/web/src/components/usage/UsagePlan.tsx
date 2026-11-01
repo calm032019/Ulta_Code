@@ -15,7 +15,7 @@ import {
 } from "../../hooks/useSettings";
 import { cn } from "../../lib/utils";
 import { environmentPresentations } from "../../state/presentation";
-import { formatUpcomingTimestamp, resolveHour12 } from "../../timestampFormat";
+import { appLocale, formatUpcomingTimestamp, resolveHour12 } from "../../timestampFormat";
 import { ProviderInstanceIcon } from "../chat/ProviderInstanceIcon";
 import { Button } from "../ui/button";
 import {
@@ -59,7 +59,7 @@ const APPROACHING_OPTIONS = [50, 60, 70, 80, 90].filter(
 );
 
 function formatMinuteOfDay(minuteOfDay: number, hour12: boolean): string {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(appLocale, {
     hour: "numeric",
     minute: "2-digit",
     hour12,
@@ -243,7 +243,7 @@ function PlanWindowCard({
           {budget ? (
             <>
               <TodayBudget budget={budget} />
-              <PlanStrip days={budget.days} />
+              <PlanStrip days={budget.days} todayState={budget.state} />
             </>
           ) : (
             <p className="text-xs text-muted-foreground">Set a reset time to get a daily budget.</p>
@@ -361,7 +361,7 @@ function TodayBudget({ budget }: { readonly budget: UsagePlanBudget }) {
 
 function dayLabel(day: UsagePlanDay): string {
   const date = new Date(`${day.day}T00:00:00Z`);
-  const name = new Intl.DateTimeFormat(undefined, {
+  const name = new Intl.DateTimeFormat(appLocale, {
     weekday: "short",
     day: "numeric",
     month: "short",
@@ -375,13 +375,36 @@ function dayLabel(day: UsagePlanDay): string {
   return `${name}${day.when === "today" ? " (today)" : ""}: ${parts.join(", ") || "no reading"}`;
 }
 
-function PlanStrip({ days }: { readonly days: readonly UsagePlanDay[] }) {
+const LABELLED_DAY_LIMIT = 10;
+
+function dayAxisLabel(day: UsagePlanDay, index: number, total: number): string | null {
+  const date = new Date(`${day.day}T00:00:00Z`);
+  if (total <= LABELLED_DAY_LIMIT) {
+    return new Intl.DateTimeFormat(appLocale, { weekday: "short", timeZone: "UTC" }).format(date);
+  }
+  return index % 7 === 0
+    ? new Intl.DateTimeFormat(appLocale, {
+        day: "numeric",
+        month: "short",
+        timeZone: "UTC",
+      }).format(date)
+    : null;
+}
+
+function PlanStrip({
+  days,
+  todayState,
+}: {
+  readonly days: readonly UsagePlanDay[];
+  readonly todayState: UsagePlanBudget["state"];
+}) {
   const scale = Math.max(1, ...days.map((day) => Math.max(day.planned ?? 0, day.actual ?? 0)));
   return (
     <div className="flex flex-col gap-1">
-      <div role="list" aria-label="Days in this window" className="flex h-10 items-end gap-0.5">
-        {days.map((day) => {
+      <div role="list" aria-label="Days in this window" className="flex items-start gap-0.5">
+        {days.map((day, index) => {
           const label = dayLabel(day);
+          const axisLabel = dayAxisLabel(day, index, days.length);
           const actual = day.actual ?? 0;
           const over = day.planned !== null && actual > day.planned + 0.05;
           return (
@@ -392,28 +415,50 @@ function PlanStrip({ days }: { readonly days: readonly UsagePlanDay[] }) {
                     role="listitem"
                     aria-label={label}
                     className={cn(
-                      "relative h-full min-w-0 flex-1 overflow-hidden rounded-sm bg-muted/60",
-                      !day.working && "opacity-40",
-                      day.when === "today" && "ring-1 ring-foreground/50",
+                      "flex min-w-0 flex-1 flex-col gap-1",
+                      !day.working && "opacity-50",
                     )}
                   />
                 }
               >
-                {day.planned !== null ? (
-                  <div
-                    className="absolute inset-x-0 bottom-0 border-t border-foreground/30"
-                    style={{ height: `${(day.planned / scale) * 100}%` }}
-                  />
-                ) : null}
-                {actual > 0 ? (
-                  <div
-                    className={cn(
-                      "absolute inset-x-0 bottom-0",
-                      over ? "bg-destructive/70" : "bg-foreground/35",
-                    )}
-                    style={{ height: `${(actual / scale) * 100}%` }}
-                  />
-                ) : null}
+                <div
+                  className={cn(
+                    "relative h-10 overflow-hidden rounded-sm bg-muted",
+                    day.when === "today" && "ring-1 ring-foreground/60",
+                  )}
+                >
+                  {day.planned ? (
+                    <div
+                      className={cn(
+                        "absolute inset-x-0 bottom-0 border-t-2 border-dashed border-foreground/45",
+                        day.when === "future" && "bg-success/15",
+                      )}
+                      style={{ height: `${(day.planned / scale) * 100}%` }}
+                    />
+                  ) : null}
+                  {actual > 0 ? (
+                    <div
+                      className={cn(
+                        "absolute inset-x-0 bottom-0",
+                        over
+                          ? "bg-destructive"
+                          : day.when === "today"
+                            ? STATE_BAR[todayState]
+                            : "bg-foreground/60",
+                      )}
+                      style={{ height: `${(actual / scale) * 100}%` }}
+                    />
+                  ) : null}
+                </div>
+                <span
+                  aria-hidden
+                  className={cn(
+                    "h-3 truncate text-center text-2xs leading-3 tabular-nums",
+                    day.when === "today" ? "font-medium text-foreground" : "text-muted-foreground",
+                  )}
+                >
+                  {axisLabel}
+                </span>
               </TooltipTrigger>
               <TooltipPopup side="top">{label}</TooltipPopup>
             </Tooltip>
@@ -421,8 +466,8 @@ function PlanStrip({ days }: { readonly days: readonly UsagePlanDay[] }) {
         })}
       </div>
       <p className="text-2xs text-muted-foreground">
-        Each bar is a day. The line is the plan and the fill is what you used, as seen on this
-        device.
+        Each bar is a day. The fill is what you used, as seen on this device, and the dashed line is
+        the plan for today and the days ahead.
       </p>
     </div>
   );
