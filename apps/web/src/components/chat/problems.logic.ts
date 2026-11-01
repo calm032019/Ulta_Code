@@ -21,9 +21,12 @@ export interface ProblemFileGroup {
 export const MAX_FIX_PROBLEMS = 20;
 const MAX_PARSED_PROBLEMS = 1_000;
 const MAX_OUTPUT_CHARS = 1024 * 1024;
+// Diagnostics lead with their location; a cap keeps minified or base64 lines cheap to scan.
+const MAX_LINE_CHARS = 4096;
 
-const TSC_CLASSIC = /(\S+?)\((\d+),(\d+)\):\s+(error|warning)\s+(TS\d+):\s*(.*)$/;
-const TSC_PRETTY = /(\S+?):(\d+):(\d+)\s+-\s+(error|warning)\s+(TS\d+):\s*(.*)$/;
+// Paths start the line or follow whitespace: an unbounded start would make long lines quadratic.
+const TSC_CLASSIC = /(?:^|\s)(\S+?)\((\d+),(\d+)\):\s+(error|warning)\s+(TS\d+):\s*(.*)$/;
+const TSC_PRETTY = /(?:^|\s)(\S+?):(\d+):(\d+)\s+-\s+(error|warning)\s+(TS\d+):\s*(.*)$/;
 const STYLISH_FILE = /^(?:\/|[A-Za-z]:[\\/]|\.{1,2}[\\/])?[^\s:]+\.[A-Za-z0-9]+$/;
 const STYLISH_ROW = /^\s+(\d+):(\d+)\s+(error|warning)\s+(.+?)(?:\s{2,}(\S+))?\s*$/;
 // oxlint/miette ("  x rule(name): msg") and rustc ("error[E0308]: msg") headers precede a location line.
@@ -92,7 +95,7 @@ export function parseProblems(output: string, options?: { cwd?: string | null })
   let pending: Omit<Problem, "file" | "line" | "column"> | null = null;
 
   for (const rawLine of output.split("\n")) {
-    const line = rawLine.replace(/\r$/, "").trimEnd();
+    const line = rawLine.slice(0, MAX_LINE_CHARS).replace(/\r$/, "").trimEnd();
     if (line.trim().length === 0) {
       stylishFile = null;
       continue;

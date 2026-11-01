@@ -1,7 +1,7 @@
 import type { McpConnectorTransport } from "@t3tools/contracts";
 import { fromLenientJson } from "@t3tools/shared/schemaJson";
 import * as Schema from "effect/Schema";
-import { parse as parseToml } from "smol-toml";
+import { parse as parseToml, TomlError } from "smol-toml";
 
 export interface ParsedMcpServer {
   readonly name: string;
@@ -114,8 +114,24 @@ const keysOf = (value: unknown): ReadonlyArray<string> =>
 
 const decodeLenientJson = Schema.decodeUnknownSync(fromLenientJson(Schema.Unknown));
 
+// Strict JSON first: the lenient decoder runs regex passes over the whole text, which is slow on
+// large files such as ~/.claude.json. Comments or trailing commas fall back to it.
 function parseJsonConfig(text: string): unknown {
-  return decodeLenientJson(text);
+  try {
+    return JSON.parse(text);
+  } catch {
+    return decodeLenientJson(text);
+  }
+}
+
+/**
+ * A parse failure as shown to clients. Parser messages can quote the offending source lines, and
+ * those lines may hold credentials, so only the position is ever passed on.
+ */
+export function describeConfigParseError(error: unknown): string {
+  return error instanceof TomlError
+    ? `Could not parse this file (line ${error.line}, column ${error.column}). Fix the syntax, then refresh.`
+    : "Could not parse this file. Fix the syntax, then refresh.";
 }
 
 /** Claude `.mcp.json`, `~/.claude.json`, and Cursor `mcp.json` share the `mcpServers` shape. */
@@ -250,4 +266,31 @@ export function parseOpenCodeConfig(text: string): ReadonlyArray<ParsedMcpServer
     }
     return [];
   });
+}
+
+/**
+ * Why a config file is skipped before reading, or null to read it. `relativeToRoot` is the file's
+ * real path relative to its project's real root (undefined for user configs).
+ */
+export function configFileSkipReason(input: {
+  readonly type: string;
+  readonly size: number;
+  readonly maxBytes: number;
+  readonly relativeToRoot?: string | null;
+}): string | null {
+  if (input.type !== "File") return "Not a regular file, so it was skipped.";
+  if (input.size > input.maxBytes) {
+    return `Larger than ${Math.round(input.maxBytes / 1024 / 1024)} MiB, so it was skipped.`;
+  }
+  if (
+    input.relativeToRoot !== undefined &&
+    (input.relativeToRoot === null ||
+      input.relativeToRoot === ".." ||
+      input.relativeToRoot.startsWith("../") ||
+      input.relativeToRoot.startsWith("..\\") ||
+      /^([a-zA-Z]:|[\\/])/.test(input.relativeToRoot))
+  ) {
+    return "Points outside its project, so it was skipped.";
+  }
+  return null;
 }

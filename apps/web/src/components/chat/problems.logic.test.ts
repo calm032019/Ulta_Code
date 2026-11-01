@@ -185,6 +185,16 @@ describe("parseProblems", () => {
     expect(parseProblems(`${line}\r\n${line}\r\n`)).toHaveLength(1);
     expect(parseProblems("Done in 2.1s\nAll good!\n")).toEqual([]);
   });
+
+  it("handles very long unbroken lines and still reads prefixed and bracketed paths", () => {
+    expect(parseProblems(`${"a".repeat(200_000)}\n${"b(1,".repeat(20_000)}\n`)).toEqual([]);
+    const prefixed = parseProblems(
+      "apps/web typecheck: src/(group)/page.tsx(3,7): error TS2322: Type 'string' is not assignable.",
+    );
+    expect(prefixed.map((problem) => [problem.file, problem.line, problem.column])).toEqual([
+      ["src/(group)/page.tsx", 3, 7],
+    ]);
+  });
 });
 
 describe("groupProblemsByFile", () => {

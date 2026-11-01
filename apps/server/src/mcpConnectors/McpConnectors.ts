@@ -24,6 +24,8 @@ import * as ProjectStore from "../orchestration-v2/ProjectStore.ts";
 import * as ProviderRegistry from "../provider/ProviderRegistry.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import {
+  configFileSkipReason,
+  describeConfigParseError,
   parseClaudeUserConfig,
   parseCodexConfig,
   parseMcpJsonFile,
@@ -44,6 +46,10 @@ const CURSOR = ProviderDriverKind.make("cursor");
 const OPENCODE = ProviderDriverKind.make("opencode");
 
 const SCOPE_ORDER: Record<McpConnectorScope, number> = { user: 0, local: 1, project: 2 };
+
+// Repos ship project configs, so they get a tight cap; ~/.claude.json holds history and can be large.
+const PROJECT_CONFIG_MAX_BYTES = 1024 * 1024;
+const USER_CONFIG_MAX_BYTES = 64 * 1024 * 1024;
 
 interface FoundServers {
   readonly scope: McpConnectorScope;
@@ -74,6 +80,8 @@ const make = Effect.gen(function* () {
   const providerRegistry = yield* ProviderRegistry.ProviderRegistry;
   const serverSettings = yield* ServerSettings.ServerSettingsService;
   const projectStore = yield* ProjectStore.ProjectStoreV2;
+  // Parsed configs by parser and path, reused until the file's size or modified time changes.
+  const parsedConfigCache = new Map<string, { readonly stamp: string; readonly value: unknown }>();
 
   const list = Effect.gen(function* () {
     const home = yield* HostProcess.HomeDirectory;
@@ -90,45 +98,82 @@ const make = Effect.gen(function* () {
     const issues: McpConnectorConfigIssue[] = [];
     const resolve = (value: string) => path.resolve(expandHomePath(value, home));
 
-    const readFile = (provider: ServerProvider, configPath: string) =>
-      fileSystem.readFileString(configPath).pipe(
+    // Reads and parses one config file. It skips anything that is not a regular file, files over
+    // the size limit, and project files that resolve outside their project, so a cloned repo
+    // cannot point discovery at a device, a huge file, or a file elsewhere on the machine.
+    const load = Effect.fn("McpConnectors.load")(function* <A>(
+      provider: ServerProvider,
+      configPath: string,
+      options: { readonly maxBytes: number; readonly root?: string },
+      parserKey: string,
+      parser: (text: string) => A,
+    ) {
+      const report = (message: string) =>
+        Effect.sync(() => {
+          issues.push({ instanceId: provider.instanceId, configPath, message });
+          return null;
+        });
+      const info = yield* fileSystem.stat(configPath).pipe(
         Effect.asSome,
         Effect.catchReason("PlatformError", "NotFound", () => Effect.succeedNone),
-        Effect.catch((error) =>
-          Effect.sync(() => {
-            issues.push({
-              instanceId: provider.instanceId,
-              configPath,
-              message: error.message,
-            });
-            return Option.none<string>();
-          }),
-        ),
+        Effect.catch((error) => report(error.message).pipe(Effect.as(Option.none()))),
       );
-
-    const parse = <A>(provider: ServerProvider, configPath: string, run: () => A): A | null => {
-      try {
-        return run();
-      } catch (error) {
-        issues.push({
-          instanceId: provider.instanceId,
-          configPath,
-          message: `Could not parse this file: ${error instanceof Error ? error.message : String(error)}`,
-        });
-        return null;
+      if (Option.isNone(info)) return null;
+      const size = Number(info.value.size);
+      let relativeToRoot: string | null | undefined;
+      if (options.root !== undefined && info.value.type === "File") {
+        const real = yield* fileSystem.realPath(configPath).pipe(Effect.option);
+        const root = yield* fileSystem
+          .realPath(options.root)
+          .pipe(Effect.orElseSucceed(() => options.root ?? ""));
+        relativeToRoot = Option.isSome(real) ? path.relative(root, real.value) : null;
       }
-    };
+      const skip = configFileSkipReason({
+        type: info.value.type,
+        size,
+        maxBytes: options.maxBytes,
+        ...(relativeToRoot === undefined ? {} : { relativeToRoot }),
+      });
+      if (skip !== null) return yield* report(skip);
+      const stamp = `${size}:${Option.getOrUndefined(info.value.mtime)?.getTime() ?? ""}`;
+      const cacheKey = `${parserKey}\u0000${configPath}`;
+      const cached = parsedConfigCache.get(cacheKey);
+      if (cached !== undefined && cached.stamp === stamp) return cached.value as A;
+      const text = yield* fileSystem.readFileString(configPath).pipe(
+        Effect.asSome,
+        Effect.catchReason("PlatformError", "NotFound", () => Effect.succeedNone),
+        Effect.catch((error) => report(error.message).pipe(Effect.as(Option.none<string>()))),
+      );
+      if (Option.isNone(text)) return null;
+      const parsed = yield* Effect.try({
+        try: () => parser(text.value),
+        catch: describeConfigParseError,
+      }).pipe(
+        Effect.asSome,
+        Effect.catch((message) => report(message).pipe(Effect.as(Option.none<A>()))),
+      );
+      if (Option.isNone(parsed)) return null;
+      parsedConfigCache.set(cacheKey, { stamp, value: parsed.value });
+      return parsed.value;
+    });
 
     const readServers = Effect.fn("McpConnectors.readServers")(function* (
       provider: ServerProvider,
       configPath: string,
       scope: McpConnectorScope,
       project: McpConnectorProject | null,
+      parserKey: string,
       parser: (text: string) => ReadonlyArray<ParsedMcpServer>,
     ) {
-      const text = yield* readFile(provider, configPath);
-      if (Option.isNone(text)) return [];
-      const servers = parse(provider, configPath, () => parser(text.value));
+      const servers = yield* load(
+        provider,
+        configPath,
+        project === null
+          ? { maxBytes: USER_CONFIG_MAX_BYTES }
+          : { maxBytes: PROJECT_CONFIG_MAX_BYTES, root: project.workspaceRoot },
+        parserKey,
+        parser,
+      );
       return servers === null || servers.length === 0
         ? []
         : [{ scope, project, configPath, servers } satisfies FoundServers];
@@ -137,6 +182,7 @@ const make = Effect.gen(function* () {
     const forProjects = (
       provider: ServerProvider,
       relativePaths: ReadonlyArray<string>,
+      parserKey: string,
       parser: (text: string) => ReadonlyArray<ParsedMcpServer>,
       include: (project: McpConnectorProject) => boolean = () => true,
     ) =>
@@ -147,7 +193,8 @@ const make = Effect.gen(function* () {
             configPath: path.join(project.workspaceRoot, relative),
           })),
         ),
-        ({ project, configPath }) => readServers(provider, configPath, "project", project, parser),
+        ({ project, configPath }) =>
+          readServers(provider, configPath, "project", project, parserKey, parser),
         { concurrency: 8 },
       ).pipe(Effect.map((found) => found.flat()));
 
@@ -160,10 +207,13 @@ const make = Effect.gen(function* () {
             configDir === undefined ? home : resolve(configDir),
             ".claude.json",
           );
-          const userText = yield* readFile(provider, userConfigPath);
-          const userConfig = Option.isNone(userText)
-            ? null
-            : parse(provider, userConfigPath, () => parseClaudeUserConfig(userText.value));
+          const userConfig = yield* load(
+            provider,
+            userConfigPath,
+            { maxBytes: USER_CONFIG_MAX_BYTES },
+            "claude-user",
+            parseClaudeUserConfig,
+          );
           const found: FoundServers[] = [];
           if (userConfig !== null) {
             if (userConfig.user.length > 0) {
@@ -181,7 +231,10 @@ const make = Effect.gen(function* () {
               }
             }
           }
-          return [...found, ...(yield* forProjects(provider, [".mcp.json"], parseMcpJsonFile))];
+          return [
+            ...found,
+            ...(yield* forProjects(provider, [".mcp.json"], "mcp-json", parseMcpJsonFile)),
+          ];
         }
         case CODEX: {
           const codexHome = instanceHomeSetting(entry, "CODEX_HOME", hostEnvironment);
@@ -189,10 +242,13 @@ const make = Effect.gen(function* () {
             codexHome === undefined ? path.join(home, ".codex") : resolve(codexHome),
             "config.toml",
           );
-          const text = yield* readFile(provider, configPath);
-          const config = Option.isNone(text)
-            ? null
-            : parse(provider, configPath, () => parseCodexConfig(text.value));
+          const config = yield* load(
+            provider,
+            configPath,
+            { maxBytes: USER_CONFIG_MAX_BYTES },
+            "codex",
+            parseCodexConfig,
+          );
           const user: FoundServers[] =
             config === null || config.servers.length === 0
               ? []
@@ -202,6 +258,7 @@ const make = Effect.gen(function* () {
           const project = yield* forProjects(
             provider,
             [path.join(".codex", "config.toml")],
+            "codex-servers",
             (projectText) => parseCodexConfig(projectText).servers,
             (candidate) => trusted.has(candidate.workspaceRoot),
           );
@@ -213,11 +270,13 @@ const make = Effect.gen(function* () {
             path.join(home, ".cursor", "mcp.json"),
             "user",
             null,
+            "mcp-json",
             parseMcpJsonFile,
           );
           const project = yield* forProjects(
             provider,
             [path.join(".cursor", "mcp.json")],
+            "mcp-json",
             parseMcpJsonFile,
           );
           return [...user, ...project];
@@ -237,11 +296,12 @@ const make = Effect.gen(function* () {
             ...(customConfig === undefined || customConfig === "" ? [] : [resolve(customConfig)]),
           ];
           const user = yield* Effect.forEach(userPaths, (configPath) =>
-            readServers(provider, configPath, "user", null, parseOpenCodeConfig),
+            readServers(provider, configPath, "user", null, "opencode", parseOpenCodeConfig),
           );
           const project = yield* forProjects(
             provider,
             ["opencode.json", "opencode.jsonc"],
+            "opencode",
             parseOpenCodeConfig,
           );
           return [...user.flat(), ...project];

@@ -2,6 +2,8 @@ import { describe, expect, it } from "@effect/vitest";
 
 import {
   REDACTED,
+  configFileSkipReason,
+  describeConfigParseError,
   parseClaudeUserConfig,
   parseCodexConfig,
   parseMcpJsonFile,
@@ -216,5 +218,47 @@ describe("OpenCode config", () => {
         headerNames: ["Authorization"],
       },
     ]);
+  });
+});
+
+describe("parse failures", () => {
+  it("never repeats file content, so a typo beside a secret cannot leak it", () => {
+    const secret = "sk-live-0123456789abcdef";
+    let thrown: unknown;
+    try {
+      parseCodexConfig(`[mcp_servers.x]\ncommand = "npx"\nenv = { API_KEY = "${secret}" \n`);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(String(thrown)).toContain(secret);
+    const message = describeConfigParseError(thrown);
+    expect(message).not.toContain(secret);
+    expect(message).toMatch(/line \d+, column \d+/);
+    expect(describeConfigParseError(new Error(`bad ${secret}`))).not.toContain(secret);
+  });
+
+  it("parses strict JSON directly and still accepts comments and trailing commas", () => {
+    const strict = '{"mcpServers":{"a":{"command":"npx","args":["a"]}}}';
+    const lenient = '{\n  // note\n  "mcpServers": {"a": {"command": "npx", "args": ["a"],},},\n}';
+    expect(parseMcpJsonFile(strict).map((server) => server.name)).toEqual(["a"]);
+    expect(parseMcpJsonFile(lenient).map((server) => server.name)).toEqual(["a"]);
+  });
+});
+
+describe("configFileSkipReason", () => {
+  const MiB = 1024 * 1024;
+  it.each([
+    [{ type: "File", size: 10, maxBytes: MiB }, null],
+    [{ type: "CharacterDevice", size: 0, maxBytes: MiB }, "Not a regular file"],
+    [{ type: "Directory", size: 0, maxBytes: MiB }, "Not a regular file"],
+    [{ type: "File", size: MiB + 1, maxBytes: MiB }, "Larger than 1 MiB"],
+    [{ type: "File", size: 10, maxBytes: MiB, relativeToRoot: ".mcp.json" }, null],
+    [{ type: "File", size: 10, maxBytes: MiB, relativeToRoot: "../secrets.json" }, "outside"],
+    [{ type: "File", size: 10, maxBytes: MiB, relativeToRoot: "/etc/passwd" }, "outside"],
+    [{ type: "File", size: 10, maxBytes: MiB, relativeToRoot: null }, "outside"],
+  ] as const)("%j is skipped for %s", (input, expected) => {
+    const reason = configFileSkipReason(input);
+    if (expected === null) expect(reason).toBeNull();
+    else expect(reason).toContain(expected);
   });
 });
