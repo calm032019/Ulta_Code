@@ -252,6 +252,18 @@ and appears once the provider reports usage. Open it for usage details and
 Claude instances can also compact idle threads for you. See
 [compact long conversations](./providers-claude.md#compact-long-conversations).
 
+## Find in codebase
+
+On web and desktop, choose **Find in codebase…** in the command palette and ask a
+question such as "where do we handle refunds?". A new thread opens in the current
+project with a prompt asking the agent to search by meaning and reply with the most
+relevant files, line ranges and a reason for each. Review it and send.
+
+The thread starts in Plan mode with Supervised permissions, so the agent asks before
+running commands or changing files. If Plan mode is off or the provider does not
+support it, the thread uses Build mode, and the prompt still tells the agent not to
+edit anything.
+
 ## Goals
 
 With Codex and Claude, send `/goal` followed by what "done" means, for example
