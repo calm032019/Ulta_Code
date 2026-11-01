@@ -9,6 +9,7 @@ import * as DateTime from "effect/DateTime";
 import type { LimitPool, LimitPoolWindow } from "./usageLimits.ts";
 
 const MINUTE = 60_000;
+const MAX_INSTANT = 8.64e15;
 const MAX_STRIP_DAYS = 35;
 
 export interface CivilDate {
@@ -157,15 +158,20 @@ export function effectiveUsagePlanReset(input: {
   if (reportedResetAt === null) return null;
   const length = windowDurationMins ? windowDurationMins * MINUTE : 0;
   if (reportedResetAt > now) {
-    return {
-      at: reportedResetAt,
-      startsAt: length ? reportedResetAt - length : null,
-      source: "reported",
-    };
+    return reportedReset(reportedResetAt, length ? reportedResetAt - length : null);
   }
   if (!length) return null;
   const at = reportedResetAt + Math.ceil((now - reportedResetAt + 1) / length) * length;
-  return { at, startsAt: at - length, source: "reported" };
+  return reportedReset(at, at - length);
+}
+
+const isInstant = (at: number) => Number.isFinite(at) && Math.abs(at) <= MAX_INSTANT;
+
+// Providers and linked environments report these; an instant outside Date's range throws when formatted.
+function reportedReset(at: number, startsAt: number | null): UsagePlanReset | null {
+  return isInstant(at) && (startsAt === null || isInstant(startsAt))
+    ? { at, startsAt, source: "reported" }
+    : null;
 }
 
 export type UsagePlanState = "ok" | "approaching" | "over" | "rest" | "exhausted";

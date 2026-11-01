@@ -148,6 +148,27 @@ describe("effectiveUsagePlanReset", () => {
     ).toBeNull();
   });
 
+  it("ignores a reported reset outside the valid time range", () => {
+    for (const reported of [
+      { reportedResetAt: at("2026-09-07T00:00:00Z"), windowDurationMins: 1e13 },
+      { reportedResetAt: at("2026-08-31T00:00:00Z"), windowDurationMins: 1e13 },
+      { reportedResetAt: Number.NaN, windowDurationMins: WEEK_MINS },
+      { reportedResetAt: Number.POSITIVE_INFINITY, windowDurationMins: undefined },
+    ]) {
+      expect(effectiveUsagePlanReset({ ...base, ...reported })).toBeNull();
+      expect(
+        computeUsagePlanBudget({
+          ...reported,
+          usedPercent: 50,
+          plan: weekdays,
+          baseline: 40,
+          approachingShare: 0.8,
+          now: base.now,
+        }),
+      ).toBeNull();
+    }
+  });
+
   it("prefers a configured schedule over the reported reset", () => {
     const reset = effectiveUsagePlanReset({
       ...base,

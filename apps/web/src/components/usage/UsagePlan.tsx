@@ -34,7 +34,7 @@ import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../
 import { Switch } from "../ui/switch";
 import { Toggle, ToggleGroup } from "../ui/toggle-group";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-import { useUsagePlanBaselineStore } from "./usagePlanStore";
+import { useUsagePlanRecords } from "./usagePlanStore";
 import {
   defaultUsagePlan,
   deviceTimeZone,
@@ -58,13 +58,29 @@ const APPROACHING_OPTIONS = [50, 60, 70, 80, 90].filter(
   (value) => value <= MAX_USAGE_PLAN_APPROACHING_PERCENT,
 );
 
-function formatMinuteOfDay(minuteOfDay: number, hour12: boolean): string {
-  return new Intl.DateTimeFormat(appLocale, {
+const minuteOfDayFormatter = (hour12: boolean) =>
+  new Intl.DateTimeFormat(appLocale, {
     hour: "numeric",
     minute: "2-digit",
     hour12,
     timeZone: "UTC",
-  }).format(Date.UTC(1970, 0, 1, 0, minuteOfDay));
+  });
+const minuteOfDayFormatters = { h12: minuteOfDayFormatter(true), h24: minuteOfDayFormatter(false) };
+const dayNameFormatter = new Intl.DateTimeFormat(appLocale, {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+});
+const weekdayFormatter = new Intl.DateTimeFormat(appLocale, { weekday: "short", timeZone: "UTC" });
+const dayMonthFormatter = new Intl.DateTimeFormat(appLocale, {
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+});
+
+function formatMinuteOfDay(minuteOfDay: number, hour12: boolean): string {
+  return minuteOfDayFormatters[hour12 ? "h12" : "h24"].format(Date.UTC(1970, 0, 1, 0, minuteOfDay));
 }
 
 function scheduleLabel(schedule: UsagePlanResetSchedule, hour12: boolean): string {
@@ -95,7 +111,7 @@ export function UsagePlanSection({
   const available = usePrimarySettingsAvailable();
   const updateSettings = useUpdatePrimarySettings();
   const presentations = useAtomValue(environmentPresentations.presentationsWithProvidersAtom);
-  const records = useUsagePlanBaselineStore((state) => state.windows);
+  const records = useUsagePlanRecords();
   const sectionRef = useRef<HTMLElement>(null);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- scrolls the DOM to the plan when the command palette asks for it
   useEffect(() => {
@@ -361,12 +377,7 @@ function TodayBudget({ budget }: { readonly budget: UsagePlanBudget }) {
 
 function dayLabel(day: UsagePlanDay): string {
   const date = new Date(`${day.day}T00:00:00Z`);
-  const name = new Intl.DateTimeFormat(appLocale, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  }).format(date);
+  const name = dayNameFormatter.format(date);
   const parts = [
     day.planned !== null ? `${formatPlanPercent(day.planned)} planned` : null,
     day.actual !== null ? `${formatPlanPercent(day.actual)} used` : null,
@@ -380,15 +391,9 @@ const LABELLED_DAY_LIMIT = 10;
 function dayAxisLabel(day: UsagePlanDay, index: number, total: number): string | null {
   const date = new Date(`${day.day}T00:00:00Z`);
   if (total <= LABELLED_DAY_LIMIT) {
-    return new Intl.DateTimeFormat(appLocale, { weekday: "short", timeZone: "UTC" }).format(date);
+    return weekdayFormatter.format(date);
   }
-  return index % 7 === 0
-    ? new Intl.DateTimeFormat(appLocale, {
-        day: "numeric",
-        month: "short",
-        timeZone: "UTC",
-      }).format(date)
-    : null;
+  return index % 7 === 0 ? dayMonthFormatter.format(date) : null;
 }
 
 function PlanStrip({
@@ -620,7 +625,7 @@ export function UsagePlanTodaySummary({
 }) {
   const usagePlan = usePrimarySettings((settings) => settings.usagePlan);
   const presentations = useAtomValue(environmentPresentations.presentationsWithProvidersAtom);
-  const records = useUsagePlanBaselineStore((state) => state.windows);
+  const records = useUsagePlanRecords();
   const planned =
     Object.keys(usagePlan.windows).length === 0
       ? []

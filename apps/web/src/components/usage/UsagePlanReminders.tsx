@@ -1,4 +1,4 @@
-import type { UsagePlanSettings } from "@t3tools/contracts";
+import type { EnvironmentId, UsagePlanSettings } from "@t3tools/contracts";
 import {
   collectLimitAccounts,
   collectLimitPools,
@@ -17,6 +17,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { usePrimarySettings } from "../../hooks/useSettings";
+import { usePrimaryEnvironmentId } from "../../state/environments";
 import { environmentPresentations } from "../../state/presentation";
 import { providerClients } from "../settings/providerDriverMeta";
 import { toastManager } from "../ui/toast";
@@ -24,6 +25,7 @@ import { recordUsagePlanAlert, recordUsagePlanReading } from "./usagePlanStore";
 import { formatPlanPercent, usagePlanToday } from "./usagePlanView";
 
 function observeUsagePlans(
+  environmentId: EnvironmentId,
   presentations: LimitPresentations,
   usagePlan: UsagePlanSettings,
   now: number,
@@ -42,7 +44,7 @@ function observeUsagePlans(
       now,
     });
     const day = usagePlanToday(plan, now);
-    const record = recordUsagePlanReading(plannable.key, {
+    const record = recordUsagePlanReading(environmentId, plannable.key, {
       day,
       usedPercent: plannable.usedPercent,
       windowStartDay:
@@ -61,7 +63,7 @@ function observeUsagePlans(
     });
     const alert = budget ? dueUsagePlanAlert(budget.state, record, day) : null;
     if (!budget || !alert) continue;
-    recordUsagePlanAlert(plannable.key, day, alert);
+    recordUsagePlanAlert(environmentId, plannable.key, day, alert);
     const name = `${providerClients.get(plannable.driver)?.label ?? plannable.driver} ${plannable.window.label.toLowerCase()}`;
     onAlert({
       over: alert === "over",
@@ -83,24 +85,32 @@ export function UsagePlanReminders() {
 }
 
 function ActiveUsagePlanReminders({ usagePlan }: { readonly usagePlan: UsagePlanSettings }) {
+  const environmentId = usePrimaryEnvironmentId();
   const presentations = useAtomValue(environmentPresentations.presentationsWithProvidersAtom);
   const navigate = useNavigate();
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- records per-device baselines and raises toasts when new limit readings arrive
   useEffect(() => {
-    observeUsagePlans(presentations, usagePlan, Date.now(), ({ title, description, over }) => {
-      const id = toastManager.add({
-        type: over ? "warning" : "info",
-        title,
-        description,
-        actionProps: {
-          children: "View plan",
-          onClick: () => {
-            toastManager.close(id);
-            void navigate({ to: "/usage", search: { section: "plan" } });
+    if (!environmentId) return;
+    observeUsagePlans(
+      environmentId,
+      presentations,
+      usagePlan,
+      Date.now(),
+      ({ title, description, over }) => {
+        const id = toastManager.add({
+          type: over ? "warning" : "info",
+          title,
+          description,
+          actionProps: {
+            children: "View plan",
+            onClick: () => {
+              toastManager.close(id);
+              void navigate({ to: "/usage", search: { section: "plan" } });
+            },
           },
-        },
-      });
-    });
-  }, [presentations, usagePlan, navigate]);
+        });
+      },
+    );
+  }, [environmentId, presentations, usagePlan, navigate]);
   return null;
 }
