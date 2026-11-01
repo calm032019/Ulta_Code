@@ -2,6 +2,8 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   applyGate,
+  CLEAR_FREEZE_MS,
+  comboBonus,
   fromSnapshot,
   generateGateSet,
   initialState,
@@ -9,6 +11,7 @@ import {
   LANES,
   scoreOf,
   step,
+  toggleMute,
   toSnapshot,
   type Entity,
   type GateOp,
@@ -16,6 +19,14 @@ import {
 } from "./logic";
 
 const FRAME = 1000 / 60;
+
+const gateSet = (ops: Array<GateOp | null>, x = 0.05): Entity => ({
+  kind: "gates",
+  x,
+  ops,
+  taken: null,
+  done: false,
+});
 
 function running(seed: number, entities: Entity[], count: number): GateRunnerState {
   const state = step(initialState(seed, 640, 180), 0, { start: true });
@@ -39,6 +50,19 @@ describe("applyGate", () => {
     [60_000, { kind: "mul", value: 3 }, 99_999],
   ])("%d with %o is %d", (count, op, expected) => {
     expect(applyGate(count, op)).toBe(expected);
+  });
+});
+
+describe("comboBonus", () => {
+  it.each([
+    [0, 0],
+    [1, 0],
+    [2, 10],
+    [5, 25],
+    [10, 50],
+    [40, 50],
+  ])("streak %d pays %d", (combo, bonus) => {
+    expect(comboBonus(combo)).toBe(bonus);
   });
 });
 
@@ -92,7 +116,14 @@ describe("step", () => {
     expect(next.status).toBe("running");
     expect(next.stage).toBe(2);
     expect(next.count).toBe(1);
-    expect(next.bonus).toBeGreaterThan(state.bonus);
+    expect(next.bonus).toBe(state.bonus + 100);
+    expect(next.clear).toMatchObject({ stage: 1, wall: 10, crowd: 1, bonus: 100 });
+    expect(next.events).toContainEqual(expect.objectContaining({ type: "wall", passed: true }));
+    let frozen = next;
+    for (let ms = 0; ms < CLEAR_FREEZE_MS - FRAME; ms += FRAME) frozen = step(frozen, FRAME);
+    expect(frozen.distance).toBe(next.distance);
+    for (let frame = 0; frame < 3; frame++) frozen = step(frozen, FRAME);
+    expect(frozen.distance).toBeGreaterThan(next.distance);
   });
 
   it("ends the game at a finish wall the crowd cannot beat", () => {
@@ -100,6 +131,7 @@ describe("step", () => {
     const next = step(state, FRAME);
     expect(next.status).toBe("over");
     expect(next.stage).toBe(1);
+    expect(next.events.map((event) => event.type)).toEqual(["wall", "over"]);
   });
 
   it("ends the game when the crowd reaches zero and records the best score", () => {
@@ -115,6 +147,7 @@ describe("step", () => {
     expect(next.count).toBe(0);
     expect(next.status).toBe("over");
     expect(next.best).toBe(scoreOf(next));
+    expect(next.events).toContainEqual({ type: "over", newBest: true });
     const frozen = step(next, FRAME);
     expect(frozen.distance).toBe(next.distance);
   });
@@ -131,13 +164,42 @@ describe("step", () => {
   });
 
   it("applies the gate in the crowd's lane", () => {
-    const gates: Entity = {
-      kind: "gates",
-      x: 0.05,
-      ops: [{ kind: "sub", value: 5 }, { kind: "mul", value: 3 }, null],
-      done: false,
-    };
-    expect(step(running(1, [gates], 4), FRAME).count).toBe(12);
+    const gates = gateSet([{ kind: "sub", value: 5 }, { kind: "mul", value: 3 }, null]);
+    const next = step(running(1, [gates], 4), FRAME);
+    expect(next.count).toBe(12);
+    expect(next.maxCount).toBe(12);
+    expect(next.entities[0]).toMatchObject({ kind: "gates", taken: 1, done: true });
+  });
+
+  it("builds a combo from consecutive good gates and resets it on a bad one", () => {
+    const good: GateOp = { kind: "add", value: 1 };
+    const bad: GateOp = { kind: "sub", value: 1 };
+    const lanes = (op: GateOp) => [op, op, op];
+    let state = running(
+      1,
+      [
+        gateSet(lanes(good), 0.05),
+        gateSet(lanes(good), 0.3),
+        gateSet([null, null, null], 0.55),
+        gateSet(lanes(good), 0.8),
+        gateSet(lanes(bad), 1.05),
+      ],
+      10,
+    );
+    const combos: number[] = [];
+    const bonuses: number[] = [];
+    for (let frame = 0; frame < 40; frame++) {
+      const before = state.bonus;
+      state = step(state, FRAME);
+      for (const event of state.events) {
+        if (event.type !== "gate") continue;
+        combos.push(event.combo);
+        bonuses.push(state.bonus - before);
+      }
+    }
+    expect(combos).toEqual([1, 2, 3, 0]);
+    expect(bonuses).toEqual([0, comboBonus(2), comboBonus(3), 0]);
+    expect(state.combo).toBe(0);
   });
 
   it("eases between lanes and stays within bounds", () => {
@@ -159,6 +221,15 @@ describe("step", () => {
     expect(next.count).toBeGreaterThan(0);
     expect(next.distance).toBe(0);
     expect(next.best).toBe(900);
+    expect(next.runBest).toBe(900);
+    expect(next.events).toEqual([{ type: "start" }]);
+  });
+
+  it("keeps the mute choice across restarts", () => {
+    const unmuted = toggleMute(running(3, [], 0));
+    expect(unmuted.muted).toBe(false);
+    const next = step({ ...unmuted, status: "over" }, FRAME, { start: true });
+    expect(next.muted).toBe(false);
   });
 });
 
@@ -168,8 +239,10 @@ describe("snapshots", () => {
     for (let frame = 0; frame < 400; frame++) {
       state = step(state, FRAME, { laneDelta: frame === 30 ? -1 : 0 });
     }
+    state = toggleMute(state);
     const restored = fromSnapshot(JSON.parse(JSON.stringify(toSnapshot(state))));
-    expect(restored).toEqual(state);
+    expect(restored).toEqual({ ...state, events: [] });
+    expect(restored?.muted).toBe(false);
     if (!restored) return;
     let a = state;
     let b = restored;
@@ -189,24 +262,27 @@ describe("snapshots", () => {
       "state",
       [],
       {},
-      { ...valid, v: 2 },
-      { v: 1, state: null },
-      { v: 1, state: { ...valid.state, status: "paused" } },
-      { v: 1, state: { ...valid.state, count: -1 } },
-      { v: 1, state: { ...valid.state, count: Number.NaN } },
-      { v: 1, state: { ...valid.state, lane: 7 } },
-      { v: 1, state: { ...valid.state, stage: 0 } },
-      { v: 1, state: { ...valid.state, entities: [{ kind: "dragon", x: 1, done: false }] } },
+      { ...valid, v: 1 },
+      { v: 2, state: null },
+      { v: 2, state: { ...valid.state, status: "paused" } },
+      { v: 2, state: { ...valid.state, count: -1 } },
+      { v: 2, state: { ...valid.state, count: Number.NaN } },
+      { v: 2, state: { ...valid.state, lane: 7 } },
+      { v: 2, state: { ...valid.state, stage: 0 } },
+      { v: 2, state: { ...valid.state, entities: [{ kind: "dragon", x: 1, done: false }] } },
       {
-        v: 1,
+        v: 2,
         state: {
           ...valid.state,
           entities: [{ kind: "gates", x: 1, done: false, ops: [{ kind: "pow", value: 2 }] }],
         },
       },
-      { v: 1, state: { ...valid.state, gen: undefined } },
+      { v: 2, state: { ...valid.state, gen: undefined } },
+      { v: 2, state: { ...valid.state, muted: "no" } },
+      { v: 2, state: { ...valid.state, clear: { stage: 1 } } },
+      { v: 2, state: { ...valid.state, entities: [{ ...gateSet([null, null, null]), taken: 5 }] } },
     ];
     for (const value of broken) expect(fromSnapshot(value)).toBeNull();
-    expect(fromSnapshot(valid)).toEqual(valid.state);
+    expect(fromSnapshot(valid)).toEqual({ ...valid.state, events: [] });
   });
 });
