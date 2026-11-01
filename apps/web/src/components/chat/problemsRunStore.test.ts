@@ -9,7 +9,6 @@ import { AsyncResult, Atom } from "effect/reactivity";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { appAtomRegistry } from "../../rpc/atomRegistry";
-import { problemsTerminalCommand } from "./problems.logic";
 import { cancelProblemsRun, startProblemsRun, useProblemsRunStore } from "./problemsRunStore";
 
 const terminal = vi.hoisted(() => ({
@@ -36,17 +35,26 @@ function setup() {
   };
   const output = (data: string) =>
     emit({ type: "output", threadId: threadRef.threadId, terminalId: "term-2", data });
-  return { emit, output, run: () => useProblemsRunStore.getState().runByThreadKey[key] };
+  const launch = vi.fn(async (_input: string, _replace: string | null) => "term-2");
+  // The marker carries a per-run nonce, so tests read it back from the launched input.
+  const marker = () => /__T3_PROBLEMS_EXIT_\w+?__/.exec(launch.mock.calls.at(-1)![0])![0];
+  return {
+    emit,
+    output,
+    launch,
+    marker,
+    run: () => useProblemsRunStore.getState().runByThreadKey[key],
+  };
 }
 
 describe("startProblemsRun", () => {
   it("parses the run once the exit marker arrives, even split across chunks", async () => {
-    const { output, run } = setup();
-    await startProblemsRun({ threadRef, command, cwd: "/repo", launch: async () => "term-2" });
-    output(`$  ${problemsTerminalCommand(command)}\r\n`);
-    output("/repo/src/a.ts(1,2): error TS1: bad\r\n__T3_PROB");
+    const { output, launch, marker, run } = setup();
+    await startProblemsRun({ threadRef, command, cwd: "/repo", launch });
+    output(`$  ${launch.mock.calls[0]![0]}\r\n`);
+    output(`/repo/src/a.ts(1,2): error TS1: bad\r\n${marker().slice(0, 10)}`);
     expect(run()).toEqual({ status: "running", command, terminalId: "term-2" });
-    output("LEMS_EXIT__:2\r\n$ ");
+    output(`${marker().slice(10)}:2\r\n$ `);
     expect(run()).toEqual({
       status: "finished",
       command,
@@ -68,8 +76,8 @@ describe("startProblemsRun", () => {
   });
 
   it("fails when the terminal exits before the marker or cannot start", async () => {
-    const { emit, run } = setup();
-    await startProblemsRun({ threadRef, command, cwd: null, launch: async () => "term-2" });
+    const { emit, launch, run } = setup();
+    await startProblemsRun({ threadRef, command, cwd: null, launch });
     emit({
       type: "exited",
       threadId: threadRef.threadId,
@@ -84,25 +92,25 @@ describe("startProblemsRun", () => {
   });
 
   it("replaces the previous run's terminal and retries in fish syntax", async () => {
-    const { output, run } = setup();
-    const launch = vi.fn(async () => "term-2");
+    const { output, launch, marker, run } = setup();
     await startProblemsRun({ threadRef, command, cwd: null, launch });
-    expect(launch).toHaveBeenLastCalledWith(problemsTerminalCommand(command), null);
+    expect(launch).toHaveBeenLastCalledWith(`${command}; echo "${marker()}:$?"`, null);
+    output(`$  ${launch.mock.calls[0]![0]}\r\n`);
     output("fish: $? is not supported. In fish, please use $status.\r\n");
-    expect(launch).toHaveBeenLastCalledWith(problemsTerminalCommand(command, "fish"), "term-2");
+    expect(launch).toHaveBeenLastCalledWith(`${command}; echo "${marker()}:$status"`, "term-2");
     await launch.mock.results.at(-1)?.value;
-    output(`__T3_PROBLEMS_EXIT__:0\r\n`);
+    output(`${marker()}:0\r\n`);
     expect(run()).toMatchObject({ status: "finished", exitCode: 0, terminalId: "term-2" });
 
     await startProblemsRun({ threadRef, command, cwd: null, launch });
-    expect(launch.mock.calls[2]).toEqual([problemsTerminalCommand(command), "term-2"]);
+    expect(launch.mock.calls[2]).toEqual([`${command}; echo "${marker()}:$?"`, "term-2"]);
   });
 
   it("stops following the terminal when cancelled", async () => {
-    const { output, run } = setup();
-    await startProblemsRun({ threadRef, command, cwd: null, launch: async () => "term-2" });
+    const { output, launch, marker, run } = setup();
+    await startProblemsRun({ threadRef, command, cwd: null, launch });
     cancelProblemsRun(threadRef);
-    output("__T3_PROBLEMS_EXIT__:0\r\n");
+    output(`${marker()}:0\r\n`);
     expect(run()).toMatchObject({ status: "failed", terminalId: "term-2" });
   });
 });

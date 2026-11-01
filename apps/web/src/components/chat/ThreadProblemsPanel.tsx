@@ -17,7 +17,8 @@ import {
   buildFixProblemsPrompt,
   groupProblemsByFile,
   MAX_FIX_PROBLEMS,
-  problemsScriptBody,
+  problemsScripts,
+  stripHiddenCharacters,
   suggestProblemsCommands,
   type Problem,
 } from "./problems.logic";
@@ -52,7 +53,7 @@ export function ThreadProblemsPanel(props: {
     packageJson.data && !packageJson.data.truncated ? packageJson.data.contents : null;
   const suggestions = suggestProblemsCommands(packageJsonText);
   const command = storedCommand ?? suggestions[0] ?? "";
-  const scriptBody = problemsScriptBody(packageJsonText, command);
+  const scripts = problemsScripts(packageJsonText, command);
   const running = run?.status === "running";
   const canRun = canOperate && canRead && command.trim().length > 0 && !running;
 
@@ -130,11 +131,25 @@ export function ThreadProblemsPanel(props: {
               ))}
           </div>
         ) : null}
-        {scriptBody !== null && !running ? (
-          <p className="m-0 min-w-0 text-2xs text-muted-foreground">
-            Runs this project's script (and any pre or post hooks):{" "}
-            <code className="break-all font-mono">{scriptBody}</code>
-          </p>
+        {scripts !== null && !running ? (
+          <div className="flex min-w-0 flex-col gap-1 text-2xs text-muted-foreground">
+            <p className="m-0">
+              {scripts.length === 1
+                ? "Runs this script from package.json:"
+                : "Runs these scripts from package.json, in order:"}
+            </p>
+            {scripts.map((script) => (
+              <div key={script.name} className="flex min-w-0 flex-col gap-0.5">
+                {scripts.length > 1 ? <span className="font-mono">{script.name}</span> : null}
+                <pre
+                  aria-label={`${script.name} script`}
+                  className="m-0 max-h-24 overflow-auto whitespace-break-spaces break-all rounded-md bg-muted/40 px-1.5 py-1 font-mono text-foreground/85"
+                >
+                  {script.body}
+                </pre>
+              </div>
+            ))}
+          </div>
         ) : null}
         <p className="m-0 text-2xs text-muted-foreground" role="status">
           {!canOperate || !canRead
@@ -173,7 +188,9 @@ export function ThreadProblemsPanel(props: {
             {groups.map((group) => (
               <details key={group.file} open={groups.length <= 3}>
                 <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-2.5 py-1 text-xs font-medium text-foreground/85 hover:bg-black/[0.035] dark:hover:bg-white/[0.08]">
-                  <span className="min-w-0 flex-1 truncate font-mono">{group.file}</span>
+                  <span className="min-w-0 flex-1 truncate font-mono">
+                    {stripHiddenCharacters(group.file)}
+                  </span>
                   <span className="shrink-0 tabular-nums text-muted-foreground">
                     {group.problems.length}
                   </span>
@@ -205,7 +222,7 @@ export function ThreadProblemsPanel(props: {
                               {problem.line}
                               {problem.column === null ? "" : `:${problem.column}`}
                             </span>
-                            {problem.message}
+                            {stripHiddenCharacters(problem.message)}
                           </span>
                         </TooltipTrigger>
                         <TooltipPopup side="left">
