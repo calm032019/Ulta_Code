@@ -12,8 +12,10 @@ import { formatEnvironmentQueryError } from "../../state/query";
 import { terminalEnvironment } from "../../state/terminal";
 import { appAtomRegistry } from "../../rpc/atomRegistry";
 import {
+  createProblemsRunNonce,
   hasProblemsExitMarker,
   isFishStatusError,
+  MAX_PROBLEMS_OUTPUT_CHARS,
   parseProblems,
   problemsTerminalCommand,
   readProblemsRunOutput,
@@ -53,6 +55,10 @@ export const useProblemsRunStore = create<ProblemsRunState>()((set) => ({
 }));
 
 const watchers = new Map<string, () => void>();
+// Enough to catch an exit marker split across chunks.
+const MARKER_TAIL_CHARS = 128;
+// fish's refusal is the first output after the echoed input, so only an early buffer can hold it.
+const FISH_ERROR_WINDOW_CHARS = 16_384;
 
 function setRun(key: string, run: ProblemsRun) {
   useProblemsRunStore.setState((state) => ({
@@ -95,8 +101,9 @@ async function followProblemsRun(
 ): Promise<void> {
   const starting: ProblemsRun = { status: "running", command: input.command, terminalId: null };
   setRun(key, starting);
+  const nonce = createProblemsRunNonce();
   const terminalId = await input.launch(
-    problemsTerminalCommand(input.command, shell),
+    problemsTerminalCommand(input.command, nonce, shell),
     replaceTerminalId,
   );
   // Cancelled or replaced while the terminal was opening.
@@ -114,6 +121,7 @@ async function followProblemsRun(
 
   let cursor = INITIAL_TERMINAL_OUTPUT_CURSOR;
   let text = "";
+  let tail = "";
   let done = false;
   let unsubscribe: (() => void) | undefined;
   const stop = () => {
@@ -129,16 +137,29 @@ async function followProblemsRun(
   const onBuffer = (buffer: TerminalBufferState) => {
     const update = readTerminalOutputUpdate(buffer.output, cursor);
     cursor = update.cursor;
-    if (update.type === "reset") text = update.data;
-    else if (update.type === "append") text += update.data;
-    const unread = update.type === "none" ? "" : text.slice(-(update.data.length + 64));
-    if (shell === "posix" && isFishStatusError(unread)) {
+    let unread = "";
+    if (update.type === "reset") {
+      text = update.data;
+      unread = update.data;
+    } else if (update.type === "append") {
+      text += update.data;
+      unread = tail + update.data;
+    }
+    // Trimming only past twice the cap keeps appends linear; parsing reads just the last cap.
+    if (text.length > 2 * MAX_PROBLEMS_OUTPUT_CHARS) text = text.slice(-MAX_PROBLEMS_OUTPUT_CHARS);
+    if (unread.length > 0) tail = unread.slice(-MARKER_TAIL_CHARS);
+    if (
+      shell === "posix" &&
+      unread.length > 0 &&
+      text.length <= FISH_ERROR_WINDOW_CHARS &&
+      isFishStatusError(text, nonce)
+    ) {
       stop();
       void followProblemsRun(input, key, "fish", terminalId);
       return;
     }
-    if (hasProblemsExitMarker(unread)) {
-      const result = readProblemsRunOutput(text);
+    if (unread.length > 0 && hasProblemsExitMarker(unread, nonce)) {
+      const result = readProblemsRunOutput(text, nonce);
       if (result) {
         finish({
           status: "finished",

@@ -22,7 +22,7 @@ export interface ProblemFileGroup {
 
 export const MAX_FIX_PROBLEMS = 20;
 const MAX_PARSED_PROBLEMS = 1_000;
-const MAX_OUTPUT_CHARS = 1024 * 1024;
+export const MAX_PROBLEMS_OUTPUT_CHARS = 1024 * 1024;
 // Diagnostics lead with their location; a cap keeps minified or base64 lines cheap to scan.
 const MAX_LINE_CHARS = 4096;
 
@@ -191,12 +191,18 @@ function formatProblemLocation(problem: Problem): string {
 }
 
 // Invisible formatting and control characters can hide or reorder text the user reviews.
-const HIDDEN_CHARACTERS = /[\u200B-\u200F\u202A-\u202E\u2066-\u2069\p{Cc}]/gu;
+const HIDDEN_CHARACTERS =
+  /[\u00AD\u061C\u180E\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF\p{Cc}]/gu;
+
+export function stripHiddenCharacters(text: string): string {
+  return text.replace(HIDDEN_CHARACTERS, "");
+}
 
 function formatProblem(problem: Problem): string {
-  const code = problem.code === null ? "" : ` ${problem.code}`;
-  const message = problem.message.replace(HIDDEN_CHARACTERS, "");
-  return `- ${formatProblemLocation(problem)} ${problem.severity}${code}: ${message}`;
+  const location = stripHiddenCharacters(formatProblemLocation(problem));
+  const code = problem.code === null ? "" : ` ${stripHiddenCharacters(problem.code)}`;
+  const message = stripHiddenCharacters(problem.message);
+  return `- ${location} ${problem.severity}${code}: ${message}`;
 }
 
 /** A Markdown code span that stays closed whatever backticks the text contains. */
@@ -239,11 +245,19 @@ function packageScriptRunner(packageManager: unknown): (script: string) => strin
   return (script) => `npm run ${script}`;
 }
 
-/** Commands for the package.json scripts that usually report problems, most likely first. */
-const MAX_SCRIPT_PREVIEW_CHARS = 200;
+export interface ProblemsScript {
+  readonly name: string;
+  readonly body: string;
+}
 
-/** What a suggested command actually runs: the repository's own script, shown before Run. */
-export function problemsScriptBody(packageJson: string | null, command: string): string | null {
+/**
+ * Everything a suggested command runs, in order: the repository's script and the pre and post
+ * lifecycle scripts package managers run around it, shown in full before Run.
+ */
+export function problemsScripts(
+  packageJson: string | null,
+  command: string,
+): ReadonlyArray<ProblemsScript> | null {
   if (packageJson === null) return null;
   let parsed: unknown;
   try {
@@ -256,12 +270,16 @@ export function problemsScriptBody(packageJson: string | null, command: string):
   if (typeof scripts !== "object" || scripts === null) return null;
   const run = packageScriptRunner(packageManager);
   const name = PROBLEMS_SCRIPT_NAMES.find((candidate) => run(candidate) === command);
-  const body = name === undefined ? undefined : (scripts as Record<string, unknown>)[name];
-  if (typeof body !== "string") return null;
-  const clean = body.replace(HIDDEN_CHARACTERS, " ").trim();
-  return clean.length > MAX_SCRIPT_PREVIEW_CHARS
-    ? `${clean.slice(0, MAX_SCRIPT_PREVIEW_CHARS)}…`
-    : clean;
+  if (name === undefined) return null;
+  const entries = scripts as Record<string, unknown>;
+  if (typeof entries[name] !== "string") return null;
+  return [`pre${name}`, name, `post${name}`].flatMap((script) => {
+    const body = entries[script];
+    if (typeof body !== "string") return [];
+    // Newlines and tabs separate commands, so they stay visible in the whitespace-preserving view.
+    const clean = body.replace(HIDDEN_CHARACTERS, (char) => (/[\n\t]/.test(char) ? char : " "));
+    return [{ name: script, body: clean }];
+  });
 }
 
 export function suggestProblemsCommands(packageJson: string | null): string[] {
@@ -281,22 +299,48 @@ export function suggestProblemsCommands(packageJson: string | null): string[] {
   ).map(run);
 }
 
-const PROBLEMS_EXIT_MARKER = "__T3_PROBLEMS_EXIT__";
-const PROBLEMS_EXIT_PATTERN = new RegExp(`${PROBLEMS_EXIT_MARKER}:(\\d+|True|False)`);
+/** A per-run marker suffix, so the checked script cannot print a convincing exit marker. */
+export function createProblemsRunNonce(): string {
+  // getRandomValues works on plain-HTTP remote origins, where randomUUID is missing.
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
 
-// fish rejects `$?` at parse time, so the whole line never runs there.
-const FISH_STATUS_ERROR = /\$\? is not supported/;
+function problemsExitMarker(nonce: string): string {
+  return `__T3_PROBLEMS_EXIT_${nonce}__`;
+}
+
+function problemsExitPattern(nonce: string): RegExp {
+  return new RegExp(`${problemsExitMarker(nonce)}:(\\d+|True|False)`);
+}
+
+function plainTerminalText(terminalText: string): string {
+  return terminalOutputPlainText(
+    normalizeTerminalOutput(terminalText, MAX_PROBLEMS_OUTPUT_CHARS).text,
+  );
+}
+
+// fish rejects `$?` at parse time, so the line never runs and the error is its first output.
+const FISH_STATUS_ERROR = /^\s*(?:fish: )?\$\? is not supported/;
 
 export type ProblemsShell = "posix" | "fish";
 
 /** Shell input that runs the check and then prints a marker carrying its exit status. */
-export function problemsTerminalCommand(command: string, shell: ProblemsShell = "posix"): string {
-  return `${command.trim()}; echo "${PROBLEMS_EXIT_MARKER}:${shell === "fish" ? "$status" : "$?"}"`;
+export function problemsTerminalCommand(
+  command: string,
+  nonce: string,
+  shell: ProblemsShell = "posix",
+): string {
+  const status = shell === "fish" ? "$status" : "$?";
+  return `${command.trim()}; echo "${problemsExitMarker(nonce)}:${status}"`;
 }
 
 /** True once fish has refused the POSIX status probe, so the run should retry in fish syntax. */
-export function isFishStatusError(terminalText: string): boolean {
-  return FISH_STATUS_ERROR.test(terminalText);
+export function isFishStatusError(terminalText: string, nonce: string): boolean {
+  const plain = plainTerminalText(terminalText);
+  const echoed = plain.indexOf(`${problemsExitMarker(nonce)}:$?`);
+  const lineEnd = echoed === -1 ? -1 : plain.indexOf("\n", echoed);
+  return lineEnd !== -1 && FISH_STATUS_ERROR.test(plain.slice(lineEnd + 1));
 }
 
 export interface ProblemsRunOutput {
@@ -305,14 +349,15 @@ export interface ProblemsRunOutput {
 }
 
 /** The finished run's plain output, or null while the exit marker has not been printed. */
-export function readProblemsRunOutput(terminalText: string): ProblemsRunOutput | null {
-  const plain = terminalOutputPlainText(
-    normalizeTerminalOutput(terminalText, MAX_OUTPUT_CHARS).text,
-  );
-  const exit = PROBLEMS_EXIT_PATTERN.exec(plain);
+export function readProblemsRunOutput(
+  terminalText: string,
+  nonce: string,
+): ProblemsRunOutput | null {
+  const plain = plainTerminalText(terminalText);
+  const exit = problemsExitPattern(nonce).exec(plain);
   if (!exit) return null;
   // The echoed input line holds the marker unexpanded; output starts after it.
-  const echoed = plain.lastIndexOf(`${PROBLEMS_EXIT_MARKER}:$`, exit.index);
+  const echoed = plain.lastIndexOf(`${problemsExitMarker(nonce)}:$`, exit.index);
   const start = echoed === -1 ? 0 : plain.indexOf("\n", echoed) + 1;
   const status = exit[1]!;
   return {
@@ -322,6 +367,6 @@ export function readProblemsRunOutput(terminalText: string): ProblemsRunOutput |
 }
 
 /** Cheap raw-text check so callers only normalise once the marker has arrived. */
-export function hasProblemsExitMarker(terminalText: string): boolean {
-  return PROBLEMS_EXIT_PATTERN.test(terminalText);
+export function hasProblemsExitMarker(terminalText: string, nonce: string): boolean {
+  return problemsExitPattern(nonce).test(terminalText);
 }
