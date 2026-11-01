@@ -89,16 +89,22 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
 }
 
 /* The minigame dock grows out of the composer's height and shrinks back into it.
-   One-shot animations only: nothing keeps running once the dock settles. */
-@keyframes t3-minigame-dock-height-in {
+   Clipped rather than resized so the timeline lays out once, not every frame. */
+@keyframes t3-minigame-dock-reveal-in {
   from {
-    height: var(--minigame-dock-collapsed-height);
+    clip-path: var(--minigame-dock-collapsed-clip);
+  }
+  to {
+    clip-path: var(--minigame-dock-open-clip);
   }
 }
 
-@keyframes t3-minigame-dock-height-out {
+@keyframes t3-minigame-dock-reveal-out {
+  from {
+    clip-path: var(--minigame-dock-open-clip);
+  }
   to {
-    height: var(--minigame-dock-collapsed-height);
+    clip-path: var(--minigame-dock-collapsed-clip);
   }
 }
 
@@ -115,12 +121,13 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
 }
 
 .minigame-dock {
-  --minigame-dock-collapsed-height: 7rem;
+  --minigame-dock-open-clip: inset(0 round var(--radius-2xl));
+  --minigame-dock-collapsed-clip: inset(calc(100% - 7rem) 0 0 round var(--radius-2xl));
   animation: t3-minigame-dock-fade-in 220ms cubic-bezier(0.2, 0, 0, 1) both;
 }
 
 .minigame-dock-body {
-  animation: t3-minigame-dock-height-in 220ms cubic-bezier(0.2, 0, 0, 1) both;
+  animation: t3-minigame-dock-reveal-in 220ms cubic-bezier(0.2, 0, 0, 1) both;
 }
 
 .minigame-dock[data-closing] {
@@ -128,7 +135,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
 }
 
 .minigame-dock[data-closing] .minigame-dock-body {
-  animation: t3-minigame-dock-height-out 180ms cubic-bezier(0.4, 0, 1, 1) both;
+  animation: t3-minigame-dock-reveal-out 180ms cubic-bezier(0.4, 0, 1, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2620,7 +2627,6 @@ code {
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
 }
 
 ::selection {
