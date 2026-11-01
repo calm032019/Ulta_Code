@@ -7,7 +7,7 @@ export const CLEAR_FREEZE_MS = 1200;
 const DESPAWN_BEHIND = 30;
 const START_COUNT = 10;
 const LANE_EASE_MS = 80;
-const SNAPSHOT_VERSION = 2;
+const SNAPSHOT_VERSION = 3;
 
 export type GateOpKind = "add" | "sub" | "mul" | "div";
 
@@ -18,7 +18,7 @@ export interface GateOp {
 
 export interface GateSet {
   kind: "gates";
-  x: number;
+  z: number;
   ops: Array<GateOp | null>;
   taken: number | null;
   done: boolean;
@@ -26,7 +26,7 @@ export interface GateSet {
 
 export interface Blades {
   kind: "blades";
-  x: number;
+  z: number;
   lanes: boolean[];
   damage: number;
   style: "saw" | "bar";
@@ -35,7 +35,7 @@ export interface Blades {
 
 export interface Enemy {
   kind: "enemy";
-  x: number;
+  z: number;
   lane: number;
   count: number;
   done: boolean;
@@ -43,7 +43,7 @@ export interface Enemy {
 
 export interface FinishWall {
   kind: "wall";
-  x: number;
+  z: number;
   count: number;
   done: boolean;
 }
@@ -71,8 +71,6 @@ export type Status = "ready" | "running" | "over";
 export interface GateRunnerState {
   status: Status;
   statusAge: number;
-  width: number;
-  height: number;
   rng: number;
   time: number;
   distance: number;
@@ -89,7 +87,7 @@ export interface GateRunnerState {
   freeze: number;
   clear: StageClear | null;
   entities: Entity[];
-  gen: { nextX: number; stage: number; sets: number };
+  gen: { nextZ: number; stage: number; sets: number };
   /** Emitted by the latest `step` only; never persisted. */
   events: GameEvent[];
 }
@@ -154,7 +152,8 @@ export function comboBonus(combo: number): number {
   return combo >= 2 ? Math.min(combo, 10) * 5 : 0;
 }
 
-function speedForStage(stage: number): number {
+/** Running speed in metres per second. */
+export function speedForStage(stage: number): number {
   return Math.min(19, 8 + (stage - 1) * 1.5);
 }
 
@@ -170,7 +169,7 @@ function badOp(state: GateRunnerState, stage: number): GateOp {
   return { kind: "sub", value: randomInt(state, 2, 2 + stage * 4) };
 }
 
-export function generateGateSet(state: GateRunnerState, stage: number, x: number): GateSet {
+export function generateGateSet(state: GateRunnerState, stage: number, z: number): GateSet {
   const safeLane = randomInt(state, 0, LANES - 1);
   const emptyLane = nextRandom(state) < 0.3 ? randomInt(state, 0, LANES - 1) : -1;
   const goodChance = Math.max(0.15, 0.5 - stage * 0.06);
@@ -180,7 +179,7 @@ export function generateGateSet(state: GateRunnerState, stage: number, x: number
     else if (lane === safeLane || nextRandom(state) < goodChance) ops.push(goodOp(state, stage));
     else ops.push(badOp(state, stage));
   }
-  return { kind: "gates", x, ops, taken: null, done: false };
+  return { kind: "gates", z, ops, taken: null, done: false };
 }
 
 function spawnNext(state: GateRunnerState): void {
@@ -189,8 +188,8 @@ function spawnNext(state: GateRunnerState): void {
   if (gen.sets >= SETS_PER_STAGE) {
     const factor = Math.min(0.85, 0.55 + gen.stage * 0.05);
     const count = Math.max(1, Math.floor(state.count * factor));
-    state.entities.push({ kind: "wall", x: gen.nextX, count, done: false });
-    gen.nextX += gap * 1.6;
+    state.entities.push({ kind: "wall", z: gen.nextZ, count, done: false });
+    gen.nextZ += gap * 1.6;
     gen.sets = 0;
     gen.stage += 1;
     return;
@@ -204,39 +203,37 @@ function spawnNext(state: GateRunnerState): void {
       for (let lane = start; lane < start + blocked; lane++) lanes[lane] = true;
       state.entities.push({
         kind: "blades",
-        x: gen.nextX,
+        z: gen.nextZ,
         lanes,
         damage: randomInt(state, 2, 2 + gen.stage * 2),
         style: nextRandom(state) < 0.6 ? "saw" : "bar",
         done: false,
       });
-      gen.nextX += gap;
+      gen.nextZ += gap;
     } else if (roll < 0.7) {
       state.entities.push({
         kind: "enemy",
-        x: gen.nextX,
+        z: gen.nextZ,
         lane: randomInt(state, 0, LANES - 1),
         count: randomInt(state, 2, 3 + gen.stage * 5),
         done: false,
       });
-      gen.nextX += gap;
+      gen.nextZ += gap;
     }
   }
-  state.entities.push(generateGateSet(state, gen.stage, gen.nextX));
+  state.entities.push(generateGateSet(state, gen.stage, gen.nextZ));
   gen.sets += 1;
-  gen.nextX += gap;
+  gen.nextZ += gap;
 }
 
 function fillAhead(state: GateRunnerState): void {
-  while (state.gen.nextX < state.distance + SPAWN_AHEAD) spawnNext(state);
+  while (state.gen.nextZ < state.distance + SPAWN_AHEAD) spawnNext(state);
 }
 
-export function initialState(seed: number, width: number, height: number): GateRunnerState {
+export function initialState(seed: number): GateRunnerState {
   const state: GateRunnerState = {
     status: "ready",
     statusAge: 0,
-    width,
-    height,
     rng: seed >>> 0,
     time: 0,
     distance: 0,
@@ -253,15 +250,11 @@ export function initialState(seed: number, width: number, height: number): GateR
     freeze: 0,
     clear: null,
     entities: [],
-    gen: { nextX: 22, stage: 1, sets: 0 },
+    gen: { nextZ: 22, stage: 1, sets: 0 },
     events: [],
   };
   fillAhead(state);
   return state;
-}
-
-export function resize(state: GateRunnerState, width: number, height: number): GateRunnerState {
-  return { ...state, width, height };
 }
 
 export function toggleMute(state: GateRunnerState): GateRunnerState {
@@ -304,7 +297,7 @@ function endGame(state: GateRunnerState): void {
 function restart(previous: GateRunnerState): GateRunnerState {
   const state = cloneState(previous);
   const seed = Math.floor(nextRandom(state) * 4294967296);
-  const next = initialState(seed, state.width, state.height);
+  const next = initialState(seed);
   next.best = Math.max(state.best, scoreOf(state));
   next.runBest = next.best;
   next.muted = state.muted;
@@ -418,12 +411,12 @@ export function step(state: GateRunnerState, dtMs: number, input: StepInput = {}
   s.distance += (speedForStage(s.stage) * dt) / 1000;
   const lane = Math.round(s.lane);
   for (const entity of s.entities) {
-    if (entity.done || entity.x > s.distance) continue;
+    if (entity.done || entity.z > s.distance) continue;
     resolve(s, entity, lane);
     if (s.status !== "running") break;
   }
   if (s.status === "running" && s.count <= 0) endGame(s);
-  s.entities = s.entities.filter((entity) => entity.x > s.distance - DESPAWN_BEHIND);
+  s.entities = s.entities.filter((entity) => entity.z > s.distance - DESPAWN_BEHIND);
   fillAhead(s);
   if (s.status === "running") s.best = Math.max(s.best, scoreOf(s));
   return s;
@@ -461,7 +454,7 @@ function isOp(value: unknown): value is GateOp {
 }
 
 function isEntity(value: unknown): value is Entity {
-  if (!isRec(value) || !isNum(value.x) || typeof value.done !== "boolean") return false;
+  if (!isRec(value) || !isNum(value.z) || typeof value.done !== "boolean") return false;
   switch (value.kind) {
     case "gates":
       return (
@@ -505,8 +498,6 @@ export function fromSnapshot(value: unknown): GateRunnerState | null {
   if (
     !(s.status === "ready" || s.status === "running" || s.status === "over") ||
     !isNum(s.statusAge) ||
-    !isNum(s.width) ||
-    !isNum(s.height) ||
     !isNum(s.rng) ||
     !isNum(s.time) ||
     !isNum(s.distance) ||
@@ -530,7 +521,7 @@ export function fromSnapshot(value: unknown): GateRunnerState | null {
     !Array.isArray(s.entities) ||
     !s.entities.every(isEntity) ||
     !isRec(gen) ||
-    !isNum(gen.nextX) ||
+    !isNum(gen.nextZ) ||
     !isNum(gen.stage) ||
     !isNum(gen.sets)
   ) {
@@ -539,8 +530,6 @@ export function fromSnapshot(value: unknown): GateRunnerState | null {
   return cloneState({
     status: s.status,
     statusAge: s.statusAge,
-    width: s.width,
-    height: s.height,
     rng: s.rng >>> 0,
     time: s.time,
     distance: s.distance,
@@ -557,7 +546,7 @@ export function fromSnapshot(value: unknown): GateRunnerState | null {
     freeze: Math.max(0, s.freeze),
     clear: s.clear,
     entities: s.entities,
-    gen: { nextX: gen.nextX, stage: gen.stage, sets: gen.sets },
+    gen: { nextZ: gen.nextZ, stage: gen.stage, sets: gen.sets },
     events: [],
   });
 }

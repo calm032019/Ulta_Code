@@ -20,16 +20,16 @@ import {
 
 const FRAME = 1000 / 60;
 
-const gateSet = (ops: Array<GateOp | null>, x = 0.05): Entity => ({
+const gateSet = (ops: Array<GateOp | null>, z = 0.05): Entity => ({
   kind: "gates",
-  x,
+  z,
   ops,
   taken: null,
   done: false,
 });
 
 function running(seed: number, entities: Entity[], count: number): GateRunnerState {
-  const state = step(initialState(seed, 640, 180), 0, { start: true });
+  const state = step(initialState(seed), 0, { start: true });
   return { ...state, entities, count };
 }
 
@@ -69,7 +69,7 @@ describe("comboBonus", () => {
 describe("gate generation", () => {
   it("always offers a lane that does not lose units", () => {
     for (let seed = 1; seed <= 300; seed++) {
-      const state = initialState(seed, 640, 180);
+      const state = initialState(seed);
       for (let stage = 1; stage <= 15; stage++) {
         const set = generateGateSet(state, stage, 0);
         expect(set.ops).toHaveLength(LANES);
@@ -84,11 +84,11 @@ describe("gate generation", () => {
   });
 
   it("spawns a finish wall after every eighth gate set", () => {
-    let state = step(initialState(7, 640, 180), 0, { start: true });
+    let state = step(initialState(7), 0, { start: true });
     const seen = new Map<number, Entity["kind"]>();
     for (let frame = 0; frame < 60 * 60; frame++) {
       state = { ...step(state, FRAME), count: 500, status: "running" };
-      for (const entity of state.entities) seen.set(entity.x, entity.kind);
+      for (const entity of state.entities) seen.set(entity.z, entity.kind);
     }
     const kinds = [...seen].sort(([a], [b]) => a - b).map(([, kind]) => kind);
     const firstWall = kinds.indexOf("wall");
@@ -99,8 +99,8 @@ describe("gate generation", () => {
   });
 
   it("is deterministic for a seed", () => {
-    let a = step(initialState(42, 640, 180), 0, { start: true });
-    let b = step(initialState(42, 640, 180), 0, { start: true });
+    let a = step(initialState(42), 0, { start: true });
+    let b = step(initialState(42), 0, { start: true });
     for (let frame = 0; frame < 600; frame++) {
       a = step(a, FRAME, { laneDelta: frame % 90 === 0 ? 1 : 0 });
       b = step(b, FRAME, { laneDelta: frame % 90 === 0 ? 1 : 0 });
@@ -111,7 +111,7 @@ describe("gate generation", () => {
 
 describe("step", () => {
   it("passes a finish wall when the crowd is bigger and advances the stage", () => {
-    const state = running(1, [{ kind: "wall", x: 0.05, count: 10, done: false }], 11);
+    const state = running(1, [{ kind: "wall", z: 0.05, count: 10, done: false }], 11);
     const next = step(state, FRAME);
     expect(next.status).toBe("running");
     expect(next.stage).toBe(2);
@@ -127,7 +127,7 @@ describe("step", () => {
   });
 
   it("ends the game at a finish wall the crowd cannot beat", () => {
-    const state = running(1, [{ kind: "wall", x: 0.05, count: 10, done: false }], 10);
+    const state = running(1, [{ kind: "wall", z: 0.05, count: 10, done: false }], 10);
     const next = step(state, FRAME);
     expect(next.status).toBe("over");
     expect(next.stage).toBe(1);
@@ -137,7 +137,7 @@ describe("step", () => {
   it("ends the game when the crowd reaches zero and records the best score", () => {
     const blades: Entity = {
       kind: "blades",
-      x: 0.05,
+      z: 0.05,
       lanes: [false, true, false],
       damage: 9,
       style: "saw",
@@ -154,9 +154,9 @@ describe("step", () => {
 
   it("only hits obstacles and enemies in the crowd's lane", () => {
     const entities: Entity[] = [
-      { kind: "enemy", x: 0.05, lane: 0, count: 50, done: false },
-      { kind: "blades", x: 0.05, lanes: [true, false, true], damage: 9, style: "bar", done: false },
-      { kind: "enemy", x: 0.05, lane: 1, count: 8, done: false },
+      { kind: "enemy", z: 0.05, lane: 0, count: 50, done: false },
+      { kind: "blades", z: 0.05, lanes: [true, false, true], damage: 9, style: "bar", done: false },
+      { kind: "enemy", z: 0.05, lane: 1, count: 8, done: false },
     ];
     const next = step(running(1, entities, 20), FRAME);
     expect(next.count).toBe(12);
@@ -235,7 +235,7 @@ describe("step", () => {
 
 describe("snapshots", () => {
   it("round-trips through JSON and resumes identically", () => {
-    let state = step(initialState(99, 640, 180), 0, { start: true });
+    let state = step(initialState(99), 0, { start: true });
     for (let frame = 0; frame < 400; frame++) {
       state = step(state, FRAME, { laneDelta: frame === 30 ? -1 : 0 });
     }
@@ -254,7 +254,7 @@ describe("snapshots", () => {
   });
 
   it("rejects garbage", () => {
-    const valid = toSnapshot(initialState(1, 640, 180));
+    const valid = toSnapshot(initialState(1));
     const broken: unknown[] = [
       null,
       undefined,
@@ -263,24 +263,30 @@ describe("snapshots", () => {
       [],
       {},
       { ...valid, v: 1 },
-      { v: 2, state: null },
-      { v: 2, state: { ...valid.state, status: "paused" } },
-      { v: 2, state: { ...valid.state, count: -1 } },
-      { v: 2, state: { ...valid.state, count: Number.NaN } },
-      { v: 2, state: { ...valid.state, lane: 7 } },
-      { v: 2, state: { ...valid.state, stage: 0 } },
-      { v: 2, state: { ...valid.state, entities: [{ kind: "dragon", x: 1, done: false }] } },
+      { ...valid, v: 2 },
       {
-        v: 2,
+        v: 3,
+        state: { ...valid.state, entities: [{ kind: "wall", x: 30, count: 5, done: false }] },
+      },
+      { v: 3, state: { ...valid.state, gen: { nextX: 40, stage: 1, sets: 0 } } },
+      { v: 3, state: null },
+      { v: 3, state: { ...valid.state, status: "paused" } },
+      { v: 3, state: { ...valid.state, count: -1 } },
+      { v: 3, state: { ...valid.state, count: Number.NaN } },
+      { v: 3, state: { ...valid.state, lane: 7 } },
+      { v: 3, state: { ...valid.state, stage: 0 } },
+      { v: 3, state: { ...valid.state, entities: [{ kind: "dragon", z: 1, done: false }] } },
+      {
+        v: 3,
         state: {
           ...valid.state,
-          entities: [{ kind: "gates", x: 1, done: false, ops: [{ kind: "pow", value: 2 }] }],
+          entities: [{ kind: "gates", z: 1, done: false, ops: [{ kind: "pow", value: 2 }] }],
         },
       },
-      { v: 2, state: { ...valid.state, gen: undefined } },
-      { v: 2, state: { ...valid.state, muted: "no" } },
-      { v: 2, state: { ...valid.state, clear: { stage: 1 } } },
-      { v: 2, state: { ...valid.state, entities: [{ ...gateSet([null, null, null]), taken: 5 }] } },
+      { v: 3, state: { ...valid.state, gen: undefined } },
+      { v: 3, state: { ...valid.state, muted: "no" } },
+      { v: 3, state: { ...valid.state, clear: { stage: 1 } } },
+      { v: 3, state: { ...valid.state, entities: [{ ...gateSet([null, null, null]), taken: 5 }] } },
     ];
     for (const value of broken) expect(fromSnapshot(value)).toBeNull();
     expect(fromSnapshot(valid)).toEqual({ ...valid.state, events: [] });

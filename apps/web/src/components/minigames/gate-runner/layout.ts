@@ -1,4 +1,4 @@
-import { LANES } from "./logic";
+import { CAMERA_BACK, createLens, LANE_WIDTH, type Lens } from "./camera";
 
 export interface Rect {
   x: number;
@@ -10,55 +10,42 @@ export interface Rect {
 export interface Layout {
   width: number;
   height: number;
-  /** Height of the scenery band the HUD sits on. */
-  sky: number;
-  top: number;
-  bottom: number;
-  roadH: number;
-  laneH: number;
-  pxPerM: number;
-  crowdX: number;
+  /** Height of the band at the top the HUD sits in. */
+  hud: number;
   pill: number;
+  lens: Lens;
 }
 
 export const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 
 export function computeLayout(width: number, height: number): Layout {
-  const sky = Math.round(clamp(height * 0.17, 22, 44));
-  const bottom = height - 3;
-  const roadH = bottom - sky;
+  const hud = Math.round(clamp(height * 0.17, 22, 44));
   return {
     width,
     height,
-    sky,
-    top: sky,
-    bottom,
-    roadH,
-    laneH: roadH / LANES,
-    pxPerM: clamp(width / 34, 9, 24),
-    crowdX: Math.round(width * 0.24),
-    pill: Math.round(clamp(sky - 8, 16, 26)),
+    hud,
+    pill: Math.round(clamp(hud - 8, 16, 26)),
+    lens: createLens(width, height, hud),
   };
 }
 
-export const laneCenter = (layout: Layout, lane: number) =>
-  layout.top + (lane + 0.5) * layout.laneH;
+/** Taps in the outer thirds step one lane that way; the middle third does nothing. */
+export function tapDelta(layout: Layout, x: number): number {
+  if (x < layout.width / 3) return -1;
+  if (x > (layout.width * 2) / 3) return 1;
+  return 0;
+}
 
-/** Nearer lanes (lower on screen) draw slightly larger for a sense of depth. */
-export const depthAt = (lane: number) => 0.88 + 0.12 * lane;
-
-export const worldToScreen = (layout: Layout, x: number, distance: number) =>
-  layout.crowdX + (x - distance) * layout.pxPerM;
-
-export function laneAt(layout: Layout, y: number): number {
-  return clamp(Math.floor((y - layout.top) / layout.laneH), 0, LANES - 1);
+/** Horizontal drag distance that moves the crowd one lane: a lane's width under the crowd. */
+export function dragStep(layout: Layout): number {
+  return Math.max(24, (LANE_WIDTH * layout.lens.fx) / CAMERA_BACK);
 }
 
 export function muteRect(layout: Layout): Rect {
   const size = layout.pill;
   const pad = Math.max(6, layout.width * 0.012);
-  return { x: layout.width - pad - size, y: (layout.sky - size) / 2, w: size, h: size };
+  return { x: layout.width - pad - size, y: (layout.hud - size) / 2, w: size, h: size };
 }
 
 export interface OverCard {
