@@ -1,5 +1,6 @@
 import { hydratePartialDiff } from "@pierre/diffs";
 import { parsePatchFiles } from "@pierre/diffs/utils/parsePatchFiles";
+import { COMPOSER_CONTEXT_REVIEW_DIFF_MAX_CHARS } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -28,6 +29,24 @@ describe("review comment context parsing", () => {
     expect(formatReviewCommentFence(comment.fenceLanguage!, comment.diff)).toBe(
       `\`\`\`\`ts\n${contents}\n\`\`\`\``,
     );
+  });
+  it("caps very large file selections at the context wire limit", () => {
+    const line = "x".repeat(99);
+    const contents = Array.from({ length: 1_000 }, () => line).join("\n");
+    const comment = buildFileReviewComment({
+      id: "comment-large",
+      filePath: "src/big.ts",
+      startLine: 1,
+      endLine: 1_000,
+      text: "",
+      contents,
+      sectionTitle: "Edit request",
+    });
+    expect(comment.rangeLabel).toBe("L1 to L1000");
+    expect(comment.sectionTitle).toBe("Edit request");
+    expect(comment.diff).toHaveLength(COMPOSER_CONTEXT_REVIEW_DIFF_MAX_CHARS);
+    expect(comment.diff.startsWith(line)).toBe(true);
+    expect(comment.diff.endsWith("read the file for the rest …")).toBe(true);
   });
   it("formats mixed diff-side selections with the mobile review-comment contract", () => {
     const [fileDiff] = parsePatchFiles(
