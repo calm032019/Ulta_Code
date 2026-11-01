@@ -13,7 +13,7 @@ import { useChatCanvas } from "./ChatCanvasContext";
 import { WorkLogBlock } from "./WorkLog";
 import { TimelinePendingApprovalRow } from "./TimelinePendingApprovalRow";
 import type { WorktreeSetupSnapshot } from "@t3tools/contracts";
-import { deriveTimelineMinimapItems } from "./timelineMinimapItems";
+import { deriveTimelineMinimapItems, type TimelineMinimapItem } from "./timelineMinimapItems";
 import {
   type AssistantCitation,
   type EnvironmentId,
@@ -206,6 +206,7 @@ const TIMELINE_MAINTAIN_SCROLL_AT_END = {
   },
 } as const satisfies MaintainScrollAtEndOptions;
 const EMPTY_RUN_IDS: ReadonlySet<RunId> = new Set();
+const EMPTY_MINIMAP_ITEMS: ReadonlyArray<TimelineMinimapItem> = [];
 const TIMELINE_MAINTAIN_SCROLL_AT_END_SMOOTH = {
   ...TIMELINE_MAINTAIN_SCROLL_AT_END,
   animated: true,
@@ -771,7 +772,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
   // Run status/timestamps change per stream event; keep them out of shared row context.
   const runs = useStableHandoffRuns(runsProp);
   const jumpRowIndex = jumpRequest ? findTimelineRowIndexForActivity(rows, jumpRequest) : -1;
-  const minimapItems = deriveTimelineMinimapItems(rows);
+  const minimapItems = simpleLayoutEnabled ? EMPTY_MINIMAP_ITEMS : deriveTimelineMinimapItems(rows);
   const minimapRowIndices = minimapItems.map((item) => item.rowIndex);
   const restoreRowIndex =
     restoringThreadPosition && rememberedPosition?.atEnd === false
@@ -927,11 +928,9 @@ const ConversationTimeline = memo(function ConversationTimeline({
   };
 
   const refreshMinimap = useStableCallback(() => {
+    if (minimapItems.length === 0) return;
     const state = listRef.current?.getState?.();
-    if (restoringThreadPosition || state?.data !== rows) return;
-    if (!state || minimapItems.length === 0) {
-      return;
-    }
+    if (restoringThreadPosition || !state || state.data !== rows) return;
 
     const firstBufferedIndex = state.startBuffered;
     const firstBufferedRow: HTMLElement | undefined =

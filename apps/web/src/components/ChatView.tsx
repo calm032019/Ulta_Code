@@ -3598,16 +3598,13 @@ export default function ChatView(props: ChatViewProps) {
                       >
                         <MiniGameDock
                           isWorking={isWorking}
-                          latestRun={
+                          runStartedAt={
                             activeActivityRun
-                              ? {
-                                  startedAt:
-                                    activeActivityRun.startedAt ?? activeActivityRun.requestedAt,
-                                  completedAt: activeActivityRun.completedAt,
-                                  status: activeActivityRun.status,
-                                }
+                              ? (activeActivityRun.startedAt ?? activeActivityRun.requestedAt)
                               : null
                           }
+                          runCompletedAt={activeActivityRun?.completedAt ?? null}
+                          runStatus={activeActivityRun?.status}
                           onBackToChat={closeMinigamesStable}
                         />
                       </Suspense>

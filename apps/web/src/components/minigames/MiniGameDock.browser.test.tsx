@@ -8,7 +8,13 @@ it("pauses when the agent finishes and offers the way back to chat", async () =>
   const onBackToChat = vi.fn();
   openMiniGameDock("thread-key");
   await using screen = await render(
-    <MiniGameDock isWorking latestRun={null} onBackToChat={onBackToChat} />,
+    <MiniGameDock
+      isWorking
+      runStartedAt={null}
+      runCompletedAt={null}
+      runStatus={undefined}
+      onBackToChat={onBackToChat}
+    />,
   );
   await expect.element(screen.getByLabelText(/^Claude Run\./)).toHaveFocus();
   await expect.element(screen.getByRole("button", { name: "Pause" })).toBeVisible();
@@ -16,7 +22,9 @@ it("pauses when the agent finishes and offers the way back to chat", async () =>
   await screen.rerender(
     <MiniGameDock
       isWorking={false}
-      latestRun={{ startedAt: "2026-01-01T00:00:00.000Z", completedAt: "2026-01-01T00:04:12.000Z" }}
+      runStartedAt="2026-01-01T00:00:00.000Z"
+      runCompletedAt="2026-01-01T00:04:12.000Z"
+      runStatus={undefined}
       onBackToChat={onBackToChat}
     />,
   );

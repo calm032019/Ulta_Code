@@ -11,6 +11,7 @@ import {
 import {
   type KeyboardEvent,
   type PointerEvent,
+  memo,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -82,17 +83,15 @@ function readMiniGameTheme(): MiniGameTheme {
   }
 }
 
-export function MiniGameDock(props: {
+/** The run fields are the thread's latest run, for the "Worked for" summary once the agent finishes. */
+export const MiniGameDock = memo(function MiniGameDock(props: {
   isWorking: boolean;
-  /** The thread's latest run, for the "Worked for" summary once the agent finishes. */
-  latestRun: {
-    readonly startedAt: string | null;
-    readonly completedAt: string | null;
-    readonly status?: string;
-  } | null;
+  runStartedAt: string | null;
+  runCompletedAt: string | null;
+  runStatus: string | undefined;
   onBackToChat: () => void;
 }) {
-  const { isWorking, latestRun, onBackToChat } = props;
+  const { isWorking, runStartedAt, runCompletedAt, runStatus, onBackToChat } = props;
   const gameId = useMiniGameDockStore((state) => state.selectedGameId);
   const game = miniGameById(gameId);
   const autoPauseEnabled = useClientSettings((settings) => settings.minigameAutoPauseEnabled);
@@ -121,7 +120,7 @@ export function MiniGameDock(props: {
     }
   }
 
-  const worked = latestRun ? formatWorkDuration(latestRun.startedAt, latestRun.completedAt) : null;
+  const worked = formatWorkDuration(runStartedAt, runCompletedAt);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scoreRef = useRef<HTMLSpanElement>(null);
@@ -460,7 +459,7 @@ export function MiniGameDock(props: {
                 >
                   <div className="grid gap-0.5">
                     <p className="font-medium text-foreground text-sm">
-                      {autoPausedForFinish ? agentFinishTitle(latestRun?.status) : "Paused"}
+                      {autoPausedForFinish ? agentFinishTitle(runStatus) : "Paused"}
                     </p>
                     {autoPausedForFinish && worked ? (
                       <p className="text-muted-foreground text-xs">Worked for {worked}</p>
@@ -493,4 +492,4 @@ export function MiniGameDock(props: {
       </ComposerSurface.Host>
     </ComposerSurface.Shell>
   );
-}
+});
