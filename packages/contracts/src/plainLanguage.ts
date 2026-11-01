@@ -22,6 +22,5 @@ export class PlainLanguageExplainError extends Schema.TaggedError<PlainLanguageE
   "PlainLanguageExplainError",
   {
     message: Schema.String,
-    cause: Schema.optional(Schema.Defect()),
   },
 ) {}

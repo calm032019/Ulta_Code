@@ -9,6 +9,7 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Semaphore from "effect/Semaphore";
 
 import * as ServerSettings from "../serverSettings.ts";
 import * as TextGeneration from "../textGeneration/TextGeneration.ts";
@@ -24,16 +25,22 @@ export class PlainLanguageService extends Context.Service<
   }
 >()("t3/orchestration-v2/PlainLanguageService") {}
 
-const fail = (message: string, cause?: unknown) =>
-  Effect.fail(
-    new PlainLanguageExplainError({ message, ...(cause === undefined ? {} : { cause }) }),
+const fail = (message: string) => Effect.fail(new PlainLanguageExplainError({ message }));
+
+const failWithLoggedCause = (message: string, cause: unknown) =>
+  Effect.logWarning("Plain language explanation failed", { cause }).pipe(
+    Effect.andThen(fail(message)),
   );
+
+// Each explanation runs a provider CLI, so cap how many one server runs at once.
+const MAX_CONCURRENT_EXPLANATIONS = 2;
 
 const make = Effect.gen(function* () {
   const threads = yield* ThreadManagementService.ThreadManagementService;
   const projects = yield* ProjectStore.ProjectStoreV2;
   const serverSettings = yield* ServerSettings.ServerSettingsService;
   const textGeneration = yield* TextGeneration.TextGeneration;
+  const generating = yield* Semaphore.make(MAX_CONCURRENT_EXPLANATIONS);
 
   const explain: PlainLanguageService["Service"]["explain"] = Effect.fn(
     "PlainLanguageService.explain",
@@ -59,7 +66,7 @@ const make = Effect.gen(function* () {
         records.thread.projectId,
       ).settings;
       return { records, project, settings };
-    }).pipe(Effect.catch((cause) => fail("Could not load these messages.", cause)));
+    }).pipe(Effect.catch((cause) => failWithLoggedCause("Could not load these messages.", cause)));
 
     const { records, project, settings } = loaded;
     if (records.messages.length !== messageIds.length) {
@@ -90,7 +97,12 @@ const make = Effect.gen(function* () {
         messages,
         modelSelection: settings.textGenerationModelSelection,
       })
-      .pipe(Effect.catch((error) => fail(error.detail, error)));
+      .pipe(
+        generating.withPermits(1),
+        Effect.catch((error) =>
+          failWithLoggedCause("The model could not explain these messages.", error),
+        ),
+      );
   });
 
   return PlainLanguageService.of({ explain });
