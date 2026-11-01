@@ -22,6 +22,13 @@ export function shouldRunLoop(state: {
 }
 
 /** A "4m 12s" style duration; null unless both times are known and in order. */
+/** The auto-pause card's headline, so a failed or stopped run is never reported as finished. */
+export function agentFinishTitle(status: string | null | undefined): string {
+  if (status === "failed") return "Your agent hit an error";
+  if (status === "interrupted" || status === "cancelled") return "Your agent was stopped";
+  return "Your agent has finished";
+}
+
 export function formatWorkDuration(
   startedAt: string | null,
   endedAt: string | null,

@@ -8,6 +8,7 @@ import {
   shouldAutoPause,
   shouldRunLoop,
   themeFromVariables,
+  agentFinishTitle,
 } from "./dockLogic";
 import type { MiniGameId } from "./types";
 
@@ -158,5 +159,17 @@ describe("failSafeStorage", () => {
     expect(storage.getItem("key")).toBeNull();
     expect(() => storage.setItem("key", "value")).not.toThrow();
     expect(() => storage.removeItem("key")).not.toThrow();
+  });
+});
+
+describe("agentFinishTitle", () => {
+  it.each([
+    ["completed", "Your agent has finished"],
+    [undefined, "Your agent has finished"],
+    ["failed", "Your agent hit an error"],
+    ["interrupted", "Your agent was stopped"],
+    ["cancelled", "Your agent was stopped"],
+  ] as const)("reports a %s run as %s", (status, title) => {
+    expect(agentFinishTitle(status)).toBe(title);
   });
 });

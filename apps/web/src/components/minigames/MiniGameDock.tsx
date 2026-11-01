@@ -34,6 +34,7 @@ import {
   shouldAutoPause,
   shouldRunLoop,
   themeFromVariables,
+  agentFinishTitle,
 } from "./dockLogic";
 import {
   clearMiniGameDockStart,
@@ -84,7 +85,11 @@ function readMiniGameTheme(): MiniGameTheme {
 export function MiniGameDock(props: {
   isWorking: boolean;
   /** The thread's latest run, for the "Worked for" summary once the agent finishes. */
-  latestRun: { readonly startedAt: string | null; readonly completedAt: string | null } | null;
+  latestRun: {
+    readonly startedAt: string | null;
+    readonly completedAt: string | null;
+    readonly status?: string;
+  } | null;
   onBackToChat: () => void;
 }) {
   const { isWorking, latestRun, onBackToChat } = props;
@@ -342,7 +347,7 @@ export function MiniGameDock(props: {
                       }
                     >
                       <Icon aria-hidden="true" className="size-3.5 shrink-0" />
-                      <span className="hidden truncate @min-[520px]/composer-surface:inline">
+                      <span className="hidden truncate @min-[640px]/composer-surface:inline">
                         {entry.title}
                       </span>
                     </TooltipTrigger>
@@ -418,6 +423,9 @@ export function MiniGameDock(props: {
             <canvas
               ref={canvasRef}
               tabIndex={0}
+              // Games own their keys; this also keeps type-to-focus from sending them to the composer.
+              role="application"
+              aria-roledescription="game"
               aria-label={`${game.title}. ${game.controls}`}
               className="absolute inset-0 size-full touch-none outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
               onKeyDown={handleCanvasKeyDown}
@@ -452,7 +460,7 @@ export function MiniGameDock(props: {
                 >
                   <div className="grid gap-0.5">
                     <p className="font-medium text-foreground text-sm">
-                      {autoPausedForFinish ? "Your agent has finished" : "Paused"}
+                      {autoPausedForFinish ? agentFinishTitle(latestRun?.status) : "Paused"}
                     </p>
                     {autoPausedForFinish && worked ? (
                       <p className="text-muted-foreground text-xs">Worked for {worked}</p>

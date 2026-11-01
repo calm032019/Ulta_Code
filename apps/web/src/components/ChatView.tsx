@@ -3604,6 +3604,7 @@ export default function ChatView(props: ChatViewProps) {
                                   startedAt:
                                     activeActivityRun.startedAt ?? activeActivityRun.requestedAt,
                                   completedAt: activeActivityRun.completedAt,
+                                  status: activeActivityRun.status,
                                 }
                               : null
                           }
