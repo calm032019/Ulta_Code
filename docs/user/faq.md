@@ -63,6 +63,10 @@ A separate work account is fine. Setup for two: [Codex](./providers-codex.md#use
 
 Yes. Add another provider instance in Settings and give it its own keys and endpoint. Claude has a full OpenRouter recipe. Your subscription setup stays untouched. [OpenRouter](./providers-claude.md#openrouter) · [Provider instances](./install.md#providers)
 
+## Which MCP servers will my agents use?
+
+Settings → Connectors lists the MCP servers that Claude, Codex, Cursor and OpenCode load on the selected environment, read from their own config files (user-wide and per project), and which provider uses each one. Secret values are hidden. To add or change a server, edit that provider's config file, then press refresh.
+
 ## Does T3 Code support local models?
 
 No. T3 Code is a serious developer tool. Locally runnable models are not capable of meaningful engineering work.

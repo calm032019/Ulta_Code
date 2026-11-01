@@ -345,6 +345,7 @@ import {
   ResourceTelemetryRetryResult,
   ResourceTelemetrySnapshot,
 } from "./resourceTelemetry.ts";
+import { McpConnectorsResult } from "./mcpConnectors.ts";
 import {
   UsageLimitSourceError,
   ProviderConsumeResetCreditInput,
@@ -536,6 +537,7 @@ export const WS_METHODS = {
   serverReportClientActivity: "server.reportClientActivity",
   serverGetUsageSummary: "server.getUsageSummary",
   serverRefreshUsageRates: "server.refreshUsageRates",
+  serverListMcpConnectors: "server.listMcpConnectors",
 
   scheduledTasksSubscribe: "scheduledTasks.subscribe",
   scheduledTasksUpsert: "scheduledTasks.upsert",
@@ -941,6 +943,12 @@ const WsServerGetResourceTelemetryHistoryRpc = Rpc.make(
 const WsServerRetryResourceTelemetryRpc = Rpc.make(WS_METHODS.serverRetryResourceTelemetry, {
   payload: Schema.Struct({}),
   success: ResourceTelemetryRetryResult,
+  error: EnvironmentAuthorizationError,
+});
+
+const WsServerListMcpConnectorsRpc = Rpc.make(WS_METHODS.serverListMcpConnectors, {
+  payload: Schema.Struct({}),
+  success: McpConnectorsResult,
   error: EnvironmentAuthorizationError,
 });
 
@@ -2025,6 +2033,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsServerPrepareTriageRpc,
   WsServerGetUsageSummaryRpc,
   WsServerRefreshUsageRatesRpc,
+  WsServerListMcpConnectorsRpc,
   WsServerSignalProcessRpc,
   WsScheduledTasksSubscribeRpc,
   WsScheduledTasksUpsertRpc,
