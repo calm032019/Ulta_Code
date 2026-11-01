@@ -1,6 +1,6 @@
 > **Ulta Code** is a fork of [T3 Code](https://github.com/pingdotgg/t3code) restyled to feel like a
-> calm desktop chat app rather than a terminal: a warm ivory (light) / warm charcoal (dark) palette
-> with a terracotta accent, a serif reading face for assistant replies, a softer floating composer,
+> calm desktop chat app rather than a terminal: a warm low-glare cream (light) / deep navy (dark) palette
+> with coral, blush and teal accents, Epilogue Light for conversation text, a softer floating composer,
 > and a time-of-day greeting on new chats. Your own themes in Settings → Appearance still override
 > the defaults. To pull in upstream changes: `git fetch upstream && git merge upstream/main`.
 

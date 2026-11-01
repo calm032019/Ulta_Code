@@ -94,8 +94,8 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --appearance-contrast-boost: 0%;
   --appearance-contrast-border-boost: 0%;
   --appearance-contrast-target: black;
-  --app-scrollbar-thumb: rgb(222 220 209);
-  --app-scrollbar-thumb-hover: rgb(200 198 187);
+  --app-scrollbar-thumb: rgb(223 212 201);
+  --app-scrollbar-thumb-hover: rgb(203 191 179);
   /*
    * Compact UI geometry. Keep these values semantic so sidebar, palette,
    * tooltip, and toolbar controls cannot quietly drift apart.
@@ -169,13 +169,10 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
    default stacks are mirrored in `appearanceFonts.ts`. */
 @theme {
   --font-sans:
-    -apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", system-ui, sans-serif;
+    "Epilogue Variable", -apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", system-ui,
+    sans-serif;
   --font-mono:
     ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
-  /* Long-form reading face for assistant replies and conversational headings. */
-  --font-reading:
-    "Source Serif 4 Variable", "Iowan Old Style", Charter, Georgia, Cambria, "Times New Roman",
-    serif;
 }
 
 @theme inline {
@@ -1116,10 +1113,8 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
 
 :root {
   color-scheme: light;
-  /* Softer, rounder geometry than a dense IDE: cards and menus read as paper. */
   --radius: 0.625rem;
-  /* Warm ivory canvas with white raised surfaces and a terracotta accent. */
-  --background: #faf9f5;
+  /* Default palette, mirrored from T3_CODE_*_THEME_COLORS in @t3tools/shared/themePalettes. */
   --app-chrome-background: var(--background);
   --toolbar-background: var(--app-chrome-background);
   --toolbar-foreground: var(--foreground);
@@ -1127,160 +1122,124 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --toolbar-control: var(--popover);
   --toolbar-control-foreground: var(--foreground);
   --toolbar-control-hover: var(--accent);
-  --surface-raised: #ffffff;
-  --foreground: #29261b;
-  --card: #ffffff;
-  --card-foreground: #29261b;
-  --popover: #ffffff;
-  --popover-foreground: #29261b;
-  --primary: #c96442;
-  --primary-foreground: #ffffff;
-  --secondary: #f5f4ed;
-  --secondary-foreground: #3d3d3a;
-  --muted: #f5f4ed;
-  --muted-foreground: #73726c;
-  --placeholder: #8a8880;
   --secondary-label: var(--muted-foreground);
-  --icon-muted: #83827b;
-  /* User turns sit in a soft parchment bubble. */
-  --message-surface: #f0eee6;
   --message-foreground: var(--foreground);
   --message-action: var(--primary);
   --message-action-foreground: var(--primary-foreground);
-  --message-action-hover: #b5573a;
-  --accent: #f0eee6;
-  --accent-foreground: #29261b;
-  --error: #d63c3c;
-  --error-foreground: #a82a2a;
   --tool-error-icon: var(--error);
   --error-surface: color-mix(in srgb, var(--error) 8%, transparent);
   --destructive: var(--error);
-  --border: #e8e6dc;
-  --input: #dedcd1;
   --ring: var(--primary);
   --destructive-foreground: var(--error-foreground);
-  --info: var(--color-blue-500);
-  --info-foreground: var(--color-blue-700);
   /* Messages from a guest link, and the sidebar Request status. */
   --guest: var(--color-fuchsia-500);
   --guest-foreground: var(--color-fuchsia-600);
   --guest-surface: color-mix(in srgb, var(--guest) 14%, var(--message-surface));
   --success: var(--color-emerald-600);
   --success-foreground: var(--color-emerald-700);
-  --warning: #d98a1c;
-  --warning-foreground: #8f5208;
   --warning-surface: color-mix(in srgb, var(--warning) 8%, transparent);
   --update: var(--primary);
-  --update-foreground: #a9502f;
-  --sidebar: #f5f4ed;
-  --sidebar-foreground: #3d3d3a;
   --sidebar-muted-foreground: var(--muted-foreground);
-  --sidebar-control-surface: #ebe9e0;
-  --sidebar-row-hover: #eeece4;
-  --sidebar-row-active: #e8e6dc;
-  --sidebar-row-selected: #e8e6dc;
-  --sidebar-border: var(--border);
   --sidebar-stage-fade: var(--sidebar);
-  --code-background: #f5f4ed;
   --code-foreground: var(--foreground);
   --terminal-background: var(--background);
   --terminal-foreground: var(--foreground);
-  --terminal-cursor: #c96442;
-  --terminal-selection-background: rgb(201 100 66 / 18%);
+  --background: #fbf6f1;
+  --surface-raised: #fffcf9;
+  --foreground: #233052;
+  --card: #fffcf9;
+  --card-foreground: #233052;
+  --popover: #fffcf9;
+  --popover-foreground: #233052;
+  --primary: #b9575a;
+  --primary-foreground: #ffffff;
+  --secondary: #f6efe8;
+  --secondary-foreground: #2e3a5c;
+  --muted: #f6efe8;
+  --muted-foreground: #67708a;
+  --placeholder: #858ca0;
+  --icon-muted: #7b8296;
+  --message-surface: #f5e3dc;
+  --message-action-hover: #a64c50;
+  --accent: #f3ebe3;
+  --accent-foreground: #233052;
+  --error: #c93c3c;
+  --error-foreground: #a32d2d;
+  --border: #ebe2d9;
+  --input: #dfd4c9;
+  --warning: #d98a1c;
+  --warning-foreground: #8f5208;
+  --update-foreground: #2f737c;
+  --info: #3c8e99;
+  --info-foreground: #2f737c;
+  --sidebar: #f4ede5;
+  --sidebar-foreground: #2e3a5c;
+  --sidebar-control-surface: #ece3da;
+  --sidebar-row-hover: #efe7de;
+  --sidebar-row-active: #e9dfd5;
+  --sidebar-row-selected: #e9dfd5;
+  --sidebar-border: #ebe2d9;
+  --code-background: #f5efe8;
+  --terminal-cursor: #b9575a;
+  --terminal-selection-background: #f0d6cf;
 
   @variant dark {
     color-scheme: dark;
-    /* Warm charcoal rather than true black: easier on the eyes for long reading. */
-    --background: #262624;
-    --surface-raised: #30302e;
-    --foreground: #faf9f5;
-    --card: #30302e;
-    --card-foreground: #faf9f5;
-    --popover: #30302e;
-    --popover-foreground: #faf9f5;
-    --primary: #d97757;
-    --secondary: #30302e;
-    --secondary-foreground: #ece9e1;
-    --muted: #2c2c2a;
-    --muted-foreground: #a6a39a;
-    --placeholder: #8f8c84;
-    --icon-muted: #9a978f;
-    --accent: #393937;
-    --accent-foreground: #faf9f5;
-    --message-surface: #141413;
-    --message-action-hover: #c6684a;
-    --error: #ef5f5f;
-    --error-foreground: #f59090;
     --tool-error-icon: #fca5a5;
     --error-surface: color-mix(in srgb, var(--error) 16%, transparent);
-    --border: #3a3936;
-    --input: #4a4945;
-    --info-foreground: var(--color-blue-400);
     --guest-foreground: var(--color-fuchsia-300);
     --success-foreground: var(--color-emerald-400);
+    --warning-surface: color-mix(in srgb, var(--warning) 16%, transparent);
+    --background: #1f2b4a;
+    --surface-raised: #273559;
+    --foreground: #f4efe9;
+    --card: #273559;
+    --card-foreground: #f4efe9;
+    --popover: #273559;
+    --popover-foreground: #f4efe9;
+    --primary: #d4686b;
+    --primary-foreground: #ffffff;
+    --secondary: #273559;
+    --secondary-foreground: #e6e2dc;
+    --muted: #243154;
+    --muted-foreground: #a9b3c8;
+    --placeholder: #8590a8;
+    --icon-muted: #97a2ba;
+    --message-surface: #2c4a63;
+    --message-action-hover: #c35a5e;
+    --accent: #2f3e64;
+    --accent-foreground: #f4efe9;
+    --error: #f07373;
+    --error-foreground: #f6a0a0;
+    --border: #313e62;
+    --input: #415079;
     --warning: #e8a24a;
     --warning-foreground: #f2c27a;
-    --warning-surface: color-mix(in srgb, var(--warning) 16%, transparent);
-    --update-foreground: #eb9a7c;
-    --sidebar: #1f1e1d;
-    --sidebar-foreground: #ece9e1;
-    --sidebar-control-surface: #2a2a28;
-    --sidebar-row-hover: #2a2a28;
-    --sidebar-row-active: #30302e;
-    --sidebar-row-selected: #30302e;
-    --sidebar-border: #2f2e2c;
-    --sidebar-stage-fade: var(--sidebar);
-    --code-background: #1f1e1d;
-    --terminal-cursor: #d97757;
-    --terminal-selection-background: rgb(217 119 87 / 25%);
+    --update-foreground: #8fc9cf;
+    --info: #6fb3bb;
+    --info-foreground: #8fc9cf;
+    --sidebar: #18223c;
+    --sidebar-foreground: #e6e2dc;
+    --sidebar-control-surface: #212d4d;
+    --sidebar-row-hover: #212d4d;
+    --sidebar-row-active: #273559;
+    --sidebar-row-selected: #273559;
+    --sidebar-border: #253154;
+    --code-background: #18223c;
+    --terminal-cursor: #e8ada0;
+    --terminal-selection-background: #3e4f78;
   }
 }
 
-/* Keep both sidebar implementations (default and legacy) on the same warm
-   hierarchy: a slightly deeper parchment rail with soft selected rows. */
+/* Keep both sidebar implementations (default and legacy) on the same hierarchy. */
 [data-app-sidebar] {
-  --background: #faf9f5;
-  --foreground: #29261b;
-  --card: #ffffff;
-  --card-foreground: #29261b;
-  --accent: #eeece4;
-  --accent-foreground: #29261b;
-  --muted: #f5f4ed;
-  --muted-foreground: #73726c;
-  --border: #e8e6dc;
-  --input: #dedcd1;
-  --sidebar: #f5f4ed;
-  --sidebar-foreground: #3d3d3a;
-  --sidebar-muted-foreground: #73726c;
-  --sidebar-control-surface: #ebe9e0;
-  --sidebar-row-hover: #eeece4;
-  --sidebar-row-active: #e8e6dc;
-  --sidebar-row-selected: #e8e6dc;
-  --sidebar-border: #e8e6dc;
+  --background: var(--sidebar);
+  --card: var(--sidebar);
+  --accent: var(--sidebar-row-hover);
+  --muted: var(--sidebar);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-muted-foreground: var(--muted-foreground);
   --sidebar-stage-fade: var(--sidebar);
-
-  @variant dark {
-    --background: #262624;
-    --foreground: #ece9e1;
-    --card: #1f1e1d;
-    --card-foreground: var(--foreground);
-    --accent: #2a2a28;
-    --accent-foreground: #faf9f5;
-    --muted: #1f1e1d;
-    --muted-foreground: #a6a39a;
-    --border: #2f2e2c;
-    --input: #4a4945;
-    --sidebar: #1f1e1d;
-    --sidebar-foreground: var(--foreground);
-    --sidebar-muted-foreground: var(--muted-foreground);
-    --sidebar-control-surface: #2a2a28;
-    --sidebar-row-hover: #2a2a28;
-    --sidebar-row-active: #30302e;
-    --sidebar-row-selected: #30302e;
-    --sidebar-border: var(--border);
-    --sidebar-stage-fade: var(--sidebar);
-    --secondary-label: #8f8c84;
-  }
 }
 
 /* Modified files get a muted blue so added and deleted files lead. Built from the info token,
@@ -2584,10 +2543,9 @@ code {
 
 /* -------------------------------------------------------------------------
    Conversational feel
-   Make the chat read like a conversation rather than a console: a serif
-   reading face for replies, generous line height, a soft floating composer
-   and gentle selection colours. Code, diffs and terminals keep their
-   monospace face.
+   Conversation text (replies, user turns, the composer) is set in Epilogue
+   Light with generous leading; small UI chrome keeps the regular weight so
+   it stays legible. Code, diffs and terminals keep their monospace face.
    ------------------------------------------------------------------------- */
 
 body {
@@ -2600,18 +2558,18 @@ body {
   background-color: color-mix(in srgb, var(--primary) 22%, transparent);
 }
 
-[data-message-role="assistant"] .chat-markdown {
-  font-family: var(--font-reading);
-  font-size: 1.0625rem;
+:is([data-message-role] .chat-markdown, .composer-tiptap) {
+  font-weight: 300;
   line-height: 1.7;
-  font-optical-sizing: auto;
-  letter-spacing: 0.002em;
 }
 
-[data-message-role="assistant"] .chat-markdown :is(h1, h2, h3, h4, h5, h6) {
-  font-family: var(--font-reading);
+:is([data-message-role] .chat-markdown, .composer-tiptap) :is(strong, b) {
   font-weight: 600;
-  letter-spacing: -0.005em;
+}
+
+:is([data-message-role] .chat-markdown, .composer-tiptap) :is(h1, h2, h3, h4, h5, h6) {
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
 [data-message-role="assistant"] .chat-markdown :is(p, ul, ol, blockquote) {
@@ -2622,16 +2580,11 @@ body {
   margin-top: 0.3rem;
 }
 
-/* UI chrome inside a reply (tables, code headers, chips) stays in the interface face. */
-[data-message-role="assistant"] .chat-markdown :is(table, .chat-markdown-codeblock-header, button) {
-  font-family: var(--font-sans);
-  font-size: 0.9375rem;
-  line-height: 1.55;
-}
-
-[data-message-role="assistant"] .chat-markdown :is(pre, code, kbd, samp) {
-  font-family: var(--font-mono);
-  letter-spacing: 0;
+/* Tables, code and chips inside a message are UI chrome: regular weight. */
+[data-message-role]
+  .chat-markdown
+  :is(table, .chat-markdown-codeblock-header, button, pre, code, kbd, samp) {
+  font-weight: 400;
 }
 
 [data-message-role="assistant"] .chat-markdown :not(pre) > code {
@@ -2642,17 +2595,12 @@ body {
   border-inline-start-color: color-mix(in srgb, var(--primary) 45%, var(--border));
 }
 
-/* User turns: a roomier parchment bubble in the interface face. */
-[data-message-role="user"] .chat-markdown {
-  line-height: 1.6;
-}
-
 /* The composer floats like a card on paper rather than a docked prompt line. */
 html:not([data-theme-id]) [data-slot="composer-host"],
 html[data-theme-id=""] [data-slot="composer-host"] {
   box-shadow:
-    0 0.25rem 1.25rem rgb(41 38 27 / 4%),
-    0 0 0 0.5px rgb(41 38 27 / 6%);
+    0 0.25rem 1.25rem rgb(35 48 82 / 5%),
+    0 0 0 0.5px rgb(35 48 82 / 7%);
 }
 
 html.dark:not([data-theme-id]) [data-slot="composer-host"],
@@ -2664,8 +2612,4 @@ html.dark[data-theme-id=""] [data-slot="composer-host"] {
 
 [data-slot="composer-host"]:focus-within {
   --chat-composer-outline: color-mix(in srgb, var(--primary) 18%, var(--input));
-}
-
-.composer-tiptap {
-  line-height: 1.6;
 }

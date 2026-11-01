@@ -247,7 +247,7 @@ export const listen: Effect.Effect<
           show: false,
           title: "T3 Code could not start",
           autoHideMenuBar: true,
-          backgroundColor: shouldUseDarkColors ? "#262624" : "#faf9f5",
+          backgroundColor: shouldUseDarkColors ? "#1f2b4a" : "#fbf6f1",
           webPreferences: {
             contextIsolation: true,
             nodeIntegration: false,
