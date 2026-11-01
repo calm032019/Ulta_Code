@@ -51,6 +51,7 @@ export const selectCommandPaletteClientSettings = (settings: ClientSettings) => 
   sidebarProjectGroupingOverrides: settings.sidebarProjectGroupingOverrides,
   sidebarProjectSortOrder: settings.sidebarProjectSortOrder,
   sidebarThreadSortOrder: settings.sidebarThreadSortOrder,
+  dunceModeEnabled: settings.dunceModeEnabled,
 });
 
 export function useSortedProjectGroups(environmentLabelById: ReadonlyMap<EnvironmentId, string>) {

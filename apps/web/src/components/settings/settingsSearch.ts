@@ -614,6 +614,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["game games play waiting pause resume agent finished done"],
   },
   {
+    id: "dunce-mode",
+    title: "Dunce Mode",
+    to: "/settings/chat",
+    searchTerms: ["plain english explain simple nontechnical translate message hat cap"],
+  },
+  {
     id: "provider-update-checks",
     title: "Provider update checks",
     to: "/settings/maintenance",

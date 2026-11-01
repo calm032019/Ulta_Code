@@ -525,6 +525,7 @@ export const ClientSettingsSchema = Schema.Struct({
   // Calmer chat: the thread details card starts closed and the timeline minimap is hidden.
   simpleLayoutEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   minigameAutoPauseEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
+  dunceModeEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
 });
 export type ClientSettings = typeof ClientSettingsSchema.Type;
 
@@ -1800,5 +1801,6 @@ export const ClientSettingsPatch = Schema.Struct({
   mathRenderingEnabled: Schema.optionalKey(Schema.Boolean),
   simpleLayoutEnabled: Schema.optionalKey(Schema.Boolean),
   minigameAutoPauseEnabled: Schema.optionalKey(Schema.Boolean),
+  dunceModeEnabled: Schema.optionalKey(Schema.Boolean),
 });
 export type ClientSettingsPatch = typeof ClientSettingsPatch.Type;

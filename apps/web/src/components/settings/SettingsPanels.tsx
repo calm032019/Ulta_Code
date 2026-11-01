@@ -504,6 +504,9 @@ export function useSettingsRestore(onRestored?: () => void) {
     ...(settings.minigameAutoPauseEnabled !== DEFAULT_UNIFIED_SETTINGS.minigameAutoPauseEnabled
       ? ["Auto-pause minigames"]
       : []),
+    ...(settings.dunceModeEnabled !== DEFAULT_UNIFIED_SETTINGS.dunceModeEnabled
+      ? ["Dunce Mode"]
+      : []),
     ...(settings.sendShortcut !== DEFAULT_UNIFIED_SETTINGS.sendShortcut ? ["Send shortcut"] : []),
     ...(settings.followUpBehavior !== DEFAULT_UNIFIED_SETTINGS.followUpBehavior
       ? ["Follow-up behavior"]
@@ -622,6 +625,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       showSkillsInSlashMenu: DEFAULT_UNIFIED_SETTINGS.showSkillsInSlashMenu,
       composerRichTextEnabled: DEFAULT_UNIFIED_SETTINGS.composerRichTextEnabled,
       minigameAutoPauseEnabled: DEFAULT_UNIFIED_SETTINGS.minigameAutoPauseEnabled,
+      dunceModeEnabled: DEFAULT_UNIFIED_SETTINGS.dunceModeEnabled,
       sendShortcut: DEFAULT_UNIFIED_SETTINGS.sendShortcut,
       followUpBehavior: DEFAULT_UNIFIED_SETTINGS.followUpBehavior,
       contextWindowMeterEnabled: DEFAULT_UNIFIED_SETTINGS.contextWindowMeterEnabled,
@@ -1236,6 +1240,30 @@ export function ChatSettingsPanel() {
                 updateSettings({ minigameAutoPauseEnabled: Boolean(checked) })
               }
               aria-label="Auto-pause minigames"
+            />
+          }
+        />
+      </SettingsSection>
+
+      <SettingsSection id="dunce-mode" title="Dunce Mode">
+        <SettingsRow
+          {...searchableSetting("dunce-mode")}
+          description="Show a dunce cap beside each message. Click it, or drag across several, to get a plain English explanation from your text generation model."
+          resetAction={
+            settings.dunceModeEnabled !== DEFAULT_UNIFIED_SETTINGS.dunceModeEnabled ? (
+              <SettingResetButton
+                label="Dunce Mode"
+                onClick={() =>
+                  updateSettings({ dunceModeEnabled: DEFAULT_UNIFIED_SETTINGS.dunceModeEnabled })
+                }
+              />
+            ) : null
+          }
+          control={
+            <Switch
+              checked={settings.dunceModeEnabled}
+              onCheckedChange={(checked) => updateSettings({ dunceModeEnabled: Boolean(checked) })}
+              aria-label="Dunce Mode"
             />
           }
         />

@@ -9,6 +9,7 @@ import type { ProviderTextGeneration } from "./textGeneration.ts";
 import {
   buildBranchNamePrompt,
   buildCommitMessagePrompt,
+  buildPlainLanguagePrompt,
   buildPrContentPrompt,
   buildReviewGuidePrompt,
   buildThreadTitlePrompt,
@@ -67,6 +68,18 @@ export const decodeJsonReply = <S extends Schema.Top>(
         }),
     ),
   );
+};
+
+export const sanitizePlainLanguageExplanation = (raw: string) => {
+  const explanation = raw.trim();
+  return explanation.length > 0
+    ? Effect.succeed({ explanation })
+    : Effect.fail(
+        new TextGenerationError({
+          operation: "explainPlainLanguage",
+          detail: "The model returned an empty explanation.",
+        }),
+      );
 };
 
 export function fromRunner(name: string, run: Runner): ProviderTextGeneration {
@@ -167,11 +180,24 @@ export function fromRunner(name: string, run: Runner): ProviderTextGeneration {
     });
   });
 
+  const explainPlainLanguage: ProviderTextGeneration["explainPlainLanguage"] = Effect.fn(
+    `${name}.explainPlainLanguage`,
+  )(function* (input) {
+    const generated = yield* run({
+      operation: "explainPlainLanguage",
+      cwd: input.cwd,
+      modelSelection: input.modelSelection,
+      ...buildPlainLanguagePrompt(input),
+    });
+    return yield* sanitizePlainLanguageExplanation(generated.explanation);
+  });
+
   return {
     generateCommitMessage,
     generatePrContent,
     generateBranchName,
     generateThreadTitle,
     generateReviewGuide,
+    explainPlainLanguage,
   } satisfies ProviderTextGeneration;
 }

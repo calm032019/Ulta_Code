@@ -1013,6 +1013,22 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
     padding-inline: 0;
   }
 
+  /* Dunce Mode sits in the gutter left of the centred lane, so turning it on moves no text. */
+  .dunce-hat-slot {
+    position: absolute;
+    top: 0.125rem;
+    inset-inline-start: max(-0.5rem, calc((100% - var(--chat-content-max-width)) / 2 - 1.875rem));
+  }
+
+  .dunce-row-highlight {
+    position: absolute;
+    inset-block: 0;
+    inset-inline: max(0px, calc((100% - var(--chat-content-max-width)) / 2));
+    border-radius: var(--radius-lg);
+    background-color: color-mix(in srgb, var(--primary) 6%, transparent);
+    pointer-events: none;
+  }
+
   .settings-slider {
     --settings-slider-progress: 0%;
     --settings-slider-fill-offset: 0.5rem;

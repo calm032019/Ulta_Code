@@ -1,5 +1,6 @@
 import {
   ORCHESTRATION_V2_WS_METHODS,
+  WS_METHODS,
   type ThreadId,
   type OrchestrationGetTurnDiffResult,
 } from "@t3tools/contracts";
@@ -110,6 +111,10 @@ export function createOrchestrationEnvironmentAtoms<R, E>(
     forceStopThread: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:orchestration:force-stop-thread",
       tag: ORCHESTRATION_V2_WS_METHODS.forceStopThread,
+    }),
+    explainPlainLanguage: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:orchestration:explain-plain-language",
+      tag: WS_METHODS.threadsExplainPlainLanguage,
     }),
     turnItem: createEnvironmentRpcQueryAtomFamily(runtime, {
       label: "environment-data:orchestration:turn-item",

@@ -97,6 +97,21 @@ export type ReviewGuideGenerationResult = Omit<
   "headSha" | "generatedAt" | "modelSelection"
 >;
 
+export interface PlainLanguageMessage {
+  readonly role: "user" | "assistant";
+  readonly text: string;
+}
+
+export interface PlainLanguageExplanationInput {
+  cwd: string;
+  messages: ReadonlyArray<PlainLanguageMessage>;
+  modelSelection: ModelSelection;
+}
+
+export interface PlainLanguageExplanationResult {
+  explanation: string;
+}
+
 export interface ProviderTextGeneration {
   readonly generateCommitMessage: (
     input: CommitMessageGenerationInput,
@@ -117,4 +132,8 @@ export interface ProviderTextGeneration {
   readonly generateReviewGuide: (
     input: ReviewGuideGenerationInput,
   ) => Effect.Effect<ReviewGuideGenerationResult, TextGenerationError>;
+
+  readonly explainPlainLanguage: (
+    input: PlainLanguageExplanationInput,
+  ) => Effect.Effect<PlainLanguageExplanationResult, TextGenerationError>;
 }

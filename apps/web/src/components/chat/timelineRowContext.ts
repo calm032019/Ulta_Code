@@ -29,6 +29,7 @@ import { type MessagesTimelineRow, type WorkGroupScrollAnchor } from "./Messages
 import { type TimestampFormat } from "@t3tools/contracts/settings";
 import type { TurnItemDetailSource } from "../../state/queries";
 import { type HandoffTimelineRun } from "./V2LifecycleRow";
+import type { DunceMessage } from "./dunceModeStore";
 
 /**
  * Where an expanded row reads an item's detail and a command's output. The owner's rows read them
@@ -43,6 +44,8 @@ export interface TurnItemSource {
 }
 
 export interface TimelineRowSharedState {
+  /** Null while Dunce Mode is off or this environment does not let the viewer explain messages. */
+  dunceMessages: (() => ReadonlyArray<DunceMessage>) | null;
   pendingApprovals: ReadonlyMap<RuntimeRequestId, PendingApproval>;
   respondingRequestIds: ReadonlyArray<RuntimeRequestId>;
   canOperateThread: boolean;

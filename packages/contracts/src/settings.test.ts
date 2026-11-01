@@ -289,6 +289,11 @@ describe("ClientSettings notifications", () => {
     expect(decodeClientSettingsPatch({})).not.toHaveProperty("inAppNotificationsEnabled");
     expect(decodeClientSettingsPatch({})).not.toHaveProperty("notificationMode");
   });
+
+  it("keeps Dunce Mode off until the user turns it on", () => {
+    expect(decodeClientSettings({}).dunceModeEnabled).toBe(false);
+    expect(decodeClientSettingsPatch({})).not.toHaveProperty("dunceModeEnabled");
+  });
 });
 
 describe("ClientSettings quit confirmation", () => {

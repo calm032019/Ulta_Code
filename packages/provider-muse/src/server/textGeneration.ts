@@ -17,10 +17,14 @@ import * as Schema from "effect/Schema";
 import { createMuseSdkHost, createMuseSdkHostEffect, type MuseSdkHost } from "./sdk.ts";
 import { museModelCapabilities, resolveMuseReasoningEffort } from "./modelCatalog.ts";
 import type { ProviderTextGeneration } from "@t3tools/provider-core/server/textGeneration";
-import { investigationUnsupported } from "@t3tools/provider-core/server/textGenerationOperations";
+import {
+  investigationUnsupported,
+  sanitizePlainLanguageExplanation,
+} from "@t3tools/provider-core/server/textGenerationOperations";
 import {
   buildBranchNamePrompt,
   buildCommitMessagePrompt,
+  buildPlainLanguagePrompt,
   buildPrContentPrompt,
   buildThreadTitlePrompt,
 } from "@t3tools/provider-core/server/textGenerationPrompts";
@@ -342,11 +346,22 @@ export const makeMuseTextGeneration = Effect.fn("makeMuseTextGeneration")(functi
   });
   const generateReviewGuide: ProviderTextGeneration["generateReviewGuide"] = () =>
     Effect.fail(investigationUnsupported("generateReviewGuide", "Muse Code"));
+  const explainPlainLanguage: ProviderTextGeneration["explainPlainLanguage"] = Effect.fn(
+    "MuseTextGeneration.explainPlainLanguage",
+  )(function* (input) {
+    const generated = yield* runMuseJson({
+      operation: "explainPlainLanguage",
+      ...buildPlainLanguagePrompt(input),
+      modelSelection: input.modelSelection,
+    });
+    return yield* sanitizePlainLanguageExplanation(generated.explanation);
+  });
   return {
     generateCommitMessage,
     generatePrContent,
     generateBranchName,
     generateThreadTitle,
     generateReviewGuide,
+    explainPlainLanguage,
   } satisfies ProviderTextGeneration;
 });
