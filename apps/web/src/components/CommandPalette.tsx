@@ -75,6 +75,7 @@ import {
   SquarePenIcon,
   TextSearchIcon,
   UserPlusIcon,
+  ActivityIcon,
 } from "lucide-react";
 import { openThreadFind } from "./chat/threadFindStore";
 import {
@@ -1395,6 +1396,20 @@ function OpenCommandPaletteDialog(props: {
       icon: <LinkIcon className={ITEM_ICON_CLASS} />,
       shortcutCommand: "thread.copyReference",
       run: copyActiveThreadReference,
+    });
+  }
+
+  if (activeThread !== null) {
+    const threadRef = scopeThreadRef(activeThread.environmentId, activeThread.id);
+    actionItems.push({
+      kind: "action",
+      value: "action:open-thread-activity",
+      searchTerms: ["activity", "commits", "pushes", "retries", "errors", "usage limit", "reads"],
+      title: "Show thread activity",
+      icon: <ActivityIcon className={ITEM_ICON_CLASS} />,
+      run: async () => {
+        useRightPanelStore.getState().open(threadRef, "activity");
+      },
     });
   }
 

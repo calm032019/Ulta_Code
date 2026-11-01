@@ -75,6 +75,8 @@ import { AssistantSelectionToolbar } from "./AssistantSelectionToolbar";
 import type { AssistantCitationSourceAnchor } from "~/lib/assistantTextSelection";
 import { type AssistantCitationRequest } from "./AssistantCitationSource";
 import { useAssistantCitationTarget } from "./useAssistantCitationTarget";
+import { findTimelineRowIndexForActivity } from "../activity/sessionActivity.logic";
+import { useTimelineJumpStore } from "../../timelineJumpStore";
 import { worktreeSetupAgentStarted } from "@t3tools/client-runtime/worktree-setup";
 import { resolveCitationPhase, type CitedHistory } from "./citationProcedure";
 import {
@@ -650,6 +652,41 @@ const ConversationTimeline = memo(function ConversationTimeline({
       );
     }
   }
+  // An Activity jump opens the fold that hides its item, once per request.
+  const jumpRequest = useTimelineJumpStore((state) =>
+    state.request?.threadKey === listIdentityKey ? state.request : null,
+  );
+  const [jumpExpandedFor, setJumpExpandedFor] = useState<number | null>(null);
+  if (jumpRequest && jumpExpandedFor !== jumpRequest.nonce) {
+    setJumpExpandedFor(jumpRequest.nonce);
+    const jumpEntry =
+      jumpRequest.itemId === null
+        ? undefined
+        : timelineEntries.find((entry) => entry.id === jumpRequest.itemId);
+    const jumpRunId = jumpEntry
+      ? (
+          findFoldRunIds ??
+          timelineTurnFoldRunIdsByEntryId({
+            timelineEntries,
+            latestRun,
+            runningRunId,
+            isWorking,
+            runlessWorkActive,
+          })
+        ).get(jumpEntry.id)
+      : undefined;
+    if (jumpRunId) {
+      setExpandedRunIds((previous) =>
+        previous.has(jumpRunId) ? previous : new Set(previous).add(jumpRunId),
+      );
+    }
+    const jumpAttempt = jumpEntry?.attempt;
+    if (jumpAttempt?.status === "superseded") {
+      setExpandedAttemptIds((previous) =>
+        previous.has(jumpAttempt.id) ? previous : new Set(previous).add(jumpAttempt.id),
+      );
+    }
+  }
   const visibleExpandedRunIds =
     !activeFindRunId || paintedExpandedRunIds.has(activeFindRunId)
       ? paintedExpandedRunIds
@@ -710,6 +747,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
   );
   // Run status/timestamps change per stream event; keep them out of shared row context.
   const runs = useStableHandoffRuns(runsProp);
+  const jumpRowIndex = jumpRequest ? findTimelineRowIndexForActivity(rows, jumpRequest) : -1;
   const minimapItems = deriveTimelineMinimapItems(rows);
   const minimapRowIndices = minimapItems.map((item) => item.rowIndex);
   const restoreRowIndex =
@@ -733,6 +771,17 @@ const ConversationTimeline = memo(function ConversationTimeline({
   const listOpenedOn = nextOpening.mounted ? nextOpening.identity : null;
   const viewportRef = useRef<TimelineViewport | null>(null);
   const navigateTimeline = () => viewportRef.current?.navigate({ releasesFollow: true });
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- scrolls LegendList to a row another panel asked for, once its fold has opened
+  useEffect(() => {
+    if (jumpRequest === null || jumpRowIndex < 0) return;
+    useTimelineJumpStore.getState().settle(jumpRequest.nonce);
+    viewportRef.current?.navigate({ releasesFollow: true });
+    void listRef.current?.scrollToIndex({
+      index: jumpRowIndex,
+      animated: !prefersReducedMotion,
+      viewOffset: 24,
+    });
+  }, [jumpRequest, jumpRowIndex, listRef, prefersReducedMotion]);
   const restoreReady = restoringThreadPosition && rows.length > 0;
   // Z: syncs LegendList's scroll position with which thread it shows. The list
   // is not keyed per thread and reports no "new data" event, and the restore
