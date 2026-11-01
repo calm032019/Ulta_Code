@@ -49,7 +49,11 @@ export function redactUrl(raw: string): string {
   return `${url.protocol}${host}${path}${query === "" ? "" : `?${query}`}`;
 }
 
+// Caps both the work per arg and the depth of the `name=value` recursion below.
+const MAX_ARG_LENGTH = 4096;
+
 function redactArg(arg: string, previous: string | undefined): string {
+  if (arg.length > MAX_ARG_LENGTH) return REDACTED;
   if (
     previous !== undefined &&
     /^--?[\w-]+$/.test(previous) &&
@@ -114,8 +118,8 @@ const keysOf = (value: unknown): ReadonlyArray<string> =>
 
 const decodeLenientJson = Schema.decodeUnknownSync(fromLenientJson(Schema.Unknown));
 
-// Strict JSON first: the lenient decoder runs regex passes over the whole text, which is slow on
-// large files such as ~/.claude.json. Comments or trailing commas fall back to it.
+// Strict JSON first: the lenient decoder copies the whole text first, which is slow on large files
+// such as ~/.claude.json. Comments or trailing commas fall back to it.
 function parseJsonConfig(text: string): unknown {
   try {
     return JSON.parse(text);

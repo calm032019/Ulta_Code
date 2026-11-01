@@ -20,21 +20,49 @@ export const decodeJsonResult = <S extends Schema.Codec<unknown, unknown, never,
 
 const decodeJsonString = Schema.decodeEffect(Schema.fromJsonString(Schema.Unknown));
 
-const parseLenientJsonGetter = SchemaGetter.transformEffect((input: string) => {
-  // Match comments together so URLs stay inside blocks; whitespace keeps adjacent tokens apart.
-  let stripped = input.replace(
-    /("(?:[^"\\]|\\.)*")|\/\/[^\r\n]*|\/\*[\s\S]*?\*\//g,
-    (match, stringLiteral: string | undefined) => (stringLiteral ? match : " "),
-  );
+// One linear pass: a regex over string literals backtracks quadratically on unterminated strings.
+function stripJsonComments(input: string): string {
+  const out: string[] = [];
+  let trailingComma = -1;
+  let index = 0;
+  while (index < input.length) {
+    const char = input[index]!;
+    if (char === '"') {
+      let end = index + 1;
+      while (end < input.length && input[end] !== '"') end += input[end] === "\\" ? 2 : 1;
+      out.push(input.slice(index, end + 1));
+      trailingComma = -1;
+      index = end + 1;
+      continue;
+    }
+    if (char === "/" && input[index + 1] === "/") {
+      let end = index + 2;
+      while (end < input.length && input[end] !== "\n" && input[end] !== "\r") end += 1;
+      out.push(" ");
+      index = end;
+      continue;
+    }
+    if (char === "/" && input[index + 1] === "*") {
+      const end = input.indexOf("*/", index + 2);
+      if (end >= 0) {
+        // Whitespace keeps adjacent tokens apart.
+        out.push(" ");
+        index = end + 2;
+        continue;
+      }
+    }
+    if ((char === "}" || char === "]") && trailingComma >= 0) out[trailingComma] = "";
+    if (char === ",") trailingComma = out.length;
+    else if (!/\s/.test(char)) trailingComma = -1;
+    out.push(char);
+    index += 1;
+  }
+  return out.join("");
+}
 
-  stripped = stripped.replace(
-    /("(?:[^"\\]|\\.)*")|,(\s*[}\]])/g,
-    (match, stringLiteral: string | undefined, bracket: string | undefined) =>
-      stringLiteral ? match : (bracket ?? ""),
-  );
-
-  return decodeJsonString(stripped).pipe(Effect.mapError((error) => error.issue));
-});
+const parseLenientJsonGetter = SchemaGetter.transformEffect((input: string) =>
+  decodeJsonString(stripJsonComments(input)).pipe(Effect.mapError((error) => error.issue)),
+);
 
 const fromLenientJsonString = new SchemaTransformation.Transformation(
   parseLenientJsonGetter,

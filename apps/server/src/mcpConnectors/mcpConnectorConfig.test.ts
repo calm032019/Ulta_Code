@@ -71,6 +71,7 @@ describe("redaction", () => {
       ["--header", "X-Custom:mySecretValue1"],
       `--header ${JSON.stringify(`X-Custom: ${REDACTED}`)}`,
     ],
+    [[`${"a=".repeat(512 * 1024)}a`], REDACTED],
   ])("redacts credential-shaped args %j", (args, expected) => {
     expect(redactCommandLine("srv", args)).toBe(`srv ${expected}`);
   });

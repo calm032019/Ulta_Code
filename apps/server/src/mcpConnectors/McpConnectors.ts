@@ -1,3 +1,8 @@
+// @effect-diagnostics nodeBuiltinImport:off - FileSystem does not expose no-follow
+// or non-blocking open flags, and the read must use the descriptor it checked.
+import * as NodeFS from "node:fs";
+import * as NodeFSP from "node:fs/promises";
+
 import {
   PROVIDER_DISPLAY_NAMES,
   ProviderDriverKind,
@@ -14,6 +19,7 @@ import { expandHomePath } from "@t3tools/provider-core/server/pathExpansion";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
@@ -51,6 +57,32 @@ const SCOPE_ORDER: Record<McpConnectorScope, number> = { user: 0, local: 1, proj
 const PROJECT_CONFIG_MAX_BYTES = 1024 * 1024;
 const USER_CONFIG_MAX_BYTES = 64 * 1024 * 1024;
 
+// The file is opened by its resolved path, so legitimate symlinks are already followed.
+// Windows lacks these flags.
+const OPEN_FLAGS =
+  NodeFS.constants.O_RDONLY |
+  (NodeFS.constants.O_NOFOLLOW ?? 0) |
+  (NodeFS.constants.O_NONBLOCK ?? 0);
+
+/** Reads at most `maxBytes + 1` bytes, so a file that grew past the cap is detectable. */
+async function readUpTo(handle: NodeFSP.FileHandle, size: number, maxBytes: number) {
+  const buffer = Buffer.alloc(Math.min(size, maxBytes) + 1);
+  let offset = 0;
+  while (offset < buffer.length) {
+    const { bytesRead } = await handle.read(buffer, offset, buffer.length - offset, offset);
+    if (bytesRead === 0) break;
+    offset += bytesRead;
+  }
+  return buffer.subarray(0, offset);
+}
+
+const errorCode = (cause: unknown) =>
+  typeof cause === "object" && cause !== null && "code" in cause ? cause.code : undefined;
+
+type CachedParse =
+  | { readonly stamp: string; readonly value: unknown }
+  | { readonly stamp: string; readonly error: string };
+
 interface FoundServers {
   readonly scope: McpConnectorScope;
   readonly project: McpConnectorProject | null;
@@ -80,10 +112,11 @@ const make = Effect.gen(function* () {
   const providerRegistry = yield* ProviderRegistry.ProviderRegistry;
   const serverSettings = yield* ServerSettings.ServerSettingsService;
   const projectStore = yield* ProjectStore.ProjectStoreV2;
-  // Parsed configs by parser and path, reused until the file's size or modified time changes.
-  const parsedConfigCache = new Map<string, { readonly stamp: string; readonly value: unknown }>();
+  // Parse results by parser and path, reused until the file's size or modified time changes.
+  const parsedConfigCache = new Map<string, CachedParse>();
+  let inFlight: Deferred.Deferred<McpConnectorsResult> | undefined;
 
-  const list = Effect.gen(function* () {
+  const scan = Effect.gen(function* () {
     const home = yield* HostProcess.HomeDirectory;
     const hostEnvironment = yield* HostProcess.Environment;
     const providers = yield* providerRegistry.getProviders;
@@ -96,11 +129,24 @@ const make = Effect.gen(function* () {
         workspaceRoot: project.workspaceRoot,
       }));
     const issues: McpConnectorConfigIssue[] = [];
+    const visitedCacheKeys = new Set<string>();
     const resolve = (value: string) => path.resolve(expandHomePath(value, home));
+    const realRoots = new Map(
+      yield* Effect.forEach(
+        projects,
+        ({ workspaceRoot }) =>
+          fileSystem.realPath(workspaceRoot).pipe(
+            Effect.orElseSucceed(() => workspaceRoot),
+            Effect.map((real) => [workspaceRoot, real] as const),
+          ),
+        { concurrency: 8 },
+      ),
+    );
 
-    // Reads and parses one config file. It skips anything that is not a regular file, files over
-    // the size limit, and project files that resolve outside their project, so a cloned repo
-    // cannot point discovery at a device, a huge file, or a file elsewhere on the machine.
+    // Skips non-regular files, files over the cap, and project files resolving outside the
+    // project, so a cloned repo cannot point discovery at a device, a huge file, or elsewhere.
+    // The resolved path is checked, then opened once without following links, so a swap after
+    // the check cannot redirect the read.
     const load = Effect.fn("McpConnectors.load")(function* <A>(
       provider: ServerProvider,
       configPath: string,
@@ -113,49 +159,86 @@ const make = Effect.gen(function* () {
           issues.push({ instanceId: provider.instanceId, configPath, message });
           return null;
         });
-      const info = yield* fileSystem.stat(configPath).pipe(
+      const reportCause = (cause: unknown) =>
+        report(cause instanceof Error ? cause.message : String(cause));
+      const real = yield* fileSystem.realPath(configPath).pipe(
         Effect.asSome,
         Effect.catchReason("PlatformError", "NotFound", () => Effect.succeedNone),
         Effect.catch((error) => report(error.message).pipe(Effect.as(Option.none()))),
       );
-      if (Option.isNone(info)) return null;
-      const size = Number(info.value.size);
-      let relativeToRoot: string | null | undefined;
-      if (options.root !== undefined && info.value.type === "File") {
-        const real = yield* fileSystem.realPath(configPath).pipe(Effect.option);
-        const root = yield* fileSystem
-          .realPath(options.root)
-          .pipe(Effect.orElseSucceed(() => options.root ?? ""));
-        relativeToRoot = Option.isSome(real) ? path.relative(root, real.value) : null;
+      if (Option.isNone(real)) return null;
+      if (options.root !== undefined) {
+        const outside = configFileSkipReason({
+          type: "File",
+          size: 0,
+          maxBytes: options.maxBytes,
+          relativeToRoot: path.relative(realRoots.get(options.root) ?? options.root, real.value),
+        });
+        if (outside !== null) return yield* report(outside);
       }
+      const opened = yield* Effect.acquireRelease(
+        Effect.tryPromise(() => NodeFSP.open(real.value, OPEN_FLAGS)).pipe(
+          Effect.asSome,
+          Effect.catch(({ cause }) => {
+            const code = errorCode(cause);
+            if (code === "ENOENT") return Effect.succeedNone;
+            return (
+              code === "ELOOP"
+                ? report("Not a regular file, so it was skipped.")
+                : reportCause(cause)
+            ).pipe(Effect.as(Option.none()));
+          }),
+        ),
+        (handle) =>
+          Option.isSome(handle) ? Effect.promise(() => handle.value.close()) : Effect.void,
+      );
+      if (Option.isNone(opened)) return null;
+      const handle = opened.value;
+      const info = yield* Effect.tryPromise(() => handle.stat()).pipe(
+        Effect.asSome,
+        Effect.catch(({ cause }) => reportCause(cause).pipe(Effect.as(Option.none()))),
+      );
+      if (Option.isNone(info)) return null;
       const skip = configFileSkipReason({
-        type: info.value.type,
-        size,
+        type: info.value.isFile() ? "File" : "Other",
+        size: info.value.size,
         maxBytes: options.maxBytes,
-        ...(relativeToRoot === undefined ? {} : { relativeToRoot }),
       });
       if (skip !== null) return yield* report(skip);
-      const stamp = `${size}:${Option.getOrUndefined(info.value.mtime)?.getTime() ?? ""}`;
+      const stamp = `${info.value.size}:${info.value.mtimeMs}`;
       const cacheKey = `${parserKey}\u0000${configPath}`;
+      visitedCacheKeys.add(cacheKey);
       const cached = parsedConfigCache.get(cacheKey);
-      if (cached !== undefined && cached.stamp === stamp) return cached.value as A;
-      const text = yield* fileSystem.readFileString(configPath).pipe(
+      if (cached !== undefined && cached.stamp === stamp) {
+        return "error" in cached ? yield* report(cached.error) : (cached.value as A);
+      }
+      const bytes = yield* Effect.tryPromise(() =>
+        readUpTo(handle, info.value.size, options.maxBytes),
+      ).pipe(
         Effect.asSome,
-        Effect.catchReason("PlatformError", "NotFound", () => Effect.succeedNone),
-        Effect.catch((error) => report(error.message).pipe(Effect.as(Option.none<string>()))),
+        Effect.catch(({ cause }) => reportCause(cause).pipe(Effect.as(Option.none()))),
       );
-      if (Option.isNone(text)) return null;
+      if (Option.isNone(bytes)) return null;
+      const grown = configFileSkipReason({
+        type: "File",
+        size: bytes.value.length,
+        maxBytes: options.maxBytes,
+      });
+      if (grown !== null) return yield* report(grown);
       const parsed = yield* Effect.try({
-        try: () => parser(text.value),
+        try: () => parser(bytes.value.toString("utf8")),
         catch: describeConfigParseError,
       }).pipe(
         Effect.asSome,
-        Effect.catch((message) => report(message).pipe(Effect.as(Option.none<A>()))),
+        Effect.catch((error) => {
+          parsedConfigCache.set(cacheKey, { stamp, error });
+          return report(error).pipe(Effect.as(Option.none<A>()));
+        }),
       );
       if (Option.isNone(parsed)) return null;
       parsedConfigCache.set(cacheKey, { stamp, value: parsed.value });
       return parsed.value;
-    });
+    }, Effect.scoped);
 
     const readServers = Effect.fn("McpConnectors.readServers")(function* (
       provider: ServerProvider,
@@ -365,9 +448,30 @@ const make = Effect.gen(function* () {
           (left.project?.title ?? "").localeCompare(right.project?.title ?? "") ||
           left.name.localeCompare(right.name),
       );
+    for (const key of parsedConfigCache.keys()) {
+      if (!visitedCacheKeys.has(key)) parsedConfigCache.delete(key);
+    }
     const readAt = DateTime.formatIso(yield* DateTime.now);
     return { connectors, issues, readAt } satisfies McpConnectorsResult;
   }).pipe(Effect.withSpan("McpConnectors.list"));
+
+  // Concurrent callers share one pass, detached so one caller leaving cannot cancel the others'.
+  const list = Effect.uninterruptible(
+    Effect.suspend(() => {
+      if (inFlight !== undefined) return Effect.succeed(inFlight);
+      const created = Deferred.makeUnsafe<McpConnectorsResult>();
+      inFlight = created;
+      return scan.pipe(
+        Effect.onExit((exit) =>
+          Effect.sync(() => {
+            inFlight = undefined;
+          }).pipe(Effect.andThen(Deferred.done(created, exit))),
+        ),
+        Effect.forkDetach,
+        Effect.as(created),
+      );
+    }),
+  ).pipe(Effect.flatMap(Deferred.await));
 
   return McpConnectors.of({ list });
 });

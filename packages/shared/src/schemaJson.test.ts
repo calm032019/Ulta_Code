@@ -51,6 +51,11 @@ Done.`),
     expect(decodeLenientJson('{"note":"a,]"}')).toEqual({ note: "a,]" });
     expect(decodeLenientJson('{"list":["x,}"]}')).toEqual({ list: ["x,}"] });
     expect(decodeLenientJson('{"values":[1, 2,],}')).toEqual({ values: [1, 2] });
+    expect(decodeLenientJson('{"a":"\\"//x", /* c */ }')).toEqual({ a: '"//x' });
+  });
+
+  it("rejects an unterminated string of escaped quotes without backtracking", () => {
+    expect(() => decodeLenientJson(`{"a": "${'\\"'.repeat(512 * 1024)}`)).toThrow();
   });
 
   it("keeps properties after CR-terminated comments in mixed line endings", () => {
