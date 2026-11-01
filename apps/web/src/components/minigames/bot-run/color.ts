@@ -61,7 +61,7 @@ export function parseColor(input: string): Rgba | null {
   return { r, g, b, a };
 }
 
-export function formatColor(color: Rgba): string {
+function formatColor(color: Rgba): string {
   const r = Math.round(color.r);
   const g = Math.round(color.g);
   const b = Math.round(color.b);
@@ -69,7 +69,7 @@ export function formatColor(color: Rgba): string {
   return a >= 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${a})`;
 }
 
-export function mixRgba(from: Rgba, to: Rgba, amount: number): Rgba {
+function mixRgba(from: Rgba, to: Rgba, amount: number): Rgba {
   const t = clamp(amount, 0, 1);
   return {
     r: from.r + (to.r - from.r) * t,

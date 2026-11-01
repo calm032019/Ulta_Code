@@ -131,13 +131,13 @@ export function centreBack(shown: number): number {
   return 0.14 + 0.8 * Math.sqrt(shown / MAX_UNITS);
 }
 
-export function slotX(index: number, shown: number): number {
+function slotX(index: number, shown: number): number {
   return (
     -centreBack(shown) + Math.cos(index * GOLDEN_ANGLE) * Math.sqrt((index + 0.5) / MAX_UNITS) * 0.8
   );
 }
 
-export function slotY(index: number): number {
+function slotY(index: number): number {
   return Math.sin(index * GOLDEN_ANGLE) * Math.sqrt((index + 0.5) / MAX_UNITS) * 0.34;
 }
 
@@ -163,7 +163,7 @@ export function resetFx(fx: Fx, state: GateRunnerState): void {
   fx.flash = 0;
 }
 
-export function emit(
+function emit(
   fx: Fx,
   kind: ParticleKind,
   tone: Tone,
@@ -194,7 +194,7 @@ export function emit(
   particle.vrot = (random(fx) - 0.5) * 14;
 }
 
-export function floatText(fx: Fx, text: string, tone: Tone, x: number, y: number, size: number) {
+function floatText(fx: Fx, text: string, tone: Tone, x: number, y: number, size: number) {
   const slot =
     fx.texts.find((t) => !t.active) ??
     fx.texts.reduce((oldest, t) => (t.life < oldest.life ? t : oldest));

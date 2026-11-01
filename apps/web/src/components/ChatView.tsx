@@ -109,7 +109,16 @@ import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
 import { resolveThreadReferenceCopyTarget } from "@t3tools/client-runtime/thread-reference";
 import { resolveTerminalSessionLabel } from "@t3tools/shared/terminalLabels";
 import { useAtomValue } from "@effect/atom-react";
-import { type SetStateAction, use, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  type SetStateAction,
+  use,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { BackgroundThreadContext } from "./chat/backgroundThread";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { assistantCitationFromLocation } from "../lib/assistantCitationNavigation";
@@ -257,7 +266,6 @@ import {
 } from "../state/entities";
 import { useEnvironmentShellHasSnapshot } from "../state/shell";
 import { ChatComposer, type ChatComposerHandle } from "./chat/ChatComposer";
-import { MiniGameDock } from "./minigames/MiniGameDock";
 import {
   closeMiniGameDock,
   openMiniGameDock,
@@ -383,6 +391,10 @@ const EMPTY_PROVIDERS: ServerProvider[] = [];
 const EMPTY_PROVIDER_MODELS: ServerProvider["models"] = [];
 const EMPTY_USAGE_LIMIT_SOURCES: UsageLimitSourceSnapshots = [];
 import type { CodexArtifactTemplate } from "@t3tools/shared/codexArtifactTemplates";
+
+const MiniGameDock = lazy(() =>
+  import("./minigames/MiniGameDock").then((module) => ({ default: module.MiniGameDock })),
+);
 
 const EMPTY_FEEDBACK_SUBMISSIONS: ReadonlyArray<CodexFeedbackSubmission> = [];
 const EMPTY_PROVIDER_SKILLS: ServerProvider["skills"] = [];
@@ -3578,19 +3590,26 @@ export default function ChatView(props: ChatViewProps) {
                   >
                     <ChildThreadApprovals threadRef={activeThreadRef} />
                     {minigameDockShown ? (
-                      <MiniGameDock
-                        isWorking={isWorking}
-                        latestRun={
-                          activeActivityRun
-                            ? {
-                                startedAt:
-                                  activeActivityRun.startedAt ?? activeActivityRun.requestedAt,
-                                completedAt: activeActivityRun.completedAt,
-                              }
-                            : null
+                      // Games load on first open; the placeholder holds the dock's height meanwhile.
+                      <Suspense
+                        fallback={
+                          <div className="mx-auto h-[170px] w-full max-w-(--chat-content-max-width) sm:h-[200px]" />
                         }
-                        onBackToChat={closeMinigamesStable}
-                      />
+                      >
+                        <MiniGameDock
+                          isWorking={isWorking}
+                          latestRun={
+                            activeActivityRun
+                              ? {
+                                  startedAt:
+                                    activeActivityRun.startedAt ?? activeActivityRun.requestedAt,
+                                  completedAt: activeActivityRun.completedAt,
+                                }
+                              : null
+                          }
+                          onBackToChat={closeMinigamesStable}
+                        />
+                      </Suspense>
                     ) : null}
                     <ComposerSurface.Shell
                       contextRow={showComposerContextStrip}

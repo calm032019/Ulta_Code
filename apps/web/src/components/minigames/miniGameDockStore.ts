@@ -3,12 +3,12 @@ import { createJSONStorage, persist } from "zustand/middleware";
 
 import { resolveStorage } from "~/lib/storage";
 import { failSafeStorage, sanitizePersistedDockState } from "./dockLogic";
-import { MINI_GAMES } from "./registry";
-import type { MiniGameId } from "./types";
+import { MINI_GAME_IDS, type MiniGameId } from "./types";
 
 const MINI_GAME_DOCK_STORAGE_KEY = "t3code:minigame-dock:v1";
 
-const KNOWN_GAME_IDS = MINI_GAMES.map((game) => game.id);
+// Ids only: importing the registry here would pull every game into the main bundle.
+const KNOWN_GAME_IDS = MINI_GAME_IDS;
 const DEFAULT_GAME_ID: MiniGameId = KNOWN_GAME_IDS[0] ?? "claude-run";
 
 interface MiniGameDockState {

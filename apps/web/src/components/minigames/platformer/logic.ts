@@ -203,7 +203,7 @@ function levelBonus(levelNumber: number, cols: number, time: number): number {
   return 100 * levelNumber + Math.max(0, Math.round((par - time) * 5));
 }
 
-export function maxAirJumps(levelNumber: number): number {
+function maxAirJumps(levelNumber: number): number {
   return levelNumber >= DOUBLE_JUMP_LEVEL ? 1 : 0;
 }
 

@@ -179,7 +179,7 @@ export function pickVivid(candidates: ReadonlyArray<Rgba>, against: Rgba, minimu
   return best;
 }
 
-export function hue(color: Rgba): number {
+function hue(color: Rgba): number {
   const r = color.r / 255;
   const g = color.g / 255;
   const b = color.b / 255;

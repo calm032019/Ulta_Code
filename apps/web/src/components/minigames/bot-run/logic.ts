@@ -1,14 +1,14 @@
-export const SNAPSHOT_VERSION = 2;
+const SNAPSHOT_VERSION = 2;
 export const STEP_MS = 1000 / 120;
-export const WORLD_HEIGHT = 150;
-export const MIN_WORLD_WIDTH = 400;
+const WORLD_HEIGHT = 150;
+const MIN_WORLD_WIDTH = 400;
 export const GROUND_OFFSET = 24;
 
 export const ROBOT_X = 48;
 export const ROBOT_WIDTH = 22;
-export const ROBOT_HEIGHT = 26;
+const ROBOT_HEIGHT = 26;
 export const ROBOT_DUCK_WIDTH = 28;
-export const ROBOT_DUCK_HEIGHT = 15;
+const ROBOT_DUCK_HEIGHT = 15;
 const ROBOT_INSET = 3;
 const OBSTACLE_INSET = 2;
 
@@ -21,7 +21,7 @@ const FAST_FALL_FACTOR = 3;
 const JUMP_BUFFER_MS = 120;
 export const TAP_AIRTIME = (JUMP_VELOCITY / GRAVITY) * (1 + 1 / Math.sqrt(FALL_GRAVITY_FACTOR));
 
-export const START_SPEED = 260;
+const START_SPEED = 260;
 export const MAX_SPEED = 620;
 const ACCELERATION = 4;
 export const DISTANCE_PER_POINT = 25;
@@ -29,7 +29,7 @@ const BUG_SCORE = 200;
 const FIRST_SPAWN_LEAD = 220;
 export const RESTART_DELAY_MS = 350;
 const MAX_STEP_MS = 50;
-export const NEAR_MISS_DISTANCE = 6;
+const NEAR_MISS_DISTANCE = 6;
 export const NEAR_MISS_BONUS = 5;
 const MAX_COMBO_BONUS = 10;
 const UNTOUCHED = 999;
@@ -190,7 +190,7 @@ export function withViewport(state: RunState, width: number, height: number): Ru
   };
 }
 
-export function robotBox(state: Pick<RunState, "robotY" | "ducking">): {
+function robotBox(state: Pick<RunState, "robotY" | "ducking">): {
   readonly x: number;
   readonly y: number;
   readonly w: number;

@@ -1,7 +1,7 @@
 export const LANES = 3;
-export const SETS_PER_STAGE = 8;
-export const MAX_COUNT = 99_999;
-export const SPAWN_AHEAD = 60;
+const SETS_PER_STAGE = 8;
+const MAX_COUNT = 99_999;
+const SPAWN_AHEAD = 60;
 export const CLEAR_MS = 1700;
 export const CLEAR_FREEZE_MS = 1200;
 const DESPAWN_BEHIND = 30;
@@ -154,7 +154,7 @@ export function comboBonus(combo: number): number {
   return combo >= 2 ? Math.min(combo, 10) * 5 : 0;
 }
 
-export function speedForStage(stage: number): number {
+function speedForStage(stage: number): number {
   return Math.min(19, 8 + (stage - 1) * 1.5);
 }
 
@@ -301,7 +301,7 @@ function endGame(state: GateRunnerState): void {
   state.events.push({ type: "over", newBest: score > state.runBest && score > 0 });
 }
 
-export function restart(previous: GateRunnerState): GateRunnerState {
+function restart(previous: GateRunnerState): GateRunnerState {
   const state = cloneState(previous);
   const seed = Math.floor(nextRandom(state) * 4294967296);
   const next = initialState(seed, state.width, state.height);

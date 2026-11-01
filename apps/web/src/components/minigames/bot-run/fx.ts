@@ -1,15 +1,15 @@
 import { ROBOT_X, type RunEvent, type RunState } from "./logic";
 
-export const MAX_PARTICLES = 150;
+const MAX_PARTICLES = 150;
 const MAX_POPUPS = 2;
 export const TAIL_POINTS = 6;
 const TAIL_SEGMENT = 3.4;
-export const HIT_STOP_MS = 70;
+const HIT_STOP_MS = 70;
 const SHAKE_MS = 280;
 export const POPUP_MS = 950;
 export const BANNER_MS = 1500;
 
-export const ParticleColour = {
+const ParticleColour = {
   Dust: 0,
   Crate: 1,
   CrateDark: 2,
@@ -19,7 +19,7 @@ export const ParticleColour = {
   Muted: 6,
   Spark: 7,
 } as const;
-export type ParticleColour = (typeof ParticleColour)[keyof typeof ParticleColour];
+type ParticleColour = (typeof ParticleColour)[keyof typeof ParticleColour];
 
 export interface Particle {
   active: boolean;
