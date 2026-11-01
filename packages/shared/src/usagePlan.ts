@@ -196,6 +196,7 @@ export interface UsagePlanBudget {
   readonly days: readonly UsagePlanDay[];
 }
 
+const HALF_DAY_MS = 12 * 60 * 60 * 1000;
 const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
 
 /**
@@ -227,7 +228,8 @@ export function computeUsagePlanBudget(input: {
     input.baseline === null || input.baseline > used ? used : clampPercent(input.baseline);
   const today = localDate(now, plan.timeZone);
   const todayKey = dayKey(today);
-  const lastDay = dayKey(localDate(reset.at - 1, plan.timeZone));
+  // A morning reset leaves too little of its day to plan around, so that day belongs to the next window.
+  const lastDay = dayKey(localDate(reset.at - HALF_DAY_MS, plan.timeZone));
   const todayWorking = working.has(weekdayOf(today));
 
   let workingDaysLeft = 0;

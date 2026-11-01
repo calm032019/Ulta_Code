@@ -160,7 +160,8 @@ for each limit you want to pace. 5-hour session windows cannot be planned.
 
 Each day's budget is what was left at the start of the day, split evenly over the working days
 left before the reset, today included. On a rest day nothing is planned, unless no working day
-is left before the reset, in which case today gets everything left. The strip below shows each
+is left before the reset, in which case today gets everything left. A reset before midday
+does not count its own day, so a Monday 09:00 reset splits the budget up to Friday. The strip below shows each
 day of the window: the line is the plan and the fill is what you used.
 
 With **Daily budget reminders** on, T3 Code shows an in-app notice when today's use reaches the

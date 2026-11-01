@@ -187,6 +187,15 @@ describe("computeUsagePlanBudget", () => {
   });
 
   it.each([
+    ["2026-09-07T09:00:00Z", 2],
+    ["2026-09-07T15:00:00Z", 3],
+  ])("counts the reset day only when the reset falls after midday (%s)", (resetAt, days) => {
+    expect(
+      computeUsagePlanBudget({ ...thursday, reportedResetAt: at(resetAt) })?.workingDaysLeft,
+    ).toBe(days);
+  });
+
+  it.each([
     [65, "approaching"],
     [69, "approaching"],
     [70, "over"],
@@ -321,14 +330,14 @@ describe("computeUsagePlanBudget", () => {
   });
 
   it("reads today in the plan's time zone", () => {
-    // 23:30 UTC on Thursday is already Friday in Tokyo, and the reset falls at 09:00 Monday there.
+    // 23:30 UTC on Thursday is already Friday in Tokyo, and the 09:00 Monday reset leaves only Friday.
     const budget = computeUsagePlanBudget({
       ...thursday,
       plan: { ...weekdays, timeZone: "Asia/Tokyo" },
       now: at("2026-09-03T23:30:00Z"),
     })!;
     expect(budget.today).toBe("2026-09-04");
-    expect(budget.workingDaysLeft).toBe(2);
+    expect(budget.workingDaysLeft).toBe(1);
   });
 });
 
