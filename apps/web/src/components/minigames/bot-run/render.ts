@@ -46,6 +46,9 @@ export interface Palette {
   readonly skyTop: ReadonlyArray<string>;
   readonly skyBottom: ReadonlyArray<string>;
   readonly sun: string;
+  readonly sunCore: string;
+  readonly sunGlow: string;
+  readonly sunGlowClear: string;
   readonly duskTint: string;
   readonly cloud: string;
   readonly cloudShade: string;
@@ -144,50 +147,53 @@ export function buildPalette(theme: MiniGameTheme, font: string): Palette {
   const skyBottom: string[] = [];
   for (let index = 0; index <= DUSK_STEPS; index += 1) {
     const t = index / DUSK_STEPS;
-    skyTop.push(dark ? darken(bg, 0.22 + t * 0.2) : mix(mix(bg, fg, 0.05), mix(bg, fg, 0.17), t));
-    skyBottom.push(mix(surface, hot, 0.06 + t * 0.18));
+    skyTop.push(dark ? darken(bg, 0.25 + t * 0.2) : mix(bg, fg, 0.11 + t * 0.16));
+    skyBottom.push(mix(surface, hot, (dark ? 0.12 : 0.14) + t * 0.2));
   }
   const horizon = skyBottom[0]!;
-  const crate = dark ? mix(theme.secondary, fg, 0.16) : mix(theme.secondary, theme.muted, 0.24);
-  const spoolFlange = dark
-    ? mix(theme.secondary, fg, 0.22)
-    : mix(theme.secondary, theme.muted, 0.32);
+  const crate = dark
+    ? mix(mix(theme.secondary, hot, 0.5), fg, 0.12)
+    : mix(mix(theme.secondary, hot, 0.38), fg, 0.06);
+  const spoolFlange = dark ? mix(theme.secondary, fg, 0.3) : mix(theme.secondary, fg, 0.2);
   const vignette = withAlpha(ink, dark ? 0.4 : 0.1);
   return {
     font,
     skyTop,
     skyBottom,
-    sun: mix(surface, hot, dark ? 0.45 : 0.32),
+    sun: mix(surface, hot, dark ? 0.55 : 0.45),
+    sunCore: mix("#ffffff", hot, dark ? 0.2 : 0.12),
+    sunGlow: withAlpha(hot, dark ? 0.22 : 0.3),
+    sunGlowClear: withAlpha(hot, 0),
     duskTint: hot,
-    cloud: dark ? mix(surface, fg, 0.14) : lighten(surface, 0.7),
-    cloudShade: dark ? mix(surface, fg, 0.06) : mix(surface, fg, 0.07),
-    hillFar: mix(horizon, ink, dark ? 0.18 : 0.07),
-    skyline: mix(horizon, ink, dark ? 0.3 : 0.11),
+    cloud: dark ? mix(surface, fg, 0.14) : "#ffffff",
+    cloudShade: dark ? mix(surface, fg, 0.06) : mix(surface, fg, 0.12),
+    hillFar: mix(horizon, ink, dark ? 0.12 : 0.08),
+    skyline: mix(horizon, ink, dark ? 0.3 : 0.2),
     windowLight: mix(hot, "#ffffff", 0.45),
-    hillNear: mix(horizon, ink, dark ? 0.4 : 0.15),
+    hillNear: mix(mix(horizon, hot, 0.12), ink, dark ? 0.5 : 0.34),
     mote: dark ? mix(fg, hot, 0.2) : mix(theme.muted, hot, 0.3),
-    groundTop: mix(bg, ink, dark ? 0.3 : 0.05),
-    groundBottom: mix(bg, ink, dark ? 0.5 : 0.11),
-    groundLine: mix(theme.muted, bg, 0.25),
-    groundDot: theme.muted,
-    shadow: withAlpha(dark ? "#000000" : fg, dark ? 0.4 : 0.18),
+    groundTop: dark ? mix(bg, ink, 0.35) : mix(mix(bg, hot, 0.14), fg, 0.08),
+    groundBottom: dark ? mix(bg, ink, 0.6) : mix(mix(bg, hot, 0.18), fg, 0.2),
+    groundLine: dark ? mix(theme.muted, bg, 0.15) : mix(fg, bg, 0.3),
+    groundDot: dark ? theme.muted : mix(fg, bg, 0.45),
+    shadow: withAlpha(dark ? "#000000" : fg, dark ? 0.45 : 0.22),
     outline: fg,
-    bodyTop: dark ? mix(surface, fg, 0.22) : lighten(surface, 0.8),
-    bodyBottom: dark ? mix(surface, fg, 0.06) : mix(surface, fg, 0.09),
-    sheen: withAlpha("#ffffff", dark ? 0.28 : 0.9),
-    rim: withAlpha(hot, 0.55),
+    bodyTop: dark ? mix(surface, fg, 0.32) : "#ffffff",
+    bodyBottom: dark ? mix(surface, fg, 0.1) : mix(surface, fg, 0.14),
+    sheen: withAlpha("#ffffff", dark ? 0.45 : 1),
+    rim: withAlpha(hot, 0.7),
     visor: dark ? darken(bg, 0.5) : mix(fg, "#000000", 0.15),
     eye: mix(hot, "#ffffff", 0.5),
     eyeGlow: withAlpha(hot, 0.9),
     hot,
     crate,
-    crateDark: mix(crate, ink, dark ? 0.35 : 0.2),
-    crateLight: lighten(crate, dark ? 0.12 : 0.45),
-    crateEdge: mix(theme.muted, fg, dark ? 0.1 : 0.3),
-    bracket: mix(theme.muted, fg, dark ? 0.25 : 0.45),
+    crateDark: mix(crate, dark ? "#000000" : fg, dark ? 0.35 : 0.3),
+    crateLight: lighten(crate, dark ? 0.2 : 0.4),
+    crateEdge: dark ? mix(crate, fg, 0.45) : mix(hot, fg, 0.55),
+    bracket: dark ? mix(fg, crate, 0.3) : mix(fg, hot, 0.15),
     spoolFlange,
-    spoolRim: lighten(spoolFlange, dark ? 0.2 : 0.55),
-    spoolCable: mix(theme.muted, fg, dark ? 0.05 : 0.2),
+    spoolRim: lighten(spoolFlange, dark ? 0.3 : 0.6),
+    spoolCable: mix(hot, fg, dark ? 0.2 : 0.35),
     bugLight: lighten(theme.danger, 0.15),
     bugDark: darken(theme.danger, 0.3),
     bugGlow: withAlpha(theme.danger, 0.55),
@@ -284,16 +290,18 @@ function drawBackdrop(
 
   const sunX = width * 0.74;
   const sunY = groundY * (0.36 + dusk * 0.3);
-  context.fillStyle = palette.sun;
-  context.globalAlpha = 0.18;
+  const glow = context.createRadialGradient(sunX, sunY, 6, sunX, sunY, 46);
+  glow.addColorStop(0, palette.sunGlow);
+  glow.addColorStop(1, palette.sunGlowClear);
+  context.fillStyle = glow;
+  context.fillRect(sunX - 46, sunY - 46, 92, 92);
+  const disc = context.createRadialGradient(sunX - 3, sunY - 3, 1, sunX, sunY, 13);
+  disc.addColorStop(0, palette.sunCore);
+  disc.addColorStop(1, palette.sun);
+  context.fillStyle = disc;
   context.beginPath();
-  context.arc(sunX, sunY, 26, 0, Math.PI * 2);
+  context.arc(sunX, sunY, 13, 0, Math.PI * 2);
   context.fill();
-  context.globalAlpha = 0.6;
-  context.beginPath();
-  context.arc(sunX, sunY, 15, 0, Math.PI * 2);
-  context.fill();
-  context.globalAlpha = 1;
 
   const scroll = state.distance;
   const cloudShift = scroll * 0.12 + (fx.reducedMotion ? 0 : fx.time * 0.006);
@@ -1200,17 +1208,20 @@ function drawHud(
     const pop = t < 0.15 ? 0.6 + (t / 0.15) * 0.4 : 1;
     context.save();
     context.globalAlpha = t < 0.7 ? 1 : 1 - (t - 0.7) / 0.3;
+    context.font = font(palette, 700, textSize);
+    const halfWidth = context.measureText(item.text).width / 2 + 4;
+    const minX = Math.max(pad + halfWidth, (ROBOT_X + ROBOT_DUCK_WIDTH) * scale + 8 + halfWidth);
+    const safeTop = pad + pillHeight + textSize * 2;
     context.translate(
-      Math.min(width - 50, Math.max(50, item.x * scale)),
-      Math.max(pad + pillHeight + textSize, (groundY - item.y) * scale - easeOutCubic(t) * 20),
+      Math.max(minX, Math.min(width - pad - halfWidth, item.x * scale)),
+      Math.max(safeTop, (groundY - item.y) * scale - easeOutCubic(t) * 20),
     );
     context.scale(pop, pop);
-    context.font = font(palette, 700, textSize);
     context.textAlign = "center";
     context.strokeStyle = palette.panel;
     context.lineWidth = 3;
     context.strokeText(item.text, 0, 0);
-    context.fillStyle = item.accent ? palette.badgeText : palette.strong;
+    context.fillStyle = palette.badgeText;
     context.fillText(item.text, 0, 0);
     context.restore();
   }

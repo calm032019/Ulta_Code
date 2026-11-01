@@ -1,7 +1,7 @@
 import { ROBOT_X, type RunEvent, type RunState } from "./logic";
 
 export const MAX_PARTICLES = 150;
-const MAX_POPUPS = 8;
+const MAX_POPUPS = 2;
 export const TAIL_POINTS = 6;
 const TAIL_SEGMENT = 3.4;
 export const HIT_STOP_MS = 70;
@@ -43,7 +43,6 @@ export interface Popup {
   x: number;
   y: number;
   age: number;
-  accent: boolean;
 }
 
 /** Visual-only animation state. Mutated in place each frame so the loop allocates nothing. */
@@ -112,7 +111,6 @@ export function createFx(reducedMotion: boolean, seed: number, state: RunState):
       x: 0,
       y: 0,
       age: 0,
-      accent: false,
     })),
     shakeMs: 0,
     hitStopMs: 0,
@@ -198,7 +196,7 @@ function dust(fx: Fx, x: number, count: number, strength: number): void {
   }
 }
 
-function popup(fx: Fx, text: string, x: number, y: number, accent: boolean): void {
+function popup(fx: Fx, text: string, x: number, y: number): void {
   const slot =
     fx.popups.find((candidate) => !candidate.active) ??
     fx.popups.reduce((oldest, candidate) => (candidate.age > oldest.age ? candidate : oldest));
@@ -207,7 +205,6 @@ function popup(fx: Fx, text: string, x: number, y: number, accent: boolean): voi
   slot.x = x;
   slot.y = y;
   slot.age = 0;
-  slot.accent = accent;
 }
 
 export function handleEvent(fx: Fx, event: RunEvent, state: RunState): void {
@@ -236,12 +233,9 @@ export function handleEvent(fx: Fx, event: RunEvent, state: RunState): void {
       return;
     }
     case "clear":
-      if (event.bonus > 0) {
-        popup(fx, `Combo ×${event.combo} +${event.bonus}`, ROBOT_X + 70, state.robotY + 34, false);
-      }
       return;
     case "near-miss":
-      popup(fx, `+${event.bonus} Close!`, event.x, event.y + 16, true);
+      popup(fx, `+${event.bonus} Close!`, Math.max(event.x, ROBOT_X + 40) + 8, event.y + 18);
       for (let index = 0; index < burst(fx, 8); index += 1) {
         const angle = (index / 8) * Math.PI * 2;
         emitParticle(
