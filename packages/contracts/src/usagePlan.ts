@@ -30,11 +30,12 @@ export type UsagePlanResetSchedule = typeof UsagePlanResetSchedule.Type;
 /** Without `reset` the provider's reported reset is used. */
 export const UsagePlanWindowSettings = Schema.Struct({
   reset: Schema.optionalKey(UsagePlanResetSchedule),
-  timeZone: TrimmedNonEmptyString,
-  workingDays: Schema.Array(UsagePlanWeekday).check(Schema.isMinLength(1)),
+  timeZone: TrimmedNonEmptyString.check(Schema.isMaxLength(64)),
+  workingDays: Schema.Array(UsagePlanWeekday).check(Schema.isMinLength(1), Schema.isUnique()),
 });
 export type UsagePlanWindowSettings = typeof UsagePlanWindowSettings.Type;
 
+const MAX_USAGE_PLAN_WINDOWS = 64;
 const MIN_USAGE_PLAN_APPROACHING_PERCENT = 50;
 export const MAX_USAGE_PLAN_APPROACHING_PERCENT = 95;
 const UsagePlanApproachingPercent = Schema.Int.check(
@@ -50,9 +51,9 @@ export const UsagePlanSettings = Schema.Struct({
   approachingPercent: UsagePlanApproachingPercent.pipe(
     Schema.withDecodingDefault(Effect.succeed(80)),
   ),
-  windows: Schema.Record(TrimmedNonEmptyString, UsagePlanWindowSettings).pipe(
-    Schema.withDecodingDefault(Effect.succeed({})),
-  ),
+  windows: Schema.Record(TrimmedNonEmptyString, UsagePlanWindowSettings)
+    .check(Schema.isMaxProperties(MAX_USAGE_PLAN_WINDOWS))
+    .pipe(Schema.withDecodingDefault(Effect.succeed({}))),
 });
 export type UsagePlanSettings = typeof UsagePlanSettings.Type;
 
@@ -61,7 +62,9 @@ export const UsagePlanSettingsPatch = Schema.Struct({
   remindersEnabled: Schema.optionalKey(Schema.Boolean),
   approachingPercent: Schema.optionalKey(UsagePlanApproachingPercent),
   windows: Schema.optionalKey(
-    Schema.Record(TrimmedNonEmptyString, Schema.NullOr(UsagePlanWindowSettings)),
+    Schema.Record(TrimmedNonEmptyString, Schema.NullOr(UsagePlanWindowSettings)).check(
+      Schema.isMaxProperties(MAX_USAGE_PLAN_WINDOWS),
+    ),
   ),
 });
 export type UsagePlanSettingsPatch = typeof UsagePlanSettingsPatch.Type;
