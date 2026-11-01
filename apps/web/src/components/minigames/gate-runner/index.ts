@@ -2,11 +2,11 @@ import type { MiniGame, MiniGameCreateOptions, MiniGameInstance, MiniGameTheme }
 import { createAudio } from "./audio";
 import { parseColor, type Rgba } from "./color";
 import { createFx, handleEvents, resetFx, updateFx } from "./fx";
-import { computeLayout, inside, laneAt, muteRect, overCard } from "./layout";
+import { computeLayout, dragStep, inside, muteRect, overCard, tapDelta } from "./layout";
 import {
   fromSnapshot,
   initialState,
-  resize,
+  LANES,
   scoreOf,
   step,
   toggleMute,
@@ -19,8 +19,8 @@ const STEP_MS = 1000 / 60;
 const MAX_FRAME_MS = 250;
 const BUTTON_DELAY_MS = 450;
 
-const UP_KEYS = new Set(["ArrowUp", "ArrowLeft", "w", "W", "a", "A"]);
-const DOWN_KEYS = new Set(["ArrowDown", "ArrowRight", "s", "S", "d", "D"]);
+const LEFT_KEYS = new Set(["ArrowLeft", "a", "A"]);
+const RIGHT_KEYS = new Set(["ArrowRight", "d", "D"]);
 const START_KEYS = new Set([" ", "Spacebar"]);
 const MUTE_KEYS = new Set(["m", "M"]);
 
@@ -63,9 +63,7 @@ function createGateRunner(canvas: HTMLCanvasElement, options: MiniGameCreateOpti
   let ratio = 1;
   let layout = computeLayout(width, height);
   let state =
-    fromSnapshot(options.snapshot) ??
-    initialState(Math.floor(Math.random() * 4294967296), width, height);
-  state = resize(state, width, height);
+    fromSnapshot(options.snapshot) ?? initialState(Math.floor(Math.random() * 4294967296));
   const fx = createFx();
   fx.reducedMotion = prefersReducedMotion();
   resetFx(fx, state);
@@ -79,7 +77,7 @@ function createGateRunner(canvas: HTMLCanvasElement, options: MiniGameCreateOpti
   let lastTime: number | null = null;
   let accumulator = 0;
   let pending: StepInput = {};
-  let dragging = false;
+  let drag: { x: number; lane: number } | null = null;
   let reportedScore: number | null = null;
 
   const report = () => {
@@ -106,11 +104,11 @@ function createGateRunner(canvas: HTMLCanvasElement, options: MiniGameCreateOpti
       pending = {};
       accumulator -= STEP_MS;
       if (state.events.length > 0) {
-        handleEvents(fx, state.events, state, layout);
+        handleEvents(fx, state.events, state);
         audio.play(state.events, state.muted);
       }
     }
-    updateFx(fx, elapsed, state, layout);
+    updateFx(fx, elapsed, state);
     report();
     draw();
   };
@@ -144,7 +142,7 @@ function createGateRunner(canvas: HTMLCanvasElement, options: MiniGameCreateOpti
     pause: () => {
       if (frame !== null) cancelAnimationFrame(frame);
       frame = null;
-      dragging = false;
+      drag = null;
       ui.pressButton = false;
       audio.suspend();
     },
@@ -154,7 +152,6 @@ function createGateRunner(canvas: HTMLCanvasElement, options: MiniGameCreateOpti
       height = nextHeight;
       ratio = pixelRatio;
       layout = computeLayout(width, height);
-      state = resize(state, width, height);
       draw();
     },
     setTheme: (next) => {
@@ -173,11 +170,11 @@ function createGateRunner(canvas: HTMLCanvasElement, options: MiniGameCreateOpti
         if (state.status === "ready" || canRestart()) queue({ start: true });
         return true;
       }
-      if (UP_KEYS.has(key)) {
+      if (LEFT_KEYS.has(key)) {
         queue({ laneDelta: -1 });
         return true;
       }
-      if (DOWN_KEYS.has(key)) {
+      if (RIGHT_KEYS.has(key)) {
         queue({ laneDelta: 1 });
         return true;
       }
@@ -198,16 +195,17 @@ function createGateRunner(canvas: HTMLCanvasElement, options: MiniGameCreateOpti
         ui.pressButton = inside(overCard(layout).button, x, y);
         return;
       }
-      dragging = true;
-      queue({ targetLane: laneAt(layout, y) });
+      const lane = Math.max(0, Math.min(LANES - 1, state.targetLane + tapDelta(layout, x)));
+      drag = { x, lane };
+      queue({ targetLane: lane });
     },
     pointerMove: (x, y) => {
       ui.hoverMute = inside(muteRect(layout), x, y);
       ui.hoverButton = state.status === "over" && inside(overCard(layout).button, x, y);
-      if (dragging) queue({ targetLane: laneAt(layout, y) });
+      if (drag) queue({ targetLane: drag.lane + Math.round((x - drag.x) / dragStep(layout)) });
     },
     pointerUp: (x, y) => {
-      dragging = false;
+      drag = null;
       if (ui.pressButton && inside(overCard(layout).button, x, y) && canRestart()) {
         queue({ start: true });
       }
@@ -225,6 +223,6 @@ function createGateRunner(canvas: HTMLCanvasElement, options: MiniGameCreateOpti
 export const gateRunnerGame: MiniGame = {
   id: "gate-runner",
   title: "Gate Rush",
-  controls: "↑/↓, W/S or drag to steer · M for sound",
+  controls: "←/→, A/D, tap or drag to steer · M for sound",
   create: createGateRunner,
 };
