@@ -290,8 +290,8 @@ and keeps the agent, the terminal, and T3 Code running. Stop needs terminal
 access to the environment and is not available on Windows.
 
 **Problems** in the thread details card runs your project's own check, such as
-its `typecheck` or `lint` script, in a new terminal and lists the errors it
-reports by file. It recognises TypeScript, ESLint, oxlint, and the common
+its `typecheck` or `lint` script, in a terminal and lists the errors it
+reports by file. Running it again replaces the previous check's terminal. It recognises TypeScript, ESLint, oxlint, and the common
 `file:line:col` format. Select a problem, or **Fix all shown with agent** for up
 to 20, to add a focused prompt to the composer; nothing is sent until you send
 it. Running a check needs terminal access to the environment.
@@ -300,6 +300,13 @@ To choose what the thread details card shows, right-click the card or open
 **Settings → Appearance → Thread details**. Hidden rows keep their keyboard
 shortcuts, such as Open in editor and project scripts. **Reset to default** brings
 back the standard rows.
+
+## Continue on another machine
+
+To pick up a thread on another machine that has the same project, choose **Continue on another
+machine** from the thread's menu or the command palette. T3 Code opens a new draft there with the
+thread's transcript attached; the original thread stays as it is. Uncommitted changes, branches
+and files stay on the original machine, so commit and push first if the work needs them.
 
 ## Side chats
 

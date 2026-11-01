@@ -77,6 +77,7 @@ import { type AssistantCitationRequest } from "./AssistantCitationSource";
 import { useAssistantCitationTarget } from "./useAssistantCitationTarget";
 import { findTimelineRowIndexForActivity } from "../activity/sessionActivity.logic";
 import { useTimelineJumpStore } from "../../timelineJumpStore";
+import { toastManager } from "../ui/toast";
 import { worktreeSetupAgentStarted } from "@t3tools/client-runtime/worktree-setup";
 import { resolveCitationPhase, type CitedHistory } from "./citationProcedure";
 import {
@@ -773,8 +774,13 @@ const ConversationTimeline = memo(function ConversationTimeline({
   const navigateTimeline = () => viewportRef.current?.navigate({ releasesFollow: true });
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- scrolls LegendList to a row another panel asked for, once its fold has opened
   useEffect(() => {
-    if (jumpRequest === null || jumpRowIndex < 0) return;
+    if (jumpRequest === null) return;
+    // Rows already include the fold this request opened, so a miss now stays a miss.
     useTimelineJumpStore.getState().settle(jumpRequest.nonce);
+    if (jumpRowIndex < 0) {
+      toastManager.add({ type: "info", title: "Not in the loaded conversation" });
+      return;
+    }
     viewportRef.current?.navigate({ releasesFollow: true });
     void listRef.current?.scrollToIndex({
       index: jumpRowIndex,

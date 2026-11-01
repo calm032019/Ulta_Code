@@ -65,7 +65,7 @@ Yes. Add another provider instance in Settings and give it its own keys and endp
 
 ## Which MCP servers will my agents use?
 
-Settings → Connectors lists the MCP servers that Claude, Codex, Cursor and OpenCode load on the selected environment, read from their own config files (user-wide and per project), and which provider uses each one. Secret values are hidden. To add or change a server, edit that provider's config file, then press refresh.
+Settings → Connectors lists the MCP servers that Claude, Codex, Cursor and OpenCode load on the selected environment, read from their own config files (user-wide and per project), and which provider uses each one. Environment and header values are hidden, and secret-looking command arguments are redacted. To add or change a server, edit that provider's config file, then press refresh.
 
 ## Does T3 Code support local models?
 

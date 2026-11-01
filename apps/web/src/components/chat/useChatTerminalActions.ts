@@ -35,7 +35,6 @@ import { stackedThreadToast, toastManager } from "../ui/toast";
 import { confirmTerminalClose } from "../../lib/terminalCloseConfirm";
 import { findReusableProjectScriptTerminal } from "../../lib/projectScriptTerminal";
 import { type TerminalContextSelection } from "../../lib/terminalContext";
-import { problemsTerminalCommand } from "./problems.logic";
 import {
   focusActiveDrawerTerminal,
   focusActivePanelTerminal,
@@ -324,18 +323,6 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
     );
   };
   const runShellCommandStable = useStableCallback(runShellCommand);
-  const runProblemsCommand = (command: string) =>
-    runProjectScript(
-      {
-        id: "problems",
-        name: "Problems",
-        command: problemsTerminalCommand(command),
-        icon: "lint",
-        runOnWorktreeCreate: false,
-      },
-      { preferNewTerminal: true, rememberAsLastInvoked: false },
-    );
-  const runProblemsCommandStable = useStableCallback(runProblemsCommand);
   const addTerminalSurface = () => {
     if (!activeThreadRef) return;
     const launched = terminalActions.launchTerminal({
@@ -392,6 +379,23 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
     focusActivePanelTerminal(target);
   };
   const closePanelTerminalStable = useStableCallback(closePanelTerminal);
+  const runProblemsCommand = (terminalInput: string, replaceTerminalId: string | null) => {
+    if (replaceTerminalId !== null) {
+      if (panelTerminalIds.has(replaceTerminalId)) closePanelTerminal(replaceTerminalId);
+      else closeTerminal(replaceTerminalId);
+    }
+    return runProjectScript(
+      {
+        id: "problems",
+        name: "Problems",
+        command: terminalInput,
+        icon: "lint",
+        runOnWorktreeCreate: false,
+      },
+      { preferNewTerminal: true, rememberAsLastInvoked: false },
+    );
+  };
+  const runProblemsCommandStable = useStableCallback(runProblemsCommand);
   const requestCloseTerminal = (terminalId: string) => {
     if (!hasTerminalWriteAccess()) return;
     const label = activeTerminalLabelsById.get(terminalId) ?? getTerminalLabel(terminalId);

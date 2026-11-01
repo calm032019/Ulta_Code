@@ -237,9 +237,19 @@ export function suggestProblemsCommands(packageJson: string | null): string[] {
 const PROBLEMS_EXIT_MARKER = "__T3_PROBLEMS_EXIT__";
 const PROBLEMS_EXIT_PATTERN = new RegExp(`${PROBLEMS_EXIT_MARKER}:(\\d+|True|False)`);
 
+// fish rejects `$?` at parse time, so the whole line never runs there.
+const FISH_STATUS_ERROR = /\$\? is not supported/;
+
+export type ProblemsShell = "posix" | "fish";
+
 /** Shell input that runs the check and then prints a marker carrying its exit status. */
-export function problemsTerminalCommand(command: string): string {
-  return `${command.trim()}; echo "${PROBLEMS_EXIT_MARKER}:$?"`;
+export function problemsTerminalCommand(command: string, shell: ProblemsShell = "posix"): string {
+  return `${command.trim()}; echo "${PROBLEMS_EXIT_MARKER}:${shell === "fish" ? "$status" : "$?"}"`;
+}
+
+/** True once fish has refused the POSIX status probe, so the run should retry in fish syntax. */
+export function isFishStatusError(terminalText: string): boolean {
+  return FISH_STATUS_ERROR.test(terminalText);
 }
 
 export interface ProblemsRunOutput {
@@ -255,7 +265,7 @@ export function readProblemsRunOutput(terminalText: string): ProblemsRunOutput |
   const exit = PROBLEMS_EXIT_PATTERN.exec(plain);
   if (!exit) return null;
   // The echoed input line holds the marker unexpanded; output starts after it.
-  const echoed = plain.lastIndexOf(`${PROBLEMS_EXIT_MARKER}:$?`, exit.index);
+  const echoed = plain.lastIndexOf(`${PROBLEMS_EXIT_MARKER}:$`, exit.index);
   const start = echoed === -1 ? 0 : plain.indexOf("\n", echoed) + 1;
   const status = exit[1]!;
   return {

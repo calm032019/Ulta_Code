@@ -273,10 +273,16 @@ describe("suggestProblemsCommands", () => {
 describe("readProblemsRunOutput", () => {
   const command = problemsTerminalCommand("pnpm run typecheck ");
 
-  it("waits for the expanded exit marker, not the echoed input", () => {
-    const echoed = `$  ${command}\r\n`;
+  it.each([
+    ["posix", command],
+    ["fish", problemsTerminalCommand("pnpm run typecheck", "fish")],
+  ])("waits for the expanded exit marker, not the echoed %s input", (_shell, input) => {
+    const echoed = `$  ${input}\r\n`;
     expect(hasProblemsExitMarker(echoed)).toBe(false);
     expect(readProblemsRunOutput(echoed)).toBeNull();
+    expect(readProblemsRunOutput(`${echoed}out\r\n__T3_PROBLEMS_EXIT__:0\r\n`)?.output).toBe(
+      "out\n",
+    );
   });
 
   it("returns only the output between the echoed input and the marker", () => {

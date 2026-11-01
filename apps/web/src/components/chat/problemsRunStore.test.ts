@@ -83,6 +83,21 @@ describe("startProblemsRun", () => {
     expect(run()).toMatchObject({ status: "failed", terminalId: null });
   });
 
+  it("replaces the previous run's terminal and retries in fish syntax", async () => {
+    const { output, run } = setup();
+    const launch = vi.fn(async () => "term-2");
+    await startProblemsRun({ threadRef, command, cwd: null, launch });
+    expect(launch).toHaveBeenLastCalledWith(problemsTerminalCommand(command), null);
+    output("fish: $? is not supported. In fish, please use $status.\r\n");
+    expect(launch).toHaveBeenLastCalledWith(problemsTerminalCommand(command, "fish"), "term-2");
+    await launch.mock.results.at(-1)?.value;
+    output(`__T3_PROBLEMS_EXIT__:0\r\n`);
+    expect(run()).toMatchObject({ status: "finished", exitCode: 0, terminalId: "term-2" });
+
+    await startProblemsRun({ threadRef, command, cwd: null, launch });
+    expect(launch.mock.calls[2]).toEqual([problemsTerminalCommand(command), "term-2"]);
+  });
+
   it("stops following the terminal when cancelled", async () => {
     const { output, run } = setup();
     await startProblemsRun({ threadRef, command, cwd: null, launch: async () => "term-2" });

@@ -316,11 +316,6 @@ saved text context at the time of the drop; later messages and the contents of a
 are not copied. The agent can read the saved transcript after the source disconnects. Normal
 file attachment limits apply.
 
-To pick up a thread on another machine that has the same project, choose **Continue on another
-machine** from the thread's menu or the command palette. T3 Code opens a new draft there with the
-thread's transcript attached; the original thread stays as it is. Uncommitted changes, branches
-and files stay on the original machine, so commit and push first if the work needs them.
-
 Images keep their thumbnail shelf above the text and also get a chip at your cursor, so you can
 say exactly which image you mean. Deleting an image chip leaves the image on the shelf; removing
 the thumbnail asks first when the image is still mentioned in your text, then removes both. Files

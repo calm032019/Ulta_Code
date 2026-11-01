@@ -55,6 +55,23 @@ describe("redaction", () => {
       ].join(" "),
     );
   });
+
+  it.each([
+    [["--config", '{"apiKey":"abcd1234secret"}'], `--config ${REDACTED}`],
+    [["-p", "hunter2", "--user", "root"], `-p ${REDACTED} --user root`],
+    [["DB_PASS=hunter2", "MYSQL_PWD=hunter2"], `DB_PASS=${REDACTED} MYSQL_PWD=${REDACTED}`],
+    [["--key", "shortkey99"], `--key ${REDACTED}`],
+    [
+      ["--connection-string", "Server=x;Password=hunter2;"],
+      `--connection-string Server=x;Password=${REDACTED};`,
+    ],
+    [
+      ["--header", "X-Custom:mySecretValue1"],
+      `--header ${JSON.stringify(`X-Custom: ${REDACTED}`)}`,
+    ],
+  ])("redacts credential-shaped args %j", (args, expected) => {
+    expect(redactCommandLine("srv", args)).toBe(`srv ${expected}`);
+  });
 });
 
 describe("Claude config", () => {

@@ -1309,7 +1309,7 @@ function OpenCommandPaletteDialog(props: {
       value: "action:find-in-codebase",
       searchTerms: ["find in codebase", "search", "meaning", "where", "semantic", "ask", "locate"],
       title: "Find in codebase…",
-      description: "Ask the agent where something lives, in a new read-only thread",
+      description: "Ask the agent where something lives, in a new Plan-mode thread",
       icon: <TextSearchIcon className={ITEM_ICON_CLASS} />,
       run: async () => {
         const question = await requestFindInCodebaseQuestion(projectTitle);

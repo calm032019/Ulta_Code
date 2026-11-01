@@ -33,7 +33,10 @@ export function ThreadProblemsPanel(props: {
   readonly environmentId: EnvironmentId;
   readonly threadId: ThreadId;
   readonly cwd: string;
-  readonly onRunCommand: (command: string) => Promise<string | null>;
+  readonly onRunCommand: (
+    terminalInput: string,
+    replaceTerminalId: string | null,
+  ) => Promise<string | null>;
   readonly onFixWithAgent: (prompt: string) => void;
 }) {
   const threadRef = { environmentId: props.environmentId, threadId: props.threadId };

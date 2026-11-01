@@ -86,7 +86,7 @@ const GIT_SEGMENT_PATTERNS: ReadonlyArray<readonly [GitOperation, RegExp]> = [
   ["pull-request", /^(?:gh\s+pr|glab\s+mr)\s+create\b/],
 ];
 const READ_PROGRAMS = new Set(["cat", "head", "tail", "nl", "less", "more", "bat", "sed"]);
-const OPTIONS_WITH_VALUE = new Set(["-n", "-c", "-e", "--lines", "--bytes"]);
+const HEAD_TAIL_OPTIONS_WITH_VALUE = new Set(["-n", "-c", "--lines", "--bytes"]);
 
 function shellTokens(segment: string): string[] {
   return Array.from(
@@ -100,10 +100,10 @@ function withoutPrefixes(segment: string): string {
 }
 
 function readPathOf(script: string): string | null {
-  // A pipeline or chain does more than read, except a trailing `| head`.
+  // A pipeline or chain does more than read, except trailing `| head`, `| tail` or `| sed -n`.
   const [first, ...rest] = script.split(/&&|\|\||;|\n|\|/);
   if (first === undefined) return null;
-  if (rest.some((segment) => !/^\s*(?:head|tail)\b/.test(segment))) return null;
+  if (rest.some((segment) => !/^\s*(?:head|tail|sed\s+-n)\b/.test(segment))) return null;
   const tokens = shellTokens(withoutPrefixes(first.trim()));
   const program = tokens[0]?.split("/").at(-1);
   if (program === undefined || !READ_PROGRAMS.has(program)) return null;
@@ -112,7 +112,9 @@ function readPathOf(script: string): string | null {
   for (let index = 1; index < tokens.length; index += 1) {
     const token = tokens[index]!;
     if (token.startsWith("-")) {
-      if (OPTIONS_WITH_VALUE.has(token) && program !== "sed") index += 1;
+      if ((program === "head" || program === "tail") && HEAD_TAIL_OPTIONS_WITH_VALUE.has(token)) {
+        index += 1;
+      }
       continue;
     }
     if (token.startsWith(">") || token.startsWith("<") || token === "2>&1") break;

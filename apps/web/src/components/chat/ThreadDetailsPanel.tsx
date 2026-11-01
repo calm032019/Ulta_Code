@@ -78,7 +78,9 @@ interface ThreadDetailsPanelProps extends Pick<
   onComposerFocusRequest: () => void;
   onOpenChanges?: () => void;
   onRunProjectScript: (script: ProjectScript) => void;
-  onRunProblemsCommand?: ((command: string) => Promise<string | null>) | undefined;
+  onRunProblemsCommand?:
+    | ((terminalInput: string, replaceTerminalId: string | null) => Promise<string | null>)
+    | undefined;
   onFixProblemsWithAgent: (prompt: string) => void;
   onAddProjectScript: (input: NewProjectScriptInput) => Promise<ProjectScriptActionResult>;
   onUpdateProjectScript: (

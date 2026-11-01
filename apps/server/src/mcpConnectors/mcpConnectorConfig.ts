@@ -13,8 +13,9 @@ export interface ParsedMcpServer {
 
 export const REDACTED = "[redacted]";
 
-const SECRET_NAME =
-  /token|secret|passw(or)?d|api[-_]?key|apikey|auth|credential|bearer|private[-_]?key|session|cookie|signature|access[-_]?key/i;
+const SECRET_NAME = /token|secret|pass|pwd|key|auth|credential|bearer|session|cookie|signature/i;
+const SECRET_FLAG = /^(-p|--password)$/;
+const HEADER_FLAG = /^(-H|--header|--headers)$/;
 const KNOWN_SECRET_PREFIX =
   /^(sk-|sk_|pk_live_|rk_live_|ghp_|gho_|ghu_|ghs_|ghr_|github_pat_|glpat-|xox[abprs]-|AKIA|ASIA|AIza|ya29\.|eyJ|shpat_|lin_api_|ntn_|npm_)/;
 const OPAQUE_TOKEN = /^[A-Za-z0-9_\-+=.]{32,}$/;
@@ -49,8 +50,30 @@ export function redactUrl(raw: string): string {
 }
 
 function redactArg(arg: string, previous: string | undefined): string {
-  if (previous !== undefined && /^--?[\w-]+$/.test(previous) && SECRET_NAME.test(previous)) {
+  if (
+    previous !== undefined &&
+    /^--?[\w-]+$/.test(previous) &&
+    (SECRET_FLAG.test(previous) || SECRET_NAME.test(previous))
+  ) {
     return REDACTED;
+  }
+  if (/^\s*[{[]/.test(arg)) return REDACTED;
+  if (previous !== undefined && HEADER_FLAG.test(previous)) {
+    const header = /^([\w-]+):/.exec(arg);
+    return header ? `${header[1]}: ${REDACTED}` : REDACTED;
+  }
+  if (arg.includes(";") && arg.includes("=")) {
+    return arg
+      .split(";")
+      .map((part) => {
+        const pair = /^([^=]*)=(.*)$/s.exec(part);
+        if (!pair) return part;
+        const [, name = "", value = ""] = pair;
+        return SECRET_NAME.test(name) || looksLikeSecret(value.trim())
+          ? `${name}=${REDACTED}`
+          : part;
+      })
+      .join(";");
   }
   const assignment = /^(--?[\w.-]+|[A-Za-z_][\w.-]*)=(.*)$/s.exec(arg);
   if (assignment) {

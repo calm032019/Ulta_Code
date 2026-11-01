@@ -13,9 +13,12 @@ import { terminalEnvironment } from "../../state/terminal";
 import { appAtomRegistry } from "../../rpc/atomRegistry";
 import {
   hasProblemsExitMarker,
+  isFishStatusError,
   parseProblems,
+  problemsTerminalCommand,
   readProblemsRunOutput,
   type Problem,
+  type ProblemsShell,
 } from "./problems.logic";
 
 export type ProblemsRun =
@@ -62,21 +65,40 @@ function stopWatching(key: string) {
   watchers.delete(key);
 }
 
+type ProblemsLaunch = (
+  terminalInput: string,
+  replaceTerminalId: string | null,
+) => Promise<string | null>;
+
 /**
  * Runs a check through `launch` (the project-script terminal path) and follows that
  * terminal read-only until the exit marker arrives, so the result outlives the panel.
+ * The previous run's terminal is replaced so repeated checks do not pile up shells.
  */
 export async function startProblemsRun(input: {
   readonly threadRef: ScopedThreadRef;
   readonly command: string;
   readonly cwd: string | null;
-  readonly launch: (command: string) => Promise<string | null>;
+  readonly launch: ProblemsLaunch;
 }): Promise<void> {
   const key = scopedThreadKey(input.threadRef);
+  const previousTerminalId = useProblemsRunStore.getState().runByThreadKey[key]?.terminalId ?? null;
   stopWatching(key);
+  await followProblemsRun(input, key, "posix", previousTerminalId);
+}
+
+async function followProblemsRun(
+  input: Parameters<typeof startProblemsRun>[0],
+  key: string,
+  shell: ProblemsShell,
+  replaceTerminalId: string | null,
+): Promise<void> {
   const starting: ProblemsRun = { status: "running", command: input.command, terminalId: null };
   setRun(key, starting);
-  const terminalId = await input.launch(input.command);
+  const terminalId = await input.launch(
+    problemsTerminalCommand(input.command, shell),
+    replaceTerminalId,
+  );
   // Cancelled or replaced while the terminal was opening.
   if (useProblemsRunStore.getState().runByThreadKey[key] !== starting) return;
   if (terminalId === null) {
@@ -92,8 +114,16 @@ export async function startProblemsRun(input: {
 
   let cursor = INITIAL_TERMINAL_OUTPUT_CURSOR;
   let text = "";
+  let done = false;
+  let unsubscribe: (() => void) | undefined;
+  const stop = () => {
+    done = true;
+    unsubscribe?.();
+    if (watchers.get(key) === stop) watchers.delete(key);
+  };
+  watchers.set(key, stop);
   const finish = (run: ProblemsRun) => {
-    stopWatching(key);
+    stop();
     setRun(key, run);
   };
   const onBuffer = (buffer: TerminalBufferState) => {
@@ -102,6 +132,11 @@ export async function startProblemsRun(input: {
     if (update.type === "reset") text = update.data;
     else if (update.type === "append") text += update.data;
     const unread = update.type === "none" ? "" : text.slice(-(update.data.length + 64));
+    if (shell === "posix" && isFishStatusError(unread)) {
+      stop();
+      void followProblemsRun(input, key, "fish", terminalId);
+      return;
+    }
     if (hasProblemsExitMarker(unread)) {
       const result = readProblemsRunOutput(text);
       if (result) {
@@ -125,14 +160,13 @@ export async function startProblemsRun(input: {
     }
   };
 
-  let settled = false;
-  const unsubscribe = appAtomRegistry.subscribe(
+  const subscription = appAtomRegistry.subscribe(
     terminalEnvironment.observe({
       environmentId: input.threadRef.environmentId,
       input: { threadId: input.threadRef.threadId, terminalId },
     }),
     (result) => {
-      if (settled) return;
+      if (done) return;
       if (AsyncResult.isSuccess(result)) onBuffer(result.value);
       else if (AsyncResult.isFailure(result)) {
         finish({
@@ -145,12 +179,9 @@ export async function startProblemsRun(input: {
     },
     { immediate: true },
   );
-  watchers.set(key, () => {
-    settled = true;
-    unsubscribe();
-  });
-  // The immediate callback may have finished before the watcher was registered.
-  if (useProblemsRunStore.getState().runByThreadKey[key]?.status !== "running") stopWatching(key);
+  unsubscribe = subscription;
+  // The immediate callback may already have finished the run.
+  if (done) subscription();
 }
 
 export function cancelProblemsRun(threadRef: ScopedThreadRef) {

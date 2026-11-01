@@ -643,6 +643,17 @@ describe("MessagesTimeline citations", () => {
     );
     await vi.waitFor(() => expect(screen.text()).toContain("the earlier answer"));
     await vi.waitFor(() => expect(useTimelineJumpStore.getState().request).toBeNull());
+
+    using toast = vi.spyOn(toastManager, "add");
+    act(() =>
+      useTimelineJumpStore
+        .getState()
+        .requestJump(props.routeThreadKey, { itemId: "missing", runId: null, at: "" }),
+    );
+    await vi.waitFor(() => expect(useTimelineJumpStore.getState().request).toBeNull());
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Not in the loaded conversation" }),
+    );
   });
 
   it("waits for cited history to load before giving up on a response outside the window", async () => {
