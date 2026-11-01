@@ -23,6 +23,7 @@ import { ThreadDetailsSection } from "./ThreadDetailsSection";
 import { ThreadAutomationsPanel } from "./ThreadAutomationsPanel";
 import { ThreadRelationshipsPanel } from "./ThreadRelationshipsControl";
 import { ThreadServersPanel } from "./ThreadServersPanel";
+import { ThreadProblemsPanel } from "./ThreadProblemsPanel";
 import {
   ThreadDetailsContext,
   ThreadDetailsUsage,
@@ -77,6 +78,8 @@ interface ThreadDetailsPanelProps extends Pick<
   onComposerFocusRequest: () => void;
   onOpenChanges?: () => void;
   onRunProjectScript: (script: ProjectScript) => void;
+  onRunProblemsCommand?: ((command: string) => Promise<string | null>) | undefined;
+  onFixProblemsWithAgent: (prompt: string) => void;
   onAddProjectScript: (input: NewProjectScriptInput) => Promise<ProjectScriptActionResult>;
   onUpdateProjectScript: (
     scriptId: string,
@@ -236,6 +239,19 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
                     ) : null}
                   </div>
                 </ThreadDetailsSection>
+              ) : null}
+
+              {density !== "essential" &&
+              visible.problems &&
+              props.gitCwd !== null &&
+              props.onRunProblemsCommand ? (
+                <ThreadProblemsPanel
+                  environmentId={props.environmentId}
+                  threadId={props.threadId}
+                  cwd={props.gitCwd}
+                  onRunCommand={props.onRunProblemsCommand}
+                  onFixWithAgent={props.onFixProblemsWithAgent}
+                />
               ) : null}
 
               {density === "full" && !props.draftId && visible.servers ? (
