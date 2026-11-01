@@ -35,6 +35,7 @@ import { stackedThreadToast, toastManager } from "../ui/toast";
 import { confirmTerminalClose } from "../../lib/terminalCloseConfirm";
 import { findReusableProjectScriptTerminal } from "../../lib/projectScriptTerminal";
 import { type TerminalContextSelection } from "../../lib/terminalContext";
+import { problemsTerminalCommand } from "./problems.logic";
 import {
   focusActiveDrawerTerminal,
   focusActivePanelTerminal,
@@ -208,8 +209,9 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
       rememberAsLastInvoked?: boolean;
       shellHistory?: "preserve" | "suppress";
     },
-  ) => {
-    if (!hasTerminalWriteAccess() || !activeThreadId || !activeProject || !activeThread) return;
+  ): Promise<string | null> => {
+    if (!hasTerminalWriteAccess() || !activeThreadId || !activeProject || !activeThread)
+      return null;
     if (options?.rememberAsLastInvoked !== false) {
       setLastInvokedScriptByProjectId((current) => {
         if (current[activeProject.id] === script.id) return current;
@@ -240,7 +242,7 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
       worktreePath: targetWorktreePath,
     });
     if (!activeThreadRef) {
-      return;
+      return null;
     }
 
     const launched = terminalActions.launchTerminal({
@@ -256,7 +258,7 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
       location: { cwd: targetCwd, worktreePath: targetWorktreePath },
       ...(options?.env ? { extraEnv: options.env } : {}),
     });
-    if (!launched) return;
+    if (!launched) return null;
     const targetTerminalId = launched.terminalId;
     focusTerminal(activeThreadRef, targetTerminalId);
     const openResult = await launched.result;
@@ -268,7 +270,7 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
           error instanceof Error ? error.message : `Failed to run script "${script.name}".`,
         );
       }
-      return;
+      return null;
     }
 
     const writeResult = await terminalActions.writeToTerminal(
@@ -277,7 +279,7 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
         ? `${script.command}\r`
         : projectScriptTerminalInput(script.command),
     );
-    if (!writeResult) return;
+    if (!writeResult) return null;
     if (writeResult._tag === "Failure") {
       if (!isAtomCommandInterrupted(writeResult)) {
         const error = squashAtomCommandFailure(writeResult);
@@ -286,7 +288,7 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
           error instanceof Error ? error.message : `Failed to run script "${script.name}".`,
         );
       }
-      return;
+      return null;
     }
     if (script.autoOpenPreview && script.previewUrl && isPreviewSupportedInRuntime()) {
       const previewResult = await openUrlInPreview({
@@ -305,6 +307,7 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
         );
       }
     }
+    return targetTerminalId;
   };
   const runProjectScriptStable = useStableCallback(runProjectScript);
 
@@ -321,6 +324,18 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
     );
   };
   const runShellCommandStable = useStableCallback(runShellCommand);
+  const runProblemsCommand = (command: string) =>
+    runProjectScript(
+      {
+        id: "problems",
+        name: "Problems",
+        command: problemsTerminalCommand(command),
+        icon: "lint",
+        runOnWorktreeCreate: false,
+      },
+      { preferNewTerminal: true, rememberAsLastInvoked: false },
+    );
+  const runProblemsCommandStable = useStableCallback(runProblemsCommand);
   const addTerminalSurface = () => {
     if (!activeThreadRef) return;
     const launched = terminalActions.launchTerminal({
@@ -448,6 +463,7 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
     lastInvokedScriptByProjectId,
     requestClosePanelTerminalStable,
     requestCloseTerminalStable,
+    runProblemsCommandStable,
     runProjectScriptStable,
     runShellCommandStable,
     setTerminalOpenStable,

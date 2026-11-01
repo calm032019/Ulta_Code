@@ -280,6 +280,13 @@ Select a server to open it in the browser panel. **Stop** ends the server's job
 and keeps the agent, the terminal, and T3 Code running. Stop needs terminal
 access to the environment and is not available on Windows.
 
+**Problems** in the thread details card runs your project's own check, such as
+its `typecheck` or `lint` script, in a new terminal and lists the errors it
+reports by file. It recognises TypeScript, ESLint, oxlint, and the common
+`file:line:col` format. Select a problem, or **Fix all shown with agent** for up
+to 20, to add a focused prompt to the composer; nothing is sent until you send
+it. Running a check needs terminal access to the environment.
+
 To choose what the thread details card shows, right-click the card or open
 **Settings → Appearance → Thread details**. Hidden rows keep their keyboard
 shortcuts, such as Open in editor and project scripts. **Reset to default** brings

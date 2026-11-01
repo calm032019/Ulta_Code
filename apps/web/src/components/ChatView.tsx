@@ -1857,6 +1857,19 @@ export default function ChatView(props: ChatViewProps) {
     scheduleComposerFocus();
   };
   const insertArtifactTemplateStable = useStableCallback(insertArtifactTemplate);
+  const insertProblemsPrompt = (prompt: string) => {
+    const composer = composerRef.current;
+    if (!composer?.insertTextAtEnd(prompt, { ensureLeadingBoundary: true })) {
+      toastManager.add({
+        type: "error",
+        title: "Unable to add to chat",
+        description: "The composer is busy; try again once it is ready.",
+      });
+      return;
+    }
+    scheduleComposerFocus();
+  };
+  const insertProblemsPromptStable = useStableCallback(insertProblemsPrompt);
   const sendAppMessage = async (text: string) => {
     if (!isServerThread || activeThreadId === null) {
       throw new Error("Messages from apps need a started thread.");
@@ -1885,6 +1898,7 @@ export default function ChatView(props: ChatViewProps) {
     addTerminalSurfaceStable,
     closePanelTerminalStable,
     lastInvokedScriptByProjectId,
+    runProblemsCommandStable,
     runProjectScriptStable,
     runShellCommandStable,
     splitPanelTerminalStable,
@@ -3883,6 +3897,8 @@ export default function ChatView(props: ChatViewProps) {
                     ? { onOpenChanges: openChangesFromThreadPanelStable }
                     : {})}
                   onRunProjectScript={runProjectScriptStable}
+                  onRunProblemsCommand={activeProject ? runProblemsCommandStable : undefined}
+                  onFixProblemsWithAgent={insertProblemsPromptStable}
                   onAddProjectScript={saveProjectScriptStable}
                   onUpdateProjectScript={updateProjectScriptStable}
                   onDeleteProjectScript={deleteProjectScriptStable}
