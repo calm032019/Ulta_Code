@@ -107,7 +107,8 @@ import {
   copyPromptLink,
   promptLinkRepositoryOf,
 } from "./promptLinks/copyPromptLink";
-import { useClientSettings } from "../hooks/useSettings";
+import { updateClientSettings, useClientSettings } from "../hooks/useSettings";
+import { DunceCapIcon } from "./Icons";
 import { useStableCallback } from "../hooks/useStableCallback";
 import { readLocalApi } from "../localApi";
 import { desktopLocalBackendId } from "../connection/desktopLocal";
@@ -1655,6 +1656,17 @@ function OpenCommandPaletteDialog(props: {
       },
     });
   }
+
+  actionItems.push({
+    kind: "action",
+    value: "action:toggle-dunce-mode",
+    title: clientSettings.dunceModeEnabled ? "Turn Dunce Mode off" : "Turn Dunce Mode on",
+    searchTerms: ["dunce", "plain english", "explain", "simple", "nontechnical", "translate"],
+    icon: <DunceCapIcon className={ITEM_ICON_CLASS} />,
+    run: async () => {
+      await updateClientSettings({ dunceModeEnabled: !clientSettings.dunceModeEnabled });
+    },
+  });
 
   actionItems.push({
     kind: "action",

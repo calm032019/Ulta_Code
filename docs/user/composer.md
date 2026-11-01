@@ -135,6 +135,21 @@ The quoted text and comment count toward the message limit.
 Mobile displays saved quotes and comments, but does not create citations or
 navigate to their sources.
 
+## Dunce Mode
+
+Dunce Mode explains messages in plain, nontechnical English. Turn it on in **Settings → Chat**
+or with **Turn Dunce Mode on** in the command palette. On web and desktop, a dunce cap then
+appears to the left of each message.
+
+Click a cap to explain that message, or press on a cap and drag up or down to explain several
+messages together, up to 20. Shift+click a second cap to explain everything between the two.
+Press Escape while dragging to cancel. The explanation appears below the last message you chose,
+stays on your device, and is never sent to the agent.
+
+Explanations are written by your **text generation model** (the one that writes thread titles),
+so each one uses a small amount of that provider's usage. Explaining the same messages again
+reuses the earlier answer until you reload.
+
 ## Recall a sent prompt
 
 Press `ArrowUp` in an empty composer to bring back the last prompt you sent in this thread. Press

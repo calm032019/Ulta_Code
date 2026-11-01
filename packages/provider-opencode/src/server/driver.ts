@@ -151,6 +151,11 @@ function selectOpenCodeRuntimeTextGeneration(
         v1: v1.generateReviewGuide(input),
         v2: v2.generateReviewGuide(input),
       }),
+    explainPlainLanguage: (input) =>
+      byOpenCodeRuntime(probe.get, {
+        v1: v1.explainPlainLanguage(input),
+        v2: v2.explainPlainLanguage(input),
+      }),
   };
 }
 

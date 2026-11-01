@@ -9,6 +9,22 @@ export const UltrafastIcon: Icon = (props) => (
   </svg>
 );
 
+export const DunceCapIcon: Icon = (props) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <path d="M12 2.5 5.6 18.6M12 2.5l6.4 16.1" />
+    <ellipse cx="12" cy="19.5" rx="8.5" ry="2" />
+    <path d="M10.4 10.5v5.2h1.2a2.6 2.6 0 0 0 0-5.2Z" strokeWidth="1.5" />
+  </svg>
+);
+
 export const FinderIcon: Icon = (props) => (
   <svg viewBox="0 0 24 24" fill="none" {...props}>
     <rect x="2" y="2" width="20" height="20" rx="4" fill="#36A9F5" />

@@ -172,6 +172,11 @@ import {
 } from "./guestShare.ts";
 import { PullRequestReviewGuideResult } from "./pullRequestReviewGuide.ts";
 import {
+  PlainLanguageExplainError,
+  PlainLanguageExplainInput,
+  PlainLanguageExplainResult,
+} from "./plainLanguage.ts";
+import {
   PullRequestActionInput,
   PullRequestActivity,
   PullRequestChangeBreakdown,
@@ -416,6 +421,7 @@ export const WS_METHODS = {
   projectsEnsureScratch: "projects.ensureScratch",
   projectsCreateNew: "projects.createNew",
   projectsCreateFromThread: "projects.createFromThread",
+  threadsExplainPlainLanguage: "threads.explainPlainLanguage",
 
   shellOpenInEditor: "shell.openInEditor",
 
@@ -1355,6 +1361,12 @@ const WsProjectsCreateFromThreadRpc = Rpc.make(WS_METHODS.projectsCreateFromThre
   error: Schema.Union([OrchestrationDispatchCommandError, EnvironmentAuthorizationError]),
 });
 
+const WsThreadsExplainPlainLanguageRpc = Rpc.make(WS_METHODS.threadsExplainPlainLanguage, {
+  payload: PlainLanguageExplainInput,
+  success: PlainLanguageExplainResult,
+  error: Schema.Union([PlainLanguageExplainError, EnvironmentAuthorizationError]),
+});
+
 const WsShellOpenInEditorRpc = Rpc.make(WS_METHODS.shellOpenInEditor, {
   payload: LaunchEditorInput,
   error: Schema.Union([ExternalLauncherError, EnvironmentAuthorizationError]),
@@ -2101,6 +2113,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsProjectsEnsureScratchRpc,
   WsProjectsCreateNewRpc,
   WsProjectsCreateFromThreadRpc,
+  WsThreadsExplainPlainLanguageRpc,
   WsProjectsWriteFileRpc,
   WsProjectsMutateRpc,
   WsShellOpenInEditorRpc,

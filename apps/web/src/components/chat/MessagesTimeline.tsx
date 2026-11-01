@@ -1,4 +1,8 @@
+import { useAtomValue } from "@effect/atom-react";
 import { threadEnvironment } from "../../state/threads";
+import { orchestrationEnvironment } from "../../state/orchestration";
+import { DunceHat, PlainEnglishCardSlot } from "./DunceMode";
+import type { DunceMessage } from "./dunceModeStore";
 import { useClientSettings } from "../../hooks/useSettings";
 import { useAtomCommand } from "../../state/use-atom-command";
 import type { ToolCallDiffTarget } from "../../diffPanelStore";
@@ -410,6 +414,10 @@ const ConversationTimeline = memo(function ConversationTimeline({
   historyControls,
 }: MessagesTimelineProps) {
   const simpleLayoutEnabled = useClientSettings((settings) => settings.simpleLayoutEnabled);
+  const dunceModeEnabled = useClientSettings((settings) => settings.dunceModeEnabled);
+  const canExplainMessages = useAtomValue(
+    orchestrationEnvironment.explainPlainLanguage.permissionAtom(activeThreadEnvironmentId),
+  );
   const listIdentityKey = displayThreadKey ?? routeThreadKey;
   // Snapshot restore positions on identity changes; ongoing scroll writes must not move them.
   // Find open at the opening is part of the snapshot: opening find later
@@ -734,6 +742,19 @@ const ConversationTimeline = memo(function ConversationTimeline({
     worktreeSetup,
   });
   const rows = useStableRows(rawRows, listIdentityKey);
+  const getDunceMessages = useStableCallback((): ReadonlyArray<DunceMessage> =>
+    rows.flatMap((row) =>
+      row.kind === "message" && row.message.role !== "system"
+        ? [
+            {
+              id: row.message.id,
+              updatedAt: row.message.updatedAt,
+              streaming: row.message.streaming,
+            },
+          ]
+        : [],
+    ),
+  );
   const matchedApprovalRequestIds = new Set<string>();
   for (const row of pendingApprovalRequestIds.size > 0 ? rows : []) {
     const entries =
@@ -1092,6 +1113,10 @@ const ConversationTimeline = memo(function ConversationTimeline({
       .map((approval) => [approval.requestId, approval]),
   );
   const sharedState: TimelineRowSharedState = {
+    dunceMessages:
+      dunceModeEnabled && canExplainMessages && citationThreadRef !== null
+        ? getDunceMessages
+        : null,
     pendingApprovals: pendingApprovalsByRequestId,
     respondingRequestIds,
     canOperateThread,
@@ -1305,7 +1330,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
   const renderItem = ({ item }: { item: MessagesTimelineRow }) => (
     <TimelineRowCtx value={sharedState}>
       <div
-        className="messages-timeline-row-frame"
+        className="messages-timeline-row-frame relative"
         onPlayCapture={(event) => onAudioPlaybackChange(item.id, event)}
         onPauseCapture={(event) => onAudioPlaybackChange(item.id, event)}
         onEndedCapture={(event) => onAudioPlaybackChange(item.id, event)}
@@ -1319,6 +1344,9 @@ const ConversationTimeline = memo(function ConversationTimeline({
             <TimelineRowContent row={item} />
           </AudioPreviewUnmountContext>
         </div>
+        {item.kind === "message" && item.message.role !== "system" ? (
+          <DunceHat messageId={item.message.id} streaming={item.message.streaming} />
+        ) : null}
       </div>
     </TimelineRowCtx>
   );
@@ -1580,6 +1608,9 @@ const TimelineRowContent = memo(function TimelineRowContent({ row }: { row: Time
       {row.kind === "message" && row.message.role === "user" ? <UserMessageRow row={row} /> : null}
       {row.kind === "message" && row.message.role === "assistant" ? (
         <AssistantTimelineRow row={row} />
+      ) : null}
+      {row.kind === "message" && row.message.role !== "system" ? (
+        <PlainEnglishCardSlot messageId={row.message.id} />
       ) : null}
       {row.kind === "assistant-meta" ? <AssistantMetaTimelineRow row={row} /> : null}
       {row.kind === "proposed-plan" ? <ProposedPlanTimelineRow row={row} /> : null}
