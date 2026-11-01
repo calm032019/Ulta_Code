@@ -118,6 +118,7 @@ import { useOrchestrationCommand } from "../state/use-orchestration-command";
 import { useAtomQueryRunner } from "../state/use-atom-query-runner";
 import { useScratchProject } from "../hooks/useScratchProject";
 import { useStartTriage } from "../hooks/useStartTriage";
+import { requestFindInCodebaseQuestion, startFindInCodebaseThread } from "./FindInCodebaseDialog";
 import { pickTriageEnvironment } from "../lib/triageTarget";
 import { useNewProject } from "../hooks/useNewProject";
 import { useOrderWhileOpen } from "../hooks/useOrderWhileOpen";
@@ -1273,6 +1274,44 @@ function OpenCommandPaletteDialog(props: {
       description: "An agent investigates a T3 Code problem and helps file an issue",
       icon: <BugIcon className={ITEM_ICON_CLASS} />,
       run: () => startTriage(triageEnvironmentId),
+    });
+  }
+
+  const findInCodebaseProjectRef = resolveThreadActionProjectRef({
+    activeDraftThread,
+    activeThread: activeThread ?? undefined,
+    defaultProjectRef,
+    handleNewThread,
+  });
+  const findInCodebaseProject =
+    findInCodebaseProjectRef === null
+      ? undefined
+      : projects.find(
+          (project) =>
+            project.environmentId === findInCodebaseProjectRef.environmentId &&
+            project.id === findInCodebaseProjectRef.projectId,
+        );
+  if (
+    findInCodebaseProjectRef !== null &&
+    findInCodebaseProject !== undefined &&
+    !isScratchProject(
+      findInCodebaseProject,
+      scratchWorkspaceRootFor(findInCodebaseProject.environmentId),
+    )
+  ) {
+    const projectTitle = findInCodebaseProject.title;
+    actionItems.push({
+      kind: "action",
+      value: "action:find-in-codebase",
+      searchTerms: ["find in codebase", "search", "meaning", "where", "semantic", "ask", "locate"],
+      title: "Find in codebase…",
+      description: "Ask the agent where something lives, in a new read-only thread",
+      icon: <TextSearchIcon className={ITEM_ICON_CLASS} />,
+      run: async () => {
+        const question = await requestFindInCodebaseQuestion(projectTitle);
+        if (question === null) return;
+        await startFindInCodebaseThread(handleNewThread, findInCodebaseProjectRef, question);
+      },
     });
   }
 
