@@ -13,6 +13,7 @@ import * as DateTime from "effect/DateTime";
 
 import { providerErrorPresentation } from "../../session-logic";
 import type { MessagesTimelineRow } from "../chat/MessagesTimeline.logic";
+import { stripHiddenCharacters } from "../chat/problems.logic";
 
 export const SESSION_ACTIVITY_KINDS = [
   { kind: "commit", label: "Commits" },
@@ -157,18 +158,22 @@ export function commitMessageOf(command: string): string | null {
   const subject = text
     ?.replaceAll('\\"', '"')
     .split("\n")
-    .map((line) => line.trim())
+    .map((line) => stripHiddenCharacters(line).trim())
     .find((line) => line.length > 0);
   return subject ?? null;
 }
 
 function firstLine(text: string, max = 200): string {
-  const line = text.trim().split("\n")[0] ?? "";
+  const line = stripHiddenCharacters(text.trim().split("\n")[0] ?? "");
   return line.length > max ? `${line.slice(0, max - 1)}…` : line;
 }
 
 function baseName(path: string): string {
-  return path.slice(Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")) + 1) || path;
+  return (
+    stripHiddenCharacters(path).slice(
+      Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")) + 1,
+    ) || path
+  );
 }
 
 function fileChangeVerb(operation: string | undefined): string {

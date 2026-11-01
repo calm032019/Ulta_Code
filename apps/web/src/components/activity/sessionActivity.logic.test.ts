@@ -107,6 +107,9 @@ describe("commitMessageOf", () => {
       commitMessageOf("git commit -m \"$(cat <<'EOF'\nfeat: add activity\n\nBody line\nEOF\n)\""),
     ).toBe("feat: add activity");
     expect(commitMessageOf("git commit --amend --no-edit")).toBeNull();
+    expect(commitMessageOf('git commit -m "fix: safe\u202E\u200Bgnp.exe"')).toBe(
+      "fix: safegnp.exe",
+    );
   });
 });
 
