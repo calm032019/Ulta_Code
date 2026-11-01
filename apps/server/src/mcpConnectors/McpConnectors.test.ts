@@ -113,7 +113,7 @@ describe("McpConnectors", () => {
       }).pipe(Effect.provide(NodeServices.layer)),
   );
 
-  it.effect("a refresh during a pass waits for a pass that sees later edits", () =>
+  it.effect("a refresh after a pass has started gets its own later pass", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
@@ -164,7 +164,8 @@ describe("McpConnectors", () => {
         Effect.provideService(HostProcess.Environment, {}),
       );
 
-      // The first pass may read either version; the queued pass must see the edit.
+      // The gate sits before any file is read, so the first pass may see either version. What
+      // matters is that later callers get one shared pass that starts after their request.
       assert.include(["before", "after"], stale.connectors[0]?.name);
       assert.deepStrictEqual(
         fresh.connectors.map((connector) => connector.name),

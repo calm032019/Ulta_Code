@@ -467,21 +467,22 @@ const make = Effect.gen(function* () {
       const created = Deferred.makeUnsafe<McpConnectorsResult>();
       queued = created;
       inFlight = created;
-      const pass = Effect.sync(() => {
+      const startReading = Effect.sync(() => {
         if (queued === created) queued = undefined;
-      }).pipe(
+      });
+      // The exit handler covers the wait too, so an interrupted wait still settles the result.
+      return (previous === undefined ? Effect.void : Effect.exit(Deferred.await(previous))).pipe(
+        Effect.andThen(startReading),
         Effect.andThen(scan),
         Effect.onExit((exit) =>
           Effect.sync(() => {
+            if (queued === created) queued = undefined;
             if (inFlight === created) inFlight = undefined;
           }).pipe(Effect.andThen(Deferred.done(created, exit))),
         ),
+        Effect.forkDetach,
+        Effect.as(created),
       );
-      return (
-        previous === undefined
-          ? pass
-          : Deferred.await(previous).pipe(Effect.exit, Effect.andThen(pass))
-      ).pipe(Effect.forkDetach, Effect.as(created));
     }),
   ).pipe(Effect.flatMap(Deferred.await));
 

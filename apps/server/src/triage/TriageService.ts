@@ -19,10 +19,14 @@ import { triageSourceCacheDir, writeTriageSession } from "./triageSession.ts";
 const SOURCE_REPOSITORY_URL = "https://github.com/calm032019/Ulta_Code";
 
 // No tty: a credential prompt would hang until the timeout, so git must fail
-// instead. An empty GIT_ASKPASS also skips core.askPass and SSH_ASKPASS helpers.
+// instead. An empty GIT_ASKPASS also skips core.askPass and SSH_ASKPASS helpers, and
+// GCM_INTERACTIVE stops Git Credential Manager opening a sign-in window for the private repo.
 const GIT_ENV = {
+  GCM_INTERACTIVE: "never",
   GIT_TERMINAL_PROMPT: "0",
   GIT_ASKPASS: "",
+  SSH_ASKPASS: "",
+  SSH_ASKPASS_REQUIRE: "never",
   LC_ALL: "C",
 } satisfies NodeJS.ProcessEnv;
 
