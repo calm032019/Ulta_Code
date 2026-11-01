@@ -582,7 +582,7 @@ function codexReplayPreamble(input: {
         id: 1,
         method: "initialize",
         params: {
-          clientInfo: { name: "Ulta Code", title: "Ulta Code", version: packageJson.version },
+          clientInfo: { name: "T3 Code", title: "Ulta Code", version: packageJson.version },
           capabilities: {
             experimentalApi: true,
             optOutNotificationMethods: ["turn/diff/updated"],

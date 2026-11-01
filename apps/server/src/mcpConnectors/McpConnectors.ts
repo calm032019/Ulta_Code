@@ -114,7 +114,9 @@ const make = Effect.gen(function* () {
   const projectStore = yield* ProjectStore.ProjectStoreV2;
   // Parse results by parser and path, reused until the file's size or modified time changes.
   const parsedConfigCache = new Map<string, CachedParse>();
+  // The newest pass, and that pass again while it waits to start reading.
   let inFlight: Deferred.Deferred<McpConnectorsResult> | undefined;
+  let queued: Deferred.Deferred<McpConnectorsResult> | undefined;
 
   const scan = Effect.gen(function* () {
     const home = yield* HostProcess.HomeDirectory;
@@ -455,21 +457,31 @@ const make = Effect.gen(function* () {
     return { connectors, issues, readAt } satisfies McpConnectorsResult;
   }).pipe(Effect.withSpan("McpConnectors.list"));
 
-  // Concurrent callers share one pass, detached so one caller leaving cannot cancel the others'.
+  // Callers share a pass that has not started reading yet. A pass already reading may have read
+  // a file before the caller's edit, so later callers queue one fresh pass behind it.
+  // Passes are detached so one caller leaving cannot cancel the others'.
   const list = Effect.uninterruptible(
     Effect.suspend(() => {
-      if (inFlight !== undefined) return Effect.succeed(inFlight);
+      if (queued !== undefined) return Effect.succeed(queued);
+      const previous = inFlight;
       const created = Deferred.makeUnsafe<McpConnectorsResult>();
+      queued = created;
       inFlight = created;
-      return scan.pipe(
+      const pass = Effect.sync(() => {
+        if (queued === created) queued = undefined;
+      }).pipe(
+        Effect.andThen(scan),
         Effect.onExit((exit) =>
           Effect.sync(() => {
-            inFlight = undefined;
+            if (inFlight === created) inFlight = undefined;
           }).pipe(Effect.andThen(Deferred.done(created, exit))),
         ),
-        Effect.forkDetach,
-        Effect.as(created),
       );
+      return (
+        previous === undefined
+          ? pass
+          : Deferred.await(previous).pipe(Effect.exit, Effect.andThen(pass))
+      ).pipe(Effect.forkDetach, Effect.as(created));
     }),
   ).pipe(Effect.flatMap(Deferred.await));
 

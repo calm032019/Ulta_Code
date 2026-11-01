@@ -7,7 +7,9 @@ import {
   type ServerProvider,
 } from "@t3tools/contracts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
@@ -109,5 +111,67 @@ describe("McpConnectors", () => {
           ]);
         }
       }).pipe(Effect.provide(NodeServices.layer)),
+  );
+
+  it.effect("a refresh during a pass waits for a pass that sees later edits", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const home = yield* fs.makeTempDirectoryScoped();
+      const configPath = path.join(home, ".cursor", "mcp.json");
+      yield* fs.makeDirectory(path.join(home, ".cursor"), { recursive: true });
+      yield* fs.writeFileString(configPath, mcpJson("before"));
+
+      const firstPassStarted = yield* Deferred.make<void>();
+      const releaseFirstPass = yield* Deferred.make<void>();
+      let providerReads = 0;
+      const layer = McpConnectors.layer.pipe(
+        Layer.provide(
+          Layer.mock(ProviderRegistry.ProviderRegistry)({
+            getProviders: Effect.suspend(() => {
+              providerReads += 1;
+              return providerReads > 1
+                ? Effect.succeed([cursor])
+                : Deferred.succeed(firstPassStarted, undefined).pipe(
+                    Effect.andThen(Deferred.await(releaseFirstPass)),
+                    Effect.as([cursor]),
+                  );
+            }),
+          }),
+        ),
+        Layer.provide(
+          Layer.mock(ProjectStore.ProjectStoreV2)({ listShells: () => Effect.succeed([]) }),
+        ),
+        Layer.provide(ServerSettings.ServerSettingsService.layerTest()),
+      );
+
+      const [stale, fresh, sharesFresh] = yield* Effect.gen(function* () {
+        const connectors = yield* McpConnectors.McpConnectors;
+        const first = yield* Effect.forkChild(connectors.list);
+        yield* Deferred.await(firstPassStarted);
+        yield* fs.writeFileString(configPath, mcpJson("after"));
+        const second = yield* Effect.forkChild(connectors.list);
+        const third = yield* Effect.forkChild(connectors.list);
+        yield* Deferred.succeed(releaseFirstPass, undefined);
+        return [
+          yield* Fiber.join(first),
+          yield* Fiber.join(second),
+          yield* Fiber.join(third),
+        ] as const;
+      }).pipe(
+        Effect.provide(layer),
+        Effect.provideService(HostProcess.HomeDirectory, home),
+        Effect.provideService(HostProcess.Environment, {}),
+      );
+
+      // The first pass may read either version; the queued pass must see the edit.
+      assert.include(["before", "after"], stale.connectors[0]?.name);
+      assert.deepStrictEqual(
+        fresh.connectors.map((connector) => connector.name),
+        ["after"],
+      );
+      assert.strictEqual(fresh, sharesFresh);
+      assert.strictEqual(providerReads, 2);
+    }).pipe(Effect.provide(NodeServices.layer)),
   );
 });
