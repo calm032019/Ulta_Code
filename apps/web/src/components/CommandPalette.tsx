@@ -1668,6 +1668,17 @@ function OpenCommandPaletteDialog(props: {
     },
   });
 
+  actionItems.push({
+    kind: "action",
+    value: "action:usage-plan",
+    searchTerms: ["reset", "reset times", "plan", "budget", "daily", "allotment", "limits"],
+    title: "Set model reset times",
+    icon: <ChartNoAxesColumnIcon className={ITEM_ICON_CLASS} />,
+    run: async () => {
+      await navigate({ to: "/usage", search: { section: "plan" } });
+    },
+  });
+
   for (const direction of [1, -1] as const) {
     const title = direction === 1 ? "Focus Next Workspace Area" : "Focus Previous Workspace Area";
     actionItems.push({

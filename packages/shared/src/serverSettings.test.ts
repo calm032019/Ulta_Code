@@ -633,6 +633,24 @@ describe("serverSettings helpers", () => {
     expect(current.usagePriceOverrides["example-model"]?.cacheReadCostPerMillionTokens).toBe(0.5);
   });
 
+  it("merges usage plans per window and keeps reminder options apart", () => {
+    const plan = { timeZone: "Europe/London", workingDays: [1, 2, 3, 4, 5] };
+    const current = applyServerSettingsPatch(DEFAULT_SERVER_SETTINGS, {
+      usagePlan: { windows: { "claudeAgent:seven_day": plan, "codex:weekly": plan } },
+    });
+    const next = applyServerSettingsPatch(current, {
+      usagePlan: { approachingPercent: 70, windows: { "codex:weekly": null } },
+    });
+    expect(next.usagePlan).toEqual({
+      remindersEnabled: true,
+      approachingPercent: 70,
+      windows: { "claudeAgent:seven_day": plan },
+    });
+    expect(
+      applyServerSettingsPatch(next, { usagePlan: { remindersEnabled: false } }).usagePlan.windows,
+    ).toEqual({ "claudeAgent:seven_day": plan });
+  });
+
   it("stores background activity profiles as a versioned object and syncs legacy aliases", () => {
     const next = applyServerSettingsPatch(DEFAULT_SERVER_SETTINGS, {
       backgroundActivity: {

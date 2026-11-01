@@ -24,6 +24,7 @@ import {
 } from "@t3tools/contracts";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
+import * as Struct from "effect/Struct";
 import { deepMerge } from "./Struct.ts";
 import { fromLenientJson } from "./schemaJson.ts";
 import { createModelSelection, readCustomModelEntries } from "./model.ts";
@@ -373,6 +374,7 @@ export function applyServerSettingsPatch(
     sourceControlHosts: sourceControlHostsPatch,
     usagePriceOverrides: usagePriceOverridesPatch,
     usageModelAliases: usageModelAliasesPatch,
+    usagePlan: usagePlanPatch,
     // Entry replacement: deepMerge would keep keys the client meant to clear.
     projectSettingsOverrides: projectSettingsOverridesPatch,
     projectAgentBrowserAccessOverrides: _legacyBrowserAccess,
@@ -584,6 +586,18 @@ export function applyServerSettingsPatch(
             current.usageModelAliases,
             usageModelAliasesPatch,
           ),
+        }
+      : {}),
+    ...(usagePlanPatch !== undefined
+      ? {
+          usagePlan: {
+            ...current.usagePlan,
+            ...Struct.omit(usagePlanPatch, ["windows"]),
+            windows:
+              usagePlanPatch.windows === undefined
+                ? current.usagePlan.windows
+                : mergeSettingsEntries(current.usagePlan.windows, usagePlanPatch.windows),
+          },
         }
       : {}),
     ...(patch.sourceControlWriterModelSelection !== undefined
