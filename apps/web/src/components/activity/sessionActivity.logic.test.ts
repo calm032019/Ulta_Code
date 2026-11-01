@@ -110,6 +110,7 @@ describe("commitMessageOf", () => {
     expect(commitMessageOf('git commit -m "fix: safe\u202E\u200Bgnp.exe"')).toBe(
       "fix: safegnp.exe",
     );
+    expect(commitMessageOf('git commit -m "fix:\tkeep words"')).toBe("fix: keep words");
   });
 });
 

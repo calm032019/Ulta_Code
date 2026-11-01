@@ -24,6 +24,8 @@ const decodeJsonString = Schema.decodeEffect(Schema.fromJsonString(Schema.Unknow
 function stripJsonComments(input: string): string {
   const out: string[] = [];
   let trailingComma = -1;
+  // Once a block comment has no closer, no later one can have one either.
+  let blockCommentsClosable = true;
   let index = 0;
   while (index < input.length) {
     const char = input[index]!;
@@ -42,9 +44,10 @@ function stripJsonComments(input: string): string {
       index = end;
       continue;
     }
-    if (char === "/" && input[index + 1] === "*") {
+    if (blockCommentsClosable && char === "/" && input[index + 1] === "*") {
       const end = input.indexOf("*/", index + 2);
-      if (end >= 0) {
+      if (end < 0) blockCommentsClosable = false;
+      else {
         // Whitespace keeps adjacent tokens apart.
         out.push(" ");
         index = end + 2;

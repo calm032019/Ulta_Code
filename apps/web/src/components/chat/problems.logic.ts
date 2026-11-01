@@ -195,7 +195,7 @@ const HIDDEN_CHARACTERS =
   /[\u00AD\u061C\u180E\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF\p{Cc}]/gu;
 
 export function stripHiddenCharacters(text: string): string {
-  return text.replace(HIDDEN_CHARACTERS, "");
+  return text.replace(HIDDEN_CHARACTERS, (char) => (/[\t\n\r]/.test(char) ? " " : ""));
 }
 
 function formatProblem(problem: Problem): string {
@@ -337,10 +337,26 @@ export function problemsTerminalCommand(
 
 /** True once fish has refused the POSIX status probe, so the run should retry in fish syntax. */
 export function isFishStatusError(terminalText: string, nonce: string): boolean {
-  const plain = plainTerminalText(terminalText);
-  const echoed = plain.indexOf(`${problemsExitMarker(nonce)}:$?`);
-  const lineEnd = echoed === -1 ? -1 : plain.indexOf("\n", echoed);
-  return lineEnd !== -1 && FISH_STATUS_ERROR.test(plain.slice(lineEnd + 1));
+  const probe = `${problemsExitMarker(nonce)}:$?`;
+  const lines = plainTerminalText(terminalText).split("\n");
+  const first = lines.findIndex((line) => line.includes(probe));
+  if (first === -1) return false;
+  const input = lines[first]!;
+  // fish may redraw its prompt and the input, wrapped, before the error; skip those echoes.
+  const echoesInput = (text: string) => {
+    if (input.includes(text)) return true;
+    if (text.length > input.length + 256) return false;
+    for (let start = 1; start <= text.length - 8; start += 1) {
+      if (input.includes(text.slice(start))) return true;
+    }
+    return false;
+  };
+  for (const line of lines.slice(first + 1)) {
+    const text = line.trim();
+    if (text.length === 0 || line.includes(probe) || echoesInput(text)) continue;
+    return FISH_STATUS_ERROR.test(line);
+  }
+  return false;
 }
 
 export interface ProblemsRunOutput {

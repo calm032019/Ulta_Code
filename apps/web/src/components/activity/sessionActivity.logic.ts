@@ -169,11 +169,8 @@ function firstLine(text: string, max = 200): string {
 }
 
 function baseName(path: string): string {
-  return (
-    stripHiddenCharacters(path).slice(
-      Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")) + 1,
-    ) || path
-  );
+  const clean = stripHiddenCharacters(path);
+  return clean.slice(Math.max(clean.lastIndexOf("/"), clean.lastIndexOf("\\")) + 1) || clean;
 }
 
 function fileChangeVerb(operation: string | undefined): string {

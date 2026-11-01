@@ -152,7 +152,7 @@ describe("ServerSettings usage plan", () => {
     for (const windows of [
       { a: { ...plan, workingDays: [] } },
       { a: { ...plan, workingDays: [7] } },
-      { a: { ...plan, workingDays: [1, 1] } },
+      { a: { ...plan, workingDays: [0, 1, 2, 3, 4, 5, 6, 0] } },
       { a: { ...plan, timeZone: "x".repeat(65) } },
       Object.fromEntries(Array.from({ length: 65 }, (_, index) => [`w${index}`, plan])),
       { a: { ...plan, reset: { kind: "monthly", day: 31, minuteOfDay: 0 } } },

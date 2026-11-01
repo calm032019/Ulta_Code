@@ -356,6 +356,13 @@ describe("readProblemsRunOutput", () => {
     expect(
       isFishStatusError(`$  ${command}\r\nfish: $? is not supported. Use $status.\r\n`, nonce),
     ).toBe(true);
+    const wrapped = `${command.slice(0, 40)}\r\n${command.slice(40)}`;
+    expect(
+      isFishStatusError(
+        `${command}\r\n~/repo> ${wrapped}\r\nfish: $? is not supported.\r\n`,
+        nonce,
+      ),
+    ).toBe(true);
   });
 
   it("returns only the output between the echoed input and the marker", () => {

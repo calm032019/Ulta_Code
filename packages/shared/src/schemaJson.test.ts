@@ -54,8 +54,9 @@ Done.`),
     expect(decodeLenientJson('{"a":"\\"//x", /* c */ }')).toEqual({ a: '"//x' });
   });
 
-  it("rejects an unterminated string of escaped quotes without backtracking", () => {
+  it("rejects hostile input without rescanning to the end", () => {
     expect(() => decodeLenientJson(`{"a": "${'\\"'.repeat(512 * 1024)}`)).toThrow();
+    expect(() => decodeLenientJson(`{"a": 1 ${"/*a".repeat(350_000)}`)).toThrow();
   });
 
   it("keeps properties after CR-terminated comments in mixed line endings", () => {

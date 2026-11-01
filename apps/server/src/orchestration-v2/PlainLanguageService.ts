@@ -99,9 +99,7 @@ const make = Effect.gen(function* () {
       })
       .pipe(
         generating.withPermits(1),
-        Effect.catch((error) =>
-          failWithLoggedCause("The model could not explain these messages.", error),
-        ),
+        Effect.catch((error) => failWithLoggedCause(error.detail, error)),
       );
   });
 

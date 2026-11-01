@@ -122,12 +122,12 @@ describe("PlainLanguageService", () => {
     }).pipe(Effect.provide(harness.layer));
   });
 
-  it.effect("sends a plain message instead of the provider's raw output", () => {
+  it.effect("keeps the provider's message but not its cause", () => {
     const harness = makeHarness(() =>
       Effect.fail(
         new TextGenerationError({
           operation: "explainPlainLanguage",
-          detail: "Codex CLI exited: secret stderr",
+          detail: "Claude CLI command failed: Please run /login",
           cause: new Error("raw stdout"),
         }),
       ),
@@ -135,7 +135,7 @@ describe("PlainLanguageService", () => {
     return Effect.gen(function* () {
       const error = yield* explain(["m1"]).pipe(Effect.flip);
 
-      assert.strictEqual(error.message, "The model could not explain these messages.");
+      assert.strictEqual(error.message, "Claude CLI command failed: Please run /login");
       assert.notProperty(error, "cause");
     }).pipe(Effect.provide(harness.layer));
   });

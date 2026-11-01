@@ -31,7 +31,7 @@ export type UsagePlanResetSchedule = typeof UsagePlanResetSchedule.Type;
 export const UsagePlanWindowSettings = Schema.Struct({
   reset: Schema.optionalKey(UsagePlanResetSchedule),
   timeZone: TrimmedNonEmptyString.check(Schema.isMaxLength(64)),
-  workingDays: Schema.Array(UsagePlanWeekday).check(Schema.isMinLength(1), Schema.isUnique()),
+  workingDays: Schema.Array(UsagePlanWeekday).check(Schema.isMinLength(1), Schema.isMaxLength(7)),
 });
 export type UsagePlanWindowSettings = typeof UsagePlanWindowSettings.Type;
 
