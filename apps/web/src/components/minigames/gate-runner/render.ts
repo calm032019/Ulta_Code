@@ -36,6 +36,7 @@ import {
   speedForStage,
   type Entity,
   type GateOp,
+  type GateSet,
   type GateRunnerState,
 } from "./logic";
 
@@ -55,6 +56,8 @@ const KERB_BLOCK = 1.6;
 const DASH_GAP = 6;
 const DASH_LEN = 2.4;
 const SCENERY_GAP = 7;
+const PASS_FADE_S = 0.12;
+const PILL_EASE = 14;
 
 export interface RenderUi {
   hoverButton: boolean;
@@ -344,7 +347,10 @@ export function createRenderer(): Renderer {
   const B: Projected = { x: 0, y: 0, s: 0 };
   const C: Projected = { x: 0, y: 0, s: 0 };
   const D: Projected = { x: 0, y: 0, s: 0 };
-  const crowdAnchor = { x: 0, top: 0 };
+  const crowdAnchor = { x: 0, top: 0, bottom: 0 };
+  const labelRects: Rect[] = Array.from({ length: 3 }, () => ({ x: 0, y: 0, w: 0, h: 0 }));
+  let pillDrop = 0;
+  let pillTime = 0;
 
   const fontOf = (weight: number, size: number, italic = false) =>
     `${italic ? "italic " : ""}${weight} ${Math.max(1, Math.round(size))}px ${font}`;
@@ -816,6 +822,7 @@ export function createRenderer(): Renderer {
     project(lens, centre, 0, CAMERA_BACK, A);
     crowdAnchor.x = A.x;
     crowdAnchor.top = A.y - 3.6 * FIGURE_UNIT * A.s;
+    crowdAnchor.bottom = A.y;
     project(lens, centre, 0, CAMERA_BACK + 0.8 * spread + 0.3, B);
     project(lens, centre, 0, CAMERA_BACK - 0.8 * spread - 0.3, C);
     softShadow(
@@ -841,6 +848,7 @@ export function createRenderer(): Renderer {
       f.bob = Math.abs(Math.sin(unit.phase)) * f.s * 0.4;
       f.lean = clamp(unit.vx * 0.25, -0.7, 0.7);
       crowdAnchor.top = Math.min(crowdAnchor.top, f.y - 3.6 * f.s - f.bob);
+      crowdAnchor.bottom = Math.max(crowdAnchor.bottom, f.y);
       n += 1;
     }
     sortFigures(n);
@@ -1287,13 +1295,13 @@ export function createRenderer(): Renderer {
     dz: number,
     time: number,
     camX: number,
+    fadeOut = 1,
   ) {
-    const fade = fogFade(dz);
+    const fade = fogFade(dz) * fadeOut;
     if (fade < 0.02) return;
     switch (entity.kind) {
       case "gates": {
-        const passing = clamp((dz - 3) / (CAMERA_BACK - 3), 0, 1);
-        const alpha = entity.done ? fade * 0.35 * Math.min(1, passing * 1.5) : fade;
+        const alpha = fade;
         entity.ops.forEach((op, lane) => {
           if (op && entity.taken !== lane)
             drawGate(ctx, p, c, layout, laneX(lane) - camX, dz, op, entity.z, time, alpha);
@@ -1339,13 +1347,43 @@ export function createRenderer(): Renderer {
       drawEntity(ctx, p, c, layout, entity, dz, time, camX);
     }
     drawCrowd(ctx, p, c, layout, state, fx, camX);
+    const window = Math.max(0.6, speedForStage(state.stage) * PASS_FADE_S);
     for (let i = entities.length - 1; i >= 0; i--) {
       const entity = entities[i];
-      if (entity?.kind !== "gates") continue;
-      const dz = depthOf(entity.z, state.distance);
-      if (dz > CAMERA_BACK || dz < 3) continue;
-      drawEntity(ctx, p, c, layout, entity, dz, time, camX);
+      if (entity?.kind !== "gates" && entity?.kind !== "blades") continue;
+      const behind = CAMERA_BACK - depthOf(entity.z, state.distance);
+      if (behind < 0 || behind >= window) continue;
+      const fadeOut = (1 - behind / window) * 0.5;
+      drawEntity(ctx, p, c, layout, entity, CAMERA_BACK - behind, time, camX, fadeOut);
     }
+  }
+
+  /** The gate set the crowd is about to enter, if any, as label rects for the pill to avoid. */
+  function nextGateLabels(layout: Layout, state: GateRunnerState, camX: number): number {
+    let count = 0;
+    let next: GateSet | null = null;
+    for (const entity of state.entities) {
+      if (entity.kind !== "gates" || entity.done) continue;
+      if (depthOf(entity.z, state.distance) <= CAMERA_BACK) continue;
+      next = entity;
+      break;
+    }
+    if (!next) return 0;
+    const dz = depthOf(next.z, state.distance);
+    next.ops.forEach((op, lane) => {
+      const rect = labelRects[count];
+      if (!op || !rect) return;
+      if (!project(layout.lens, laneX(lane) - camX, (PANEL_TOP + PANEL_BOTTOM) / 2, dz, A)) return;
+      const { size, alpha } = labelSize(layout, 0.8 * A.s);
+      if (alpha < 0.3) return;
+      const w = size * (formatOp(op).length * 0.62 + 0.4);
+      rect.x = A.x - w / 2;
+      rect.y = A.y - size * 0.6;
+      rect.w = w;
+      rect.h = size * 1.2;
+      count += 1;
+    });
+    return count;
   }
 
   function drawParticles(
@@ -1483,18 +1521,44 @@ export function createRenderer(): Renderer {
     layout: Layout,
     state: GateRunnerState,
     fx: Fx,
+    camX: number,
   ) {
     const size = clamp(layout.height * 0.075, 10, 17);
     const h = size * 1.5;
+    ctx.font = fontOf(800, size);
+    const text = String(state.count);
+    const w = ctx.measureText(text).width + size * 1.9;
     const cx = clamp(crowdAnchor.x, h * 2, layout.width - h * 2);
-    const cy = Math.max(layout.hud + h / 2 + 2, crowdAnchor.top - h / 2 - size * 0.45);
+    const above = Math.max(layout.hud + h / 2 + 2, crowdAnchor.top - h / 2 - size * 0.45);
+    const below = Math.min(layout.height - h / 2 - 2, crowdAnchor.bottom + h / 2 + 3);
+    const labels = nextGateLabels(layout, state, camX);
+    let blocked = false;
+    for (let i = 0; i < labels; i++) {
+      const r = labelRects[i];
+      if (!r) continue;
+      const pad = 3;
+      if (
+        r.x < cx + w / 2 + pad &&
+        r.x + r.w > cx - w / 2 - pad &&
+        r.y < above + h / 2 + size * 0.35 + pad &&
+        r.y + r.h > above - h / 2 - pad
+      ) {
+        blocked = true;
+      }
+    }
+    const dt = fx.time - pillTime;
+    pillTime = fx.time;
+    const target = blocked ? 1 : 0;
+    pillDrop =
+      dt > 0 && dt < 0.25
+        ? pillDrop + (target - pillDrop) * (1 - Math.exp(-dt * PILL_EASE))
+        : target;
+    const cy = above + (below - above) * pillDrop;
+    const dropped = pillDrop > 0.5;
     const scale = 1 + 0.32 * Math.sin(fx.bounce * Math.PI) * fx.bounce;
     ctx.save();
     ctx.translate(cx, cy);
     ctx.scale(scale, scale);
-    ctx.font = fontOf(800, size);
-    const text = String(state.count);
-    const w = ctx.measureText(text).width + size * 1.9;
     ctx.fillStyle = p.good.dark;
     ctx.beginPath();
     ctx.roundRect(-w / 2, -h / 2 + 1.5, w, h, h / 2);
@@ -1505,10 +1569,11 @@ export function createRenderer(): Renderer {
       pill(ctx, -w / 2, -h / 2, w, h, fx.flash > 0 ? p.success : p.bad.base, null);
       ctx.globalAlpha = 1;
     }
+    const edge = dropped ? -h / 2 : h / 2;
     ctx.beginPath();
-    ctx.moveTo(-size * 0.3, h / 2);
-    ctx.lineTo(0, h / 2 + size * 0.35);
-    ctx.lineTo(size * 0.3, h / 2);
+    ctx.moveTo(-size * 0.3, edge);
+    ctx.lineTo(0, edge + (dropped ? -1 : 1) * size * 0.35);
+    ctx.lineTo(size * 0.3, edge);
     ctx.fillStyle = fx.flash > 0.4 ? p.success : fx.flash < -0.4 ? p.bad.base : p.good.base;
     ctx.fill();
     ctx.fillStyle = p.good.ink;
@@ -1878,7 +1943,7 @@ export function createRenderer(): Renderer {
         ctx.fillRect(0, layout.hud, layout.width, layout.height - layout.hud);
       }
       if (state.status !== "over") drawParticles(ctx, p, layout, state, fx, camX, false);
-      if (state.status !== "ready") drawCrowdPill(ctx, p, layout, state, fx);
+      if (state.status !== "ready") drawCrowdPill(ctx, p, layout, state, fx, camX);
       drawTexts(ctx, p, layout, fx, camX);
       ctx.restore();
 
