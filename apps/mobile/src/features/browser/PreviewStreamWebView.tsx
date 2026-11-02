@@ -4,6 +4,7 @@ import * as Dialog from "../../components/ui/Dialog";
 import previewStreamScript from "@t3tools/mobile-preview-stream";
 import {
   previewStreamControlLabel,
+  previewStreamHostSetupCommand,
   previewStreamHostSetupMessage,
   type PreviewStreamControl,
   type PreviewStreamDownload,
@@ -241,6 +242,7 @@ function PreviewStreamDocumentView({
   const [error, setError] = useState<string | null>(null);
   const [gone, setGone] = useState(false);
   const [hostSetup, setHostSetup] = useState<PreviewStreamHostSetup | null>(null);
+  const setupCommand = hostSetup ? previewStreamHostSetupCommand(hostSetup) : null;
   const [control, setControl] = useState<PreviewStreamControl | null>(null);
   const dialogRef = useRef<PreviewStreamControl["dialog"]>(null);
   const [promptText, setPromptText] = useState("");
@@ -385,10 +387,12 @@ function PreviewStreamDocumentView({
                 fail("This tab was closed.");
                 onGone?.();
                 return;
-              case "hostSetup":
-                setHostSetup({ need: message.need, command: message.command });
-                fail(previewStreamHostSetupMessage(message));
+              case "hostSetup": {
+                const { type: _type, ...setup } = message;
+                setHostSetup(setup);
+                fail(previewStreamHostSetupMessage(setup));
                 return;
+              }
               case "viewport":
                 onViewport?.(message);
                 return;
@@ -496,17 +500,17 @@ function PreviewStreamDocumentView({
               {status === "error" ? error : "Connecting to browser..."}
             </AppText>
           )}
-          {status === "error" && hostSetup && !compact ? (
+          {status === "error" && setupCommand && !compact ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Copy ${hostSetup.command}`}
+              accessibilityLabel={`Copy ${setupCommand}`}
               className="w-full flex-row items-center gap-2 rounded-xl border border-secondary-border bg-secondary px-4 py-3"
               onPress={() => {
-                void Clipboard.setStringAsync(hostSetup.command).catch(() => undefined);
+                void Clipboard.setStringAsync(setupCommand).catch(() => undefined);
               }}
             >
               <AppText selectable className="flex-1 font-mono text-sm text-secondary-foreground">
-                {hostSetup.command}
+                {setupCommand}
               </AppText>
               <AppText className="text-xs text-foreground-muted">Copy</AppText>
             </Pressable>

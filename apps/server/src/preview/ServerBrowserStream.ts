@@ -22,6 +22,7 @@ import * as Socket from "effect/socket/Socket";
 
 import { authenticateMediaRequest } from "../auth/http.ts";
 import { assetResponseHeaders } from "../http.ts";
+import * as PreviewBrowser from "./PreviewBrowser.ts";
 import * as PreviewBrowserHost from "./PreviewBrowserHost.ts";
 import * as ServerBrowser from "./ServerBrowser.ts";
 
@@ -94,10 +95,12 @@ const makeHandler = Effect.fnUntraced(function* (browser: ServerBrowser.ServerBr
           Effect.catchTags({
             ServerBrowserTabNotFoundError: () => Effect.succeed({ _tag: "gone" as const }),
             ServerBrowserLaunchError: (error) => {
+              if (isInstallingError(error.cause))
+                return Effect.succeed({ _tag: "installing" as const });
               const setup = hostSetup(error.cause);
-              return setup === undefined
-                ? Effect.fail(error)
-                : Effect.succeed({ _tag: "hostSetup" as const, reason: encodeHostSetup(setup) });
+              return Effect.logWarning("server preview browser failed to start", {
+                cause: error.cause,
+              }).pipe(Effect.as({ _tag: "hostSetup" as const, reason: encodeHostSetup(setup) }));
             },
           }),
         );
@@ -114,6 +117,11 @@ const makeHandler = Effect.fnUntraced(function* (browser: ServerBrowser.ServerBr
       const gone = writer.write(new Socket.CloseEvent(TAB_GONE_CODE, "tab closed"));
       if (attached._tag === "gone") {
         yield* gone;
+        return HttpServerResponse.empty();
+      }
+      if (attached._tag === "installing") {
+        // 1013 (try again later) is not a refusal, so clients keep retrying until the install finishes.
+        yield* writer.write(new Socket.CloseEvent(1013, "browser installing"));
         return HttpServerResponse.empty();
       }
       if (attached._tag === "hostSetup") {
@@ -199,23 +207,31 @@ const makeHandler = Effect.fnUntraced(function* (browser: ServerBrowser.ServerBr
       );
       return yield* Effect.raceFirst(Effect.forever(sendOutput), Effect.forever(receiveInput));
     }),
-  ).pipe(
-    Effect.catchTags({
-      ServerBrowserLaunchError: (error) =>
-        Effect.logWarning("server preview browser failed to start", { cause: error.cause }).pipe(
-          Effect.as(HttpServerResponse.text("Service Unavailable", { status: 503 })),
-        ),
-    }),
-    Effect.orElseSucceed(() => HttpServerResponse.empty()),
-  );
+  ).pipe(Effect.orElseSucceed(() => HttpServerResponse.empty()));
 });
 
-const hostSetup = (cause: unknown): PreviewStreamHostSetup | undefined =>
+const hostSetup = (cause: unknown): PreviewStreamHostSetup =>
   isSandboxError(cause)
     ? { need: "sandbox", command: cause.setupCommand }
     : isLibrariesError(cause)
       ? { need: "libraries", command: cause.setupCommand }
-      : undefined;
+      : { need: "unavailable", detail: unavailableDetail(cause) };
+// Close reasons are capped at 123 bytes, and the JSON wrapper takes about 35 of them.
+const MAX_DETAIL_BYTES = 85;
+const unavailableDetail = (cause: unknown) => {
+  const detail = isInstallError(cause)
+    ? cause.detail
+    : isUnsupportedError(cause)
+      ? cause.message
+      : "The server preview browser could not start.";
+  if (Buffer.byteLength(detail) <= MAX_DETAIL_BYTES) return detail;
+  let cut = detail.slice(0, MAX_DETAIL_BYTES - 1);
+  while (Buffer.byteLength(cut) > MAX_DETAIL_BYTES - 3) cut = cut.slice(0, -1);
+  return `${cut}…`;
+};
+const isInstallError = Schema.is(PreviewBrowser.PreviewBrowserInstallError);
+const isInstallingError = Schema.is(PreviewBrowser.PreviewBrowserInstallingError);
+const isUnsupportedError = Schema.is(PreviewBrowser.PreviewBrowserUnsupportedError);
 const isSandboxError = Schema.is(PreviewBrowserHost.PreviewBrowserSandboxError);
 const isLibrariesError = Schema.is(PreviewBrowserHost.PreviewBrowserLibrariesError);
 const encodeHostSetup = Schema.encodeSync(Schema.fromJsonString(PreviewStreamHostSetup));

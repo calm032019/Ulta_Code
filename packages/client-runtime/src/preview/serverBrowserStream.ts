@@ -443,18 +443,26 @@ export function createPreviewFramePainter(
 
 const decodeHostSetup = (reason: string): PreviewStreamHostSetup => {
   try {
-    const value = JSON.parse(reason) as Partial<PreviewStreamHostSetup>;
+    const value = JSON.parse(reason) as Record<string, unknown>;
     if (
       (value.need === "sandbox" || value.need === "libraries") &&
       typeof value.command === "string"
     ) {
       return { need: value.need, command: value.command };
     }
+    if (value.need === "unavailable" && typeof value.detail === "string") {
+      return { need: "unavailable", detail: value.detail };
+    }
   } catch {}
   return { need: "sandbox", command: "sudo npx t3 browser setup" };
 };
 
 export const previewStreamHostSetupMessage = (setup: PreviewStreamHostSetup) =>
-  setup.need === "sandbox"
-    ? "This server's host blocks the sandbox its browser runs in. Run this once on the host, then try again:"
-    : "This server's host is missing libraries its browser needs. Run this once on the host, then try again:";
+  setup.need === "unavailable"
+    ? `This server's browser could not start. ${setup.detail}`
+    : setup.need === "sandbox"
+      ? "This server's host blocks the sandbox its browser runs in. Run this once on the host, then try again:"
+      : "This server's host is missing libraries its browser needs. Run this once on the host, then try again:";
+
+export const previewStreamHostSetupCommand = (setup: PreviewStreamHostSetup) =>
+  setup.need === "unavailable" ? null : setup.command;

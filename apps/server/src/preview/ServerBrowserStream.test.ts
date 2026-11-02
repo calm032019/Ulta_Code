@@ -21,6 +21,7 @@ import * as Schema from "effect/Schema";
 import { HttpRouter, HttpServer } from "effect/http";
 
 import * as EnvironmentAuth from "../auth/EnvironmentAuth.ts";
+import * as PreviewBrowser from "./PreviewBrowser.ts";
 import * as PreviewBrowserHost from "./PreviewBrowserHost.ts";
 import * as ServerBrowser from "./ServerBrowser.ts";
 import { routeLayer } from "./ServerBrowserStream.ts";
@@ -379,56 +380,79 @@ it.effect.each([
     error: new PreviewBrowserHost.PreviewBrowserSandboxError({
       setupCommand: "sudo t3 browser setup",
     }),
-    need: "sandbox",
+    code: PREVIEW_STREAM_HOST_SETUP_CLOSE_CODE,
+    setup: { need: "sandbox", command: "sudo t3 browser setup" },
   },
   {
     error: new PreviewBrowserHost.PreviewBrowserLibrariesError({
       setupCommand: "sudo t3 browser setup",
       libraries: ["libnss3.so"],
     }),
-    need: "libraries",
+    code: PREVIEW_STREAM_HOST_SETUP_CLOSE_CODE,
+    setup: { need: "libraries", command: "sudo t3 browser setup" },
   },
-])("tells viewers the command that sets up the host ($need)", ({ error, need }) =>
-  Effect.gen(function* () {
-    const browser = ServerBrowser.ServerBrowser.of({
-      clearProfile: () => Effect.void,
-      profileReporter: Effect.succeed(() => Effect.void),
-      openDownload: () => Effect.succeedNone,
-      answerFileChooser: () => Effect.succeed(false),
-      attachViewer: () => Effect.fail(new ServerBrowser.ServerBrowserLaunchError({ cause: error })),
-    });
-    const services = yield* Layer.build(
-      HttpRouter.serve(
-        routeLayer.pipe(
-          Layer.provide(Layer.succeed(ServerBrowser.ServerBrowser, browser)),
-          Layer.provide(platformLayer),
+  {
+    error: new PreviewBrowser.PreviewBrowserInstallError({
+      detail:
+        "The download from storage.googleapis.com failed. Check this machine's network access.",
+    }),
+    code: PREVIEW_STREAM_HOST_SETUP_CLOSE_CODE,
+    setup: {
+      need: "unavailable",
+      detail:
+        "The download from storage.googleapis.com failed. Check this machine's network access.",
+    },
+  },
+  {
+    error: new PreviewBrowser.PreviewBrowserInstallingError({
+      downloadedBytes: 1,
+      totalBytes: 2,
+      unpacking: false,
+    }),
+    code: 1013,
+    setup: undefined,
+  },
+])(
+  "tells viewers why the host cannot run the browser ($error._tag)",
+  ({ error, code: expectedCode, setup }) =>
+    Effect.gen(function* () {
+      const browser = ServerBrowser.ServerBrowser.of({
+        clearProfile: () => Effect.void,
+        profileReporter: Effect.succeed(() => Effect.void),
+        openDownload: () => Effect.succeedNone,
+        answerFileChooser: () => Effect.succeed(false),
+        attachViewer: () =>
+          Effect.fail(new ServerBrowser.ServerBrowserLaunchError({ cause: error })),
+      });
+      const services = yield* Layer.build(
+        HttpRouter.serve(
+          routeLayer.pipe(
+            Layer.provide(Layer.succeed(ServerBrowser.ServerBrowser, browser)),
+            Layer.provide(platformLayer),
+          ),
+          { disableListenLog: true },
+        ).pipe(
+          Layer.provideMerge(NodeHttpServer.layerTest),
+          Layer.provide(makeAuth([AuthOrchestrationReadScope]).layer),
         ),
-        { disableListenLog: true },
-      ).pipe(
-        Layer.provideMerge(NodeHttpServer.layerTest),
-        Layer.provide(makeAuth([AuthOrchestrationReadScope]).layer),
-      ),
-    );
-    const server = Context.get(services, HttpServer.HttpServer);
-    const origin = HttpServer.formatAddress(server.address).replace(/^http/, "ws");
-    const closed = Promise.withResolvers<{ code: number; reason: string }>();
-    yield* Effect.acquireRelease(
-      Effect.sync(() => {
-        const socket = new WebSocket(
-          `${origin}/api/preview-stream/ws?threadId=thread&tabId=tab&wsTicket=one-use-ticket`,
-        );
-        socket.addEventListener("close", (event) =>
-          closed.resolve({ code: event.code, reason: event.reason }),
-        );
-        return socket;
-      }),
-      (socket) => Effect.sync(() => socket.close()),
-    );
-    const { code, reason } = yield* Effect.promise(() => closed.promise);
-    expect(code).toBe(PREVIEW_STREAM_HOST_SETUP_CLOSE_CODE);
-    expect(yield* decodeHostSetup(reason)).toEqual({
-      need,
-      command: "sudo t3 browser setup",
-    });
-  }).pipe(Effect.scoped),
+      );
+      const server = Context.get(services, HttpServer.HttpServer);
+      const origin = HttpServer.formatAddress(server.address).replace(/^http/, "ws");
+      const closed = Promise.withResolvers<{ code: number; reason: string }>();
+      yield* Effect.acquireRelease(
+        Effect.sync(() => {
+          const socket = new WebSocket(
+            `${origin}/api/preview-stream/ws?threadId=thread&tabId=tab&wsTicket=one-use-ticket`,
+          );
+          socket.addEventListener("close", (event) =>
+            closed.resolve({ code: event.code, reason: event.reason }),
+          );
+          return socket;
+        }),
+        (socket) => Effect.sync(() => socket.close()),
+      );
+      const { code, reason } = yield* Effect.promise(() => closed.promise);
+      expect(code).toBe(expectedCode);
+      if (setup) expect(yield* decodeHostSetup(reason)).toEqual(setup);
+    }).pipe(Effect.scoped),
 );

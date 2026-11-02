@@ -140,11 +140,11 @@ export type PreviewNavStatus = typeof PreviewNavStatus.Type;
 export const PreviewRuntime = Schema.Literals(["desktop", "server"]);
 export type PreviewRuntime = typeof PreviewRuntime.Type;
 
-/** JSON reason for preview stream close code 4503; must fit the 123-byte close-reason limit. */
-export const PreviewStreamHostSetup = Schema.Struct({
-  need: Schema.Literals(["sandbox", "libraries"]),
-  command: Schema.String,
-});
+/** JSON reason for preview stream close code 4503 (the host cannot run its browser); must fit the 123-byte close-reason limit. */
+export const PreviewStreamHostSetup = Schema.Union([
+  Schema.Struct({ need: Schema.Literals(["sandbox", "libraries"]), command: Schema.String }),
+  Schema.Struct({ need: Schema.Literal("unavailable"), detail: Schema.String }),
+]);
 export type PreviewStreamHostSetup = typeof PreviewStreamHostSetup.Type;
 export const PREVIEW_STREAM_HOST_SETUP_CLOSE_CODE = 4503;
 
