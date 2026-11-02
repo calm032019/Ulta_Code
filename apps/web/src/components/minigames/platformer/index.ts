@@ -180,6 +180,9 @@ function create(canvas: HTMLCanvasElement, options: MiniGameCreateOptions): Mini
       stop();
       audio.suspend();
       held.clear();
+      jumpPressed = false;
+      // Held keys are dropped here, so a jump in flight would be cut short on resume; let it finish.
+      state = { ...state, hero: { ...state.hero, rising: false } };
       pointerActive = false;
       pointerDir = 0;
       pointerJump = false;

@@ -97,9 +97,18 @@ export const MiniGameDock = memo(function MiniGameDock(props: {
   const autoPauseEnabled = useClientSettings((settings) => settings.minigameAutoPauseEnabled);
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const visible = useSyncExternalStore(subscribeDocumentActivity, readDocumentVisible, () => true);
-  const [paused, setPaused] = useState(() => !useMiniGameDockStore.getState().startOnShow);
+  // An explicit open starts at once, but a saved game may be mid-run, so it counts down first.
+  const [openWithCountdown] = useState(() => {
+    const { startOnShow, selectedGameId, snapshots } = useMiniGameDockStore.getState();
+    return startOnShow && !reducedMotion && snapshots[selectedGameId] !== undefined;
+  });
+  const [paused, setPaused] = useState(
+    () => openWithCountdown || !useMiniGameDockStore.getState().startOnShow,
+  );
   const [autoPausedForFinish, setAutoPausedForFinish] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(
+    openWithCountdown ? COUNTDOWN_FROM : null,
+  );
   const [closing, setClosing] = useState(false);
   const [onScreen, setOnScreen] = useState(true);
   const [previousWorking, setPreviousWorking] = useState(isWorking);
@@ -110,6 +119,9 @@ export const MiniGameDock = memo(function MiniGameDock(props: {
       setPaused(true);
       setCountdown(null);
       setAutoPausedForFinish(true);
+    } else if (isWorking) {
+      // The agent started again, so "has finished" would be stale; the game stays paused.
+      setAutoPausedForFinish(false);
     }
   }
   if (previousVisible !== visible) {
@@ -125,6 +137,7 @@ export const MiniGameDock = memo(function MiniGameDock(props: {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scoreRef = useRef<HTMLSpanElement>(null);
   const instanceRef = useRef<MiniGameInstance | null>(null);
+  const heldKeysRef = useRef(new Set<string>());
   const running = shouldRunLoop({ open: true, paused, visible, onScreen, autoPausedForFinish });
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- focuses the canvas on open and marks the explicit open as used, so a later return to this thread starts paused
@@ -181,7 +194,12 @@ export const MiniGameDock = memo(function MiniGameDock(props: {
         ? null
         : new IntersectionObserver((entries) => {
             const entry = entries.at(-1);
-            if (entry) setOnScreen(entry.isIntersecting);
+            if (!entry) return;
+            setOnScreen(entry.isIntersecting);
+            if (!entry.isIntersecting) {
+              setPaused(true);
+              setCountdown(null);
+            }
           });
     intersection?.observe(canvas);
 
@@ -268,7 +286,21 @@ export const MiniGameDock = memo(function MiniGameDock(props: {
       }
       return;
     }
-    if (instanceRef.current?.keyDown(event.key)) event.preventDefault();
+    if (instanceRef.current?.keyDown(event.key)) {
+      event.preventDefault();
+      heldKeysRef.current.add(event.key);
+    }
+  };
+
+  const handleCanvasKeyUp = (event: KeyboardEvent<HTMLCanvasElement>) => {
+    heldKeysRef.current.delete(event.key);
+    instanceRef.current?.keyUp(event.key);
+  };
+
+  // A key released after focus moves never reaches the canvas, so the game would hold it forever.
+  const releaseHeldKeys = () => {
+    for (const key of heldKeysRef.current) instanceRef.current?.keyUp(key);
+    heldKeysRef.current.clear();
   };
 
   const pointerPosition = (event: PointerEvent<HTMLCanvasElement>) => {
@@ -284,7 +316,13 @@ export const MiniGameDock = memo(function MiniGameDock(props: {
     MINI_GAMES.findIndex((entry) => entry.id === gameId),
   );
   const selectGame = (nextId: MiniGameId) => {
-    if (nextId !== gameId) selectMiniGame(nextId);
+    if (nextId === gameId) return;
+    selectMiniGame(nextId);
+    // The next game resumes from its own snapshot, which may be mid-run.
+    if (running && !reducedMotion && readMiniGameSnapshot(nextId) !== undefined) {
+      setPaused(true);
+      setCountdown(COUNTDOWN_FROM);
+    }
   };
 
   return (
@@ -428,7 +466,8 @@ export const MiniGameDock = memo(function MiniGameDock(props: {
               aria-label={`${game.title}. ${game.controls}`}
               className="absolute inset-0 size-full touch-none outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
               onKeyDown={handleCanvasKeyDown}
-              onKeyUp={(event) => instanceRef.current?.keyUp(event.key)}
+              onKeyUp={handleCanvasKeyUp}
+              onBlur={releaseHeldKeys}
               onPointerDown={(event) => {
                 event.currentTarget.focus({ preventScroll: true });
                 if (!running) return;
