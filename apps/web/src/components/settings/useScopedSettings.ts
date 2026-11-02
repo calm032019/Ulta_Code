@@ -20,6 +20,7 @@ import { useAtomCommand } from "../../state/use-atom-command";
 import { toastManager } from "../ui/toast";
 import { useOptionalSettingsScope, useSettingsScope } from "./SettingsScopeContext";
 import {
+  isProjectScopedSettingKey,
   persistScopedSettingsPatch,
   planProjectOverridesClear,
   planScopedSettingsClear,
@@ -35,6 +36,15 @@ export function useScopedSettings<T = UnifiedSettings>(
 ): T {
   const { target } = useSettingsScope();
   return useMergedSettings(target?.settings ?? DEFAULT_SERVER_SETTINGS, selector);
+}
+
+/** Environment-wide settings cannot be overridden while a project is picked. */
+export function useScopedSettingsEnvironmentWide(keys: readonly (keyof ServerSettings)[]): boolean {
+  const { scope } = useSettingsScope();
+  return (
+    (scope.kind === "project" || scope.kind === "checkout") &&
+    keys.some((key) => !isProjectScopedSettingKey(key))
+  );
 }
 
 export function useScopedSettingsMixed(keys: readonly (keyof ServerSettings)[]): boolean {

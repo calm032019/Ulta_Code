@@ -41,6 +41,7 @@ import {
   SettingsSection,
 } from "./settingsLayout";
 import { AdvancedSettings } from "./AdvancedSettings";
+import { ScopedSwitch } from "./ScopedSwitch";
 import { searchableSetting } from "./settingsSearch";
 
 const MODE_OPTIONS: Record<SourceControlWritingStyleMode, { label: string; description: string }> =
@@ -297,9 +298,9 @@ export function SourceControlWritingSettingsSection() {
         {...searchableSetting("review-guides")}
         description="Add a Guide tab to pull requests. An agent explains the changes and points out decisions that need review."
         control={
-          <Switch
-            mixed={mixedReviewGuidesEnabled}
-            checked={mixedReviewGuidesEnabled ? false : settings.reviewGuidesEnabled}
+          <ScopedSwitch
+            settingKeys={["reviewGuidesEnabled"]}
+            checked={settings.reviewGuidesEnabled}
             onCheckedChange={(checked) => updateSettings({ reviewGuidesEnabled: Boolean(checked) })}
             aria-label="Review guides"
           />
