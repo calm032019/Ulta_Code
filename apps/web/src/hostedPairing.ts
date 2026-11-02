@@ -10,8 +10,16 @@ export interface HostedPairingRequest {
 
 export type HostedAppChannel = "latest" | "nightly";
 
-export function configuredHostedAppUrl(): string {
+function configuredHostedAppUrl(): string {
   return import.meta.env.VITE_HOSTED_APP_URL?.trim() || DEFAULT_HOSTED_APP_URL;
+}
+
+/** Prompt links open in this app unless a hosted app is configured; desktop's custom scheme cannot be shared. */
+export function promptLinkOrigin(url: URL = new URL(window.location.href)): string {
+  if (import.meta.env.VITE_HOSTED_APP_URL?.trim()) return configuredHostedAppUrl();
+  return url.protocol === "http:" || url.protocol === "https:"
+    ? url.origin
+    : configuredHostedAppUrl();
 }
 
 function configuredBackendUrl(): string {
