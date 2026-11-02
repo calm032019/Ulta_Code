@@ -1,6 +1,7 @@
 export const LANES = 3;
 const SETS_PER_STAGE = 8;
-const MAX_COUNT = 99_999;
+/** Integer math on counts stays exact up to here. */
+const MAX_COUNT = Number.MAX_SAFE_INTEGER;
 const SPAWN_AHEAD = 60;
 export const CLEAR_MS = 1700;
 export const CLEAR_FREEZE_MS = 1200;
@@ -145,6 +146,27 @@ export function formatOp(op: GateOp): string {
     case "div":
       return `÷${op.value}`;
   }
+}
+
+const COUNT_UNITS = [
+  [1e15, "q"],
+  [1e12, "t"],
+  [1e9, "b"],
+  [1e6, "m"],
+  [1e3, "k"],
+] as const;
+
+/** Exact below 100k, then 100k, 1.2m, 45b…; rounds down so a label never shows more than there is. */
+export function formatCount(value: number): string {
+  const count = Math.max(0, Math.floor(value));
+  if (count < 100_000) return String(count);
+  for (const [unit, suffix] of COUNT_UNITS) {
+    if (count < unit) continue;
+    const shown =
+      count >= unit * 100 ? Math.floor(count / unit) : Math.floor(count / (unit / 10)) / 10;
+    return `${shown}${suffix}`;
+  }
+  return String(count);
 }
 
 /** Bonus points for the nth good gate in a row; the streak starts paying from the second gate. */

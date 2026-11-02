@@ -30,6 +30,7 @@ import { MAX_UNITS, type Fx, type Tone } from "./fx";
 import { clamp, muteRect, overCard, type Layout, type Rect } from "./layout";
 import {
   CLEAR_MS,
+  formatCount,
   formatOp,
   isGoodOp,
   scoreOf,
@@ -1179,7 +1180,7 @@ export function createRenderer(): Renderer {
     if (textAlpha > 0.01) {
       ctx.globalAlpha = alpha * textAlpha;
       ctx.font = fontOf(900, size);
-      const text = String(count);
+      const text = formatCount(count);
       const w = ctx.measureText(text).width + size * 1.1;
       const h = size * 1.45;
       const by = top - h / 2 - Math.max(3, size * 0.25) + Math.sin(time * 5) * 1.2;
@@ -1268,7 +1269,7 @@ export function createRenderer(): Renderer {
     if (textAlpha > 0.01 && project(lens, -camX, WALL_H * 0.7, dz, C)) {
       ctx.globalAlpha = alpha * textAlpha;
       ctx.font = fontOf(900, size);
-      const text = String(count);
+      const text = formatCount(count);
       const tw = ctx.measureText(text).width + size * 1.1;
       const th = size * 1.5;
       ctx.fillStyle = p.fg;
@@ -1526,7 +1527,7 @@ export function createRenderer(): Renderer {
     const size = clamp(layout.height * 0.075, 10, 17);
     const h = size * 1.5;
     ctx.font = fontOf(800, size);
-    const text = String(state.count);
+    const text = formatCount(state.count);
     const w = ctx.measureText(text).width + size * 1.9;
     const cx = clamp(crowdAnchor.x, h * 2, layout.width - h * 2);
     const above = Math.max(layout.hud + h / 2 + 2, crowdAnchor.top - h / 2 - size * 0.45);
@@ -1652,10 +1653,10 @@ export function createRenderer(): Renderer {
     ctx.textBaseline = "middle";
     ctx.textAlign = "left";
     const items = [
-      { text: String(scoreOf(state)), icon: "flag", side: "left", priority: 3 },
-      { text: String(state.best), icon: "star", side: "left", priority: 1 },
+      { text: formatCount(scoreOf(state)), icon: "flag", side: "left", priority: 3 },
+      { text: formatCount(state.best), icon: "star", side: "left", priority: 1 },
       { text: `Stage ${state.stage}`, icon: "", side: "right", priority: 3 },
-      { text: String(state.count), icon: "figure", side: "right", priority: 2 },
+      { text: formatCount(state.count), icon: "figure", side: "right", priority: 2 },
     ] as const;
     const widths = items.map(
       (item) => ctx.measureText(item.text).width + h * 0.8 + (item.icon ? h * 0.7 : 0),
@@ -1853,10 +1854,10 @@ export function createRenderer(): Renderer {
     }
 
     const stats: Array<[string, string]> = [
-      ["Score", String(score)],
-      ["Best", String(state.best)],
+      ["Score", formatCount(score)],
+      ["Best", formatCount(state.best)],
       ["Stage", String(state.stage)],
-      ["Biggest crowd", String(state.maxCount)],
+      ["Biggest crowd", formatCount(state.maxCount)],
     ];
     const statsW = wide ? card.w - button.w - 48 : card.w - 24;
     const statsX = card.x + (wide ? 16 : 12);

@@ -4,6 +4,7 @@ import {
   applyGate,
   CLEAR_FREEZE_MS,
   comboBonus,
+  formatCount,
   fromSnapshot,
   generateGateSet,
   initialState,
@@ -47,9 +48,30 @@ describe("applyGate", () => {
     [0, { kind: "mul", value: 3 }, 0],
     [4.7, { kind: "add", value: 2.9 }, 6],
     [-5, { kind: "add", value: 2 }, 2],
-    [60_000, { kind: "mul", value: 3 }, 99_999],
+    [60_000, { kind: "mul", value: 3 }, 180_000],
+    [Number.MAX_SAFE_INTEGER, { kind: "mul", value: 3 }, Number.MAX_SAFE_INTEGER],
   ])("%d with %o is %d", (count, op, expected) => {
     expect(applyGate(count, op)).toBe(expected);
+  });
+});
+
+describe("formatCount", () => {
+  it.each([
+    [0, "0"],
+    [99_999, "99999"],
+    [100_000, "100k"],
+    [999_999, "999k"],
+    [1_000_000, "1m"],
+    [1_250_000, "1.2m"],
+    [2_300_000, "2.3m"],
+    [10_000_000, "10m"],
+    [100_000_000, "100m"],
+    [1_000_000_000, "1b"],
+    [45_600_000_000, "45.6b"],
+    [1e12, "1t"],
+    [Number.MAX_SAFE_INTEGER, "9q"],
+  ])("%d reads %s", (count, expected) => {
+    expect(formatCount(count)).toBe(expected);
   });
 });
 
