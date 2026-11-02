@@ -1,4 +1,4 @@
-import type { ClaudeSettings } from "@t3tools/contracts";
+import type { ClaudeSettings, ResolvedProviderInstanceEnvironment } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
@@ -26,6 +26,15 @@ export const resolveClaudeHomePath = Effect.fn("resolveClaudeHomePath")(function
   }
   return path.resolve(path.join(home, ".claude"));
 });
+
+/** The API key field wins over an ANTHROPIC_API_KEY variable; Claude prefers either to a subscription login. */
+export const withClaudeApiKey = (
+  config: Pick<ClaudeSettings, "apiKey">,
+  environment: ResolvedProviderInstanceEnvironment,
+): ResolvedProviderInstanceEnvironment =>
+  config.apiKey.length === 0
+    ? environment
+    : [...environment, { name: "ANTHROPIC_API_KEY", value: config.apiKey, sensitive: true }];
 
 export const makeClaudeEnvironment = Effect.fn("makeClaudeEnvironment")(function* (
   config: Pick<ClaudeSettings, "homePath">,

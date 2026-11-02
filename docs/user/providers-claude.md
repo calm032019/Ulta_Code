@@ -34,8 +34,17 @@ threads can switch only between Claude instances with the same config directory.
 Separate account directories stay isolated, including their local conversation
 state. Claude does not have Codex's shared-home and shadow-home arrangement.
 
-For presets that differ only in API keys or endpoints, use the instance's
-**Environment variables**. Variable assignments do not belong in **Launch arguments**.
+For presets that differ only in endpoints, use the instance's **Environment variables**.
+Variable assignments do not belong in **Launch arguments**.
+
+## Subscription and API credits side by side
+
+To keep your subscription and also use Anthropic API credits, add a second Claude
+instance in **Settings > Providers** and paste your Console key into its **API key**
+field. Leave **CLAUDE_CONFIG_DIR path** empty. Claude uses the key instead of your
+subscription login, and both instances appear in the model picker. Because they share
+a config directory, a thread can switch between them. The provider settings should
+report an API key for the new instance.
 
 Claude Code's verbose mode can stay enabled when you use Claude for text generation, including
 thread titles, branch names, commit messages, and pull request descriptions. On a remote connection,

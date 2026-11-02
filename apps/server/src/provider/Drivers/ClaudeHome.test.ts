@@ -10,7 +10,9 @@ import {
   makeClaudeContinuationGroupKey,
   makeClaudeEnvironment,
   resolveClaudeHomePath,
+  withClaudeApiKey,
 } from "./ClaudeHome.ts";
+import { mergeProviderInstanceEnvironment } from "@t3tools/provider-core/server/instanceEnvironment";
 
 it.layer(NodeServices.layer)("ClaudeHome", (it) => {
   describe("Claude home resolution", () => {
@@ -44,6 +46,24 @@ it.layer(NodeServices.layer)("ClaudeHome", (it) => {
         expect(yield* resolveClaudeHomePath({ homePath: "~/.claude-work" }, environment)).toBe(
           explicit,
         );
+      }),
+    );
+
+    it.effect("passes the API key field to Claude ahead of an ANTHROPIC_API_KEY variable", () =>
+      Effect.gen(function* () {
+        const environment = [{ name: "ANTHROPIC_API_KEY", value: "variable-key", sensitive: true }];
+
+        const withField = yield* mergeProviderInstanceEnvironment(
+          withClaudeApiKey({ apiKey: "field-key" }, environment),
+          {},
+        );
+        expect(withField.ANTHROPIC_API_KEY).toBe("field-key");
+
+        const withoutField = yield* mergeProviderInstanceEnvironment(
+          withClaudeApiKey({ apiKey: "" }, environment),
+          {},
+        );
+        expect(withoutField.ANTHROPIC_API_KEY).toBe("variable-key");
       }),
     );
 
