@@ -123,11 +123,13 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
 .minigame-dock {
   --minigame-dock-open-clip: inset(0 round var(--radius-2xl));
   --minigame-dock-collapsed-clip: inset(calc(100% - 7rem) 0 0 round var(--radius-2xl));
-  animation: t3-minigame-dock-fade-in 220ms cubic-bezier(0.2, 0, 0, 1) both;
+  animation: t3-minigame-dock-fade-in 220ms cubic-bezier(0.2, 0, 0, 1) backwards;
 }
 
+/* `backwards`, not `both`: a clip-path held after the reveal makes the compositor clip the
+   canvas every frame, which stalls Present for ~450ms on Windows while the agent streams. */
 .minigame-dock-body {
-  animation: t3-minigame-dock-reveal-in 220ms cubic-bezier(0.2, 0, 0, 1) both;
+  animation: t3-minigame-dock-reveal-in 220ms cubic-bezier(0.2, 0, 0, 1) backwards;
 }
 
 .minigame-dock[data-closing] {
