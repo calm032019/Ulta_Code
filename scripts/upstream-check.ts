@@ -1,21 +1,24 @@
 // @effect-diagnostics nodeBuiltinImport:off - a read-only git report, kept free of the app runtime.
-// Compares upstream T3 Code (remote `upstream`, branch main) against this fork
-// before merging it, so an update is checked against what we changed:
+// Compares the latest stable T3 Code release (remote `upstream`, tags vX.Y.Z,
+// never nightly or preview) against this fork before merging it, so an update
+// is checked against what we changed:
 //   - conflicts the merge would raise (git merge-tree, nothing is checked out)
 //   - upstream commits we already made ourselves, fully or per file
 //   - upstream commits touching files we changed, with our commits on each file
 //   - T3 Code branding the merge would bring back
 // FORK.md records why each of our changes exists; read it alongside this report.
 //
-//   vp run upstream:check                 fetch and print the report
-//   vp run upstream:check --no-fetch      skip the fetch
-//   vp run upstream:check --out <file>    also write the report to <file>
+//   vp run upstream:check                      fetch the latest stable release and print the report
+//   vp run upstream:check --no-fetch           reuse the release fetched last time
+//   vp run upstream:check --ref upstream/main  preview another ref instead (not for syncing)
+//   vp run upstream:check --out <file>         also write the report to <file>
 import * as NodeChildProcess from "node:child_process";
 import * as NodeFS from "node:fs";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 
-const UPSTREAM = "upstream/main";
+const RELEASE_REF = "refs/remotes/upstream/release";
+const STABLE_TAG = /^v(\d+)\.(\d+)\.(\d+)$/;
 // Our commits that only swapped the product name. Files they alone touched are left to the branding scan.
 const REBRAND_SUBJECT = /\brebrand\b/i;
 const BRAND_SCAN_EXCLUDES = [
@@ -30,6 +33,9 @@ const BRAND_SCAN_EXCLUDES = [
 const args = process.argv.slice(2);
 const outIndex = args.indexOf("--out");
 const outFile = outIndex === -1 ? undefined : args[outIndex + 1];
+const refIndex = args.indexOf("--ref");
+const UPSTREAM = refIndex === -1 ? "upstream/release" : args[refIndex + 1]!;
+let target = UPSTREAM;
 
 function git(
   gitArgs: ReadonlyArray<string>,
@@ -62,6 +68,24 @@ if (!lines(git(["remote"])).includes("upstream")) {
 if (!args.includes("--no-fetch")) {
   process.stderr.write("Fetching upstream...\n");
   git(["fetch", "upstream", "main", "--no-tags"]);
+  if (refIndex === -1) {
+    const latest = lines(git(["ls-remote", "--tags", "--refs", "upstream"]))
+      .map((line) => line.split("\t")[1]!.replace("refs/tags/", ""))
+      .filter((tag) => STABLE_TAG.test(tag))
+      .map((tag) => ({ tag, version: tag.match(STABLE_TAG)!.slice(1).map(Number) }))
+      .toSorted((a, b) => compareVersions(a.version, b.version))
+      .at(-1);
+    if (!latest) {
+      console.error("Upstream has no stable vX.Y.Z release tag.");
+      process.exit(1);
+    }
+    git(["fetch", "upstream", "--no-tags", `+refs/tags/${latest.tag}:${RELEASE_REF}`]);
+    target = `${latest.tag} (latest stable release)`;
+  }
+}
+
+function compareVersions(a: ReadonlyArray<number>, b: ReadonlyArray<number>) {
+  return a[0]! - b[0]! || a[1]! - b[1]! || a[2]! - b[2]!;
 }
 
 process.stderr.write("Comparing upstream commits with ours...\n");
@@ -75,6 +99,12 @@ const incoming = lines(
   return { sha: sha!, short: short!, subject: subject ?? "" };
 });
 const dirty = lines(git(["status", "--porcelain", "--untracked-files=no"]));
+if (incoming.length === 0) {
+  const text = `# Upstream check\n\nNothing to sync: this branch already includes ${target}.\n`;
+  console.log(text);
+  if (outFile) NodeFS.writeFileSync(outFile, text);
+  process.exit(0);
+}
 
 // Our side of the fork: every file we changed, with the commits that changed it.
 const ourCommitsByFile = new Map<string, Array<string>>();
@@ -181,6 +211,7 @@ const section = (title: string, items: Array<string>, empty: string, count = ite
 report.push(
   "# Upstream check",
   "",
+  `- Target: ${target}`,
   `- Fork point: ${git(["log", "-1", "--format=%h %ad %s", "--date=short", mergeBase])!.trim()}`,
   `- Ours: ${ourCommits.length} commits on top. Upstream: ${incoming.length} new commits, to ${git(["log", "-1", "--format=%h %ad", "--date=short", UPSTREAM])!.trim()}`,
   `- Untouched by us: ${incoming.length - overlaps.length - alreadyPresent.length - rebrandOnlyOverlaps} commits (merge as-is unless FORK.md says otherwise)`,

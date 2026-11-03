@@ -7,21 +7,49 @@ is checked against it: nothing gets applied twice, and nothing undoes a decision
 ## Remotes
 
 - `origin`: https://github.com/calm032019/Ulta_Code (ours)
-- `upstream`: https://github.com/pingdotgg/t3code (fetches `main` only, push disabled)
+- `upstream`: https://github.com/pingdotgg/t3code (push disabled). The check fetches the latest stable
+  release into `upstream/release`, and `main` for previews.
 
-## Syncing
+## Sync rules
 
-1. Commit or stash your work.
-2. `vp run upstream:check` fetches upstream and writes a report: the conflicts the merge would raise,
-   upstream commits we already made ourselves, upstream commits touching files we changed, and T3 Code
-   branding the merge would bring back. It reads only; nothing is checked out.
-3. Check each flagged commit against the ledger below (the `sync-upstream` skill walks an agent through it).
-4. `git merge upstream/main`, resolve conflicts by the ledger, rebrand new strings, then regenerate
-   `pnpm-lock.yaml` with `vp i` instead of hand-merging it.
-5. `vp run check:changed`, then update this ledger if a decision changed.
+These apply every time we sync with T3 Code. The `sync-upstream` skill follows them step by step.
 
-When upstream ships a feature we already built, keep one: prefer upstream's when it covers ours (less to
-carry), and drop our version in the merge commit. Note the decision here.
+**What we sync to**
+
+1. Only stable T3 Code releases (`vX.Y.Z` tags). Never nightly, preview or untagged `main`.
+   `vp run upstream:check` picks the latest stable release by itself; `--ref upstream/main` is a preview only.
+2. Merge, never rebase or force-push. Nothing is pushed unless asked.
+
+**What never changes**
+
+3. Our changes win. Nothing in the ledger below is overwritten, reverted, restyled or weakened by a sync.
+   In a conflict, keep our behavior and fit upstream's surrounding fixes around it.
+4. Branding stays Ulta Code. Every user-visible "T3 Code" a sync brings in (UI, errors, docs, notifications,
+   model-facing text) becomes "Ulta Code", except the identifiers listed under Brand and identity.
+   Nothing may send users to T3 Code's repo, site or accounts (star prompts, links, update feeds).
+5. Ulta Code keeps its own identity: data folders, profiles, app IDs, install paths and machine-wide
+   config locations (such as admin policy paths) never point at T3 Code's.
+
+**Before merging**
+
+6. Report first. Run the check, then sort every flagged upstream commit as independent, duplicate,
+   contradiction or needs-adaptation (our code must change to keep working with it).
+7. No doubling up. When upstream builds something we already have, we keep ours by default and do not merge
+   a second copy. Only drop ours if you say so.
+8. Nothing that touches a ledger item is merged without your OK. The full list of duplicates,
+   contradictions and needs-adaptation items, each with a proposed resolution, is shown first.
+   Independent commits need no sign-off.
+
+**After merging**
+
+9. `vp run check:changed` passes, and the branding scan on the merged result is empty apart from the
+   listed exceptions.
+10. The ledger is updated: new decisions recorded, and every new fork change gets an entry so later syncs
+    protect it too.
+
+**Steps**: commit or stash work → `vp run upstream:check --out .t3/upstream-check.md` → sort and get sign-off
+→ `git merge upstream/release` → resolve by the rules above, rebrand, regenerate `pnpm-lock.yaml` with `vp i`
+→ `vp run check:changed` → update this file.
 
 ## Ledger
 

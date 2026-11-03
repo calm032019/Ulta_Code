@@ -1,14 +1,14 @@
 ---
 name: sync-upstream
-description: Bring upstream T3 Code changes into the Ulta Code fork without doubling up or undoing our changes. Use when asked to sync, update from, or merge upstream / T3 Code, or to check what upstream changed.
+description: Bring the latest stable T3 Code release into the Ulta Code fork without doubling up or touching our changes and branding. Use when asked to sync with, update from, or merge T3 Code / upstream releases, or to check what a T3 Code release would change.
 ---
 
-# Sync upstream T3 Code
+# Sync with T3 Code releases
 
-Ulta Code merges `upstream/main` (pingdotgg/t3code) into its branch. [FORK.md](../../../FORK.md) is the
-ledger of what we changed and the rule each change must keep. Read it first; it decides every judgment call.
+[FORK.md](../../../FORK.md) holds the **Sync rules** and the **ledger** of our changes. Read both first. The
+rules are not defaults to weigh: our changes and branding are never touched without the user's OK.
 
-## 1. Report
+## 1. Report (changes nothing)
 
 Stop if the working tree has uncommitted changes the user has not asked you to commit. Then:
 
@@ -16,40 +16,41 @@ Stop if the working tree has uncommitted changes the user has not asked you to c
 vp run upstream:check --out .t3/upstream-check.md
 ```
 
-It reads only. Sections: conflicts, upstream commits already in our tree, upstream commits touching files we
-changed (with our commits on each file), and T3 Code branding the merge would bring back.
+It fetches the latest stable `vX.Y.Z` release into `upstream/release`. If it says "Nothing to sync", tell the
+user and stop. Never sync to nightly, preview or `upstream/main`.
 
-## 2. Judge each flagged commit
+## 2. Sort every flagged commit
 
-For every commit under "touching files we changed" and every conflict, read the upstream diff
-(`git show <sha>`) next to ours and put it in one bucket:
+The report flags conflicts, commits already in our tree, commits touching files we changed, and branding.
+Read each flagged upstream diff (`git show <sha>`) next to ours, and also scan the subjects of the unflagged
+commits for features the ledger names, since a duplicate can live in different files. Sort into:
 
-- **Independent**: different behavior that happens to share a file. Merge as-is.
-- **Duplicate**: upstream built something we already have (same feature, maybe a different shape, maybe
-  in other files). Keep one. Prefer upstream's when it covers ours, and remove ours in the merge. A clean
-  textual merge does not rule this out, so also scan upstream subjects in "Untouched by us" for features
-  named in the ledger.
-- **Contradiction**: upstream undoes or changes a ledger rule (rebranding back, sharing T3 Code's profile,
-  repointing triage upstream, restyling over ours, extra repainting work in minigames). Keep our rule, but
-  take upstream's surrounding fixes.
+- **Independent**: shares a file, different behavior. Merge as-is.
+- **Duplicate**: upstream built what we have. Keep ours; do not merge a second copy.
+- **Contradiction**: undoes a ledger rule, adds T3 Code branding or links, or points at T3 Code's identity
+  or config locations. Keep ours; take only upstream's unrelated fixes around it.
+- **Needs adaptation**: merges cleanly but our code must change to keep working (renamed APIs, new
+  required arguments). These are the silent breakages, so look for them in non-conflicting hunks too.
 
-"Already in our tree" commits need nothing; git resolves identical changes. Never cherry-pick them again.
+For large reports, split the reading across read-only subagents (conflicts, flagged commits, unflagged
+subjects) and give each FORK.md plus the report.
 
-Show the user the duplicates and contradictions with your proposed resolution, and wait for their answer
-before merging. Independent commits need no sign-off.
+## 3. Get sign-off
 
-## 3. Merge
+Show the user every duplicate, contradiction and needs-adaptation item with its proposed resolution, and
+the conflicts with how each will be resolved. Wait for their answer. Do not merge before it.
+
+## 4. Merge
 
 ```bash
-git merge upstream/main
+git merge upstream/release
 ```
 
-- Resolve each conflict by the bucket above. `merge.conflictStyle zdiff3` shows the base, so you can see
-  what each side changed.
-- `pnpm-lock.yaml`: take upstream's, then run `vp i` to regenerate it.
-- Rebrand the strings the report listed (user-visible "T3 Code" → "Ulta Code"), honoring the ledger's
-  exceptions. Commit that as part of the merge.
-- `vp run check:changed`. Fix what breaks.
+- Resolve exactly as agreed. `merge.conflictStyle zdiff3` shows the base of each conflict.
+- `pnpm-lock.yaml`: take upstream's, run `vp i`, confirm our added dependencies are still in it.
+- Rebrand every new user-visible "T3 Code", honoring the ledger's exceptions. Before committing,
+  `git diff --cached HEAD | grep '^+.*T3 Code'` must show only those exceptions and `apps/marketing`.
+- `vp run check:changed` must pass.
 
-Commit the merge with a body listing duplicates dropped and contradictions kept. Update FORK.md when a
-decision changed (a feature now upstream's, a new exception). Do not push unless asked.
+Commit the merge with a body listing what was kept, dropped and adapted. Update FORK.md for any new
+decision. Do not push unless asked.
