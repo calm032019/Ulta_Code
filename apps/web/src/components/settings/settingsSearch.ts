@@ -620,6 +620,15 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["plain english explain simple nontechnical translate message hat cap"],
   },
   {
+    id: "dunce-mode-model",
+    title: "Dunce Mode model",
+    to: "/settings/chat",
+    // Hidden until Dunce Mode is on, so a search lands on the switch that shows it.
+    targetId: "dunce-mode",
+    searchTerms: ["plain english explanation model provider explain dunce cap"],
+    environmentOnly: true,
+  },
+  {
     id: "provider-update-checks",
     title: "Provider update checks",
     to: "/settings/maintenance",

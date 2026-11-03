@@ -3,12 +3,20 @@ import {
   runAtomCommand,
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
-import type { MessageId, ScopedThreadRef } from "@t3tools/contracts";
+import {
+  type MessageId,
+  PlainLanguageExplainError,
+  type ProviderInstanceId,
+  type ScopedThreadRef,
+} from "@t3tools/contracts";
+import * as Schema from "effect/Schema";
 import { create } from "zustand";
 
 import { appAtomRegistry } from "../../rpc/atomRegistry";
 import { orchestrationEnvironment } from "../../state/orchestration";
 import { selectMessageRange } from "./dunceMode.logic";
+
+const isPlainLanguageExplainError = Schema.is(PlainLanguageExplainError);
 
 export interface DunceMessage {
   readonly id: MessageId;
@@ -25,7 +33,11 @@ export interface PlainEnglishCard {
   readonly result:
     | { readonly status: "loading" }
     | { readonly status: "ready"; readonly explanation: string }
-    | { readonly status: "error"; readonly message: string };
+    | {
+        readonly status: "error";
+        readonly message: string;
+        readonly providerInstanceId: ProviderInstanceId | undefined;
+      };
 }
 
 interface DunceDrag {
@@ -206,6 +218,9 @@ async function request(threadKey: string, card: PlainEnglishCard) {
               error instanceof Error && error.message
                 ? error.message
                 : "Could not explain these messages.",
+            providerInstanceId: isPlainLanguageExplainError(error)
+              ? error.providerInstanceId
+              : undefined,
           },
   };
   useDunceModeStore.setState((state) => ({ cards: { ...state.cards, [threadKey]: next } }));

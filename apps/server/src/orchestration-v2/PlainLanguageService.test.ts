@@ -3,16 +3,20 @@ import {
   MessageId,
   TextGenerationError,
   ProjectId,
+  ProviderDriverKind,
   ProviderInstanceId,
+  type ServerProvider,
   ThreadId,
   type OrchestrationV2ConversationMessage,
 } from "@t3tools/contracts";
+import { defaultTextGenerationModel } from "@t3tools/shared/serverSettings";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Queue from "effect/Queue";
 
+import * as ProviderRegistry from "../provider/ProviderRegistry.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import * as TextGeneration from "../textGeneration/TextGeneration.ts";
 import * as PlainLanguageService from "./PlainLanguageService.ts";
@@ -22,6 +26,24 @@ import * as ThreadManagementService from "./ThreadManagementService.ts";
 const threadId = ThreadId.make("thread:plain-language");
 const projectId = ProjectId.make("project:plain-language");
 const titleModel = { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5.4-mini" } as const;
+const claude = ProviderInstanceId.make("claudeAgent");
+
+const provider = (
+  instanceId: ProviderInstanceId,
+  auth: ServerProvider["auth"]["status"],
+): ServerProvider => ({
+  instanceId,
+  driver: ProviderDriverKind.make(instanceId),
+  enabled: true,
+  installed: true,
+  version: null,
+  status: "ready",
+  auth: { status: auth },
+  checkedAt: "2026-11-03T00:00:00.000Z",
+  models: [],
+  slashCommands: [],
+  skills: [],
+});
 
 const message = (id: string, role: "user" | "assistant" | "system", text: string) =>
   ({ id: MessageId.make(id), threadId, role, text, streaming: false }) as Pick<
@@ -40,6 +62,10 @@ type ExplainPlainLanguage = TextGeneration.TextGeneration["Service"]["explainPla
 function makeHarness(
   generate: ExplainPlainLanguage = () =>
     Effect.succeed({ explanation: "The automatic checks failed." }),
+  options: {
+    readonly threadProvider?: ProviderInstanceId;
+    readonly providers?: ReadonlyArray<ServerProvider>;
+  } = {},
 ) {
   const explainPlainLanguage = vi.fn<ExplainPlainLanguage>(generate);
   const getThreadRecords = vi.fn(
@@ -49,7 +75,11 @@ function makeHarness(
       filter?: { messageIds?: ReadonlyArray<MessageId>; messageRoles?: ReadonlyArray<string> },
     ) =>
       Effect.succeed({
-        thread: { projectId, worktreePath: null },
+        thread: {
+          projectId,
+          worktreePath: null,
+          providerInstanceId: options.threadProvider ?? titleModel.instanceId,
+        },
         messages: stored.filter(
           (candidate) =>
             (filter?.messageIds?.includes(candidate.id) ?? true) &&
@@ -65,6 +95,9 @@ function makeHarness(
           get: () => Effect.succeedSome({ workspaceRoot: "/repo" } as never),
         }),
         Layer.mock(TextGeneration.TextGeneration)({ explainPlainLanguage }),
+        Layer.mock(ProviderRegistry.ProviderRegistry)({
+          getProviders: Effect.succeed(options.providers ?? []),
+        }),
         ServerSettings.layerTest({ textGenerationModelSelection: titleModel }),
       ),
     ),
@@ -98,6 +131,21 @@ describe("PlainLanguageService", () => {
     }).pipe(Effect.provide(harness.layer));
   });
 
+  it.effect("explains a Claude thread with Claude when Codex is signed out", () => {
+    const harness = makeHarness(undefined, {
+      threadProvider: claude,
+      providers: [provider(titleModel.instanceId, "unauthenticated"), provider(claude, "unknown")],
+    });
+    return Effect.gen(function* () {
+      yield* explain(["m1"]);
+
+      assert.deepInclude(harness.explainPlainLanguage.mock.calls[0]?.[0].modelSelection, {
+        instanceId: claude,
+        model: defaultTextGenerationModel(ProviderDriverKind.make("claudeAgent")),
+      });
+    }).pipe(Effect.provide(harness.layer));
+  });
+
   it.effect("rejects more than 20 messages before loading anything", () => {
     const harness = makeHarness();
     return Effect.gen(function* () {
@@ -122,7 +170,7 @@ describe("PlainLanguageService", () => {
     }).pipe(Effect.provide(harness.layer));
   });
 
-  it.effect("keeps the provider's message but not its cause", () => {
+  it.effect("keeps the provider and its message but not its cause", () => {
     const harness = makeHarness(() =>
       Effect.fail(
         new TextGenerationError({
@@ -136,6 +184,7 @@ describe("PlainLanguageService", () => {
       const error = yield* explain(["m1"]).pipe(Effect.flip);
 
       assert.strictEqual(error.message, "Claude CLI command failed: Please run /login");
+      assert.strictEqual(error.providerInstanceId, titleModel.instanceId);
       assert.notProperty(error, "cause");
     }).pipe(Effect.provide(harness.layer));
   });

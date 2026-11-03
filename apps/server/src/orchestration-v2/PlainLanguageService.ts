@@ -11,6 +11,7 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Semaphore from "effect/Semaphore";
 
+import * as ProviderRegistry from "../provider/ProviderRegistry.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import * as TextGeneration from "../textGeneration/TextGeneration.ts";
 import * as ProjectStore from "./ProjectStore.ts";
@@ -39,6 +40,7 @@ const make = Effect.gen(function* () {
   const threads = yield* ThreadManagementService.ThreadManagementService;
   const projects = yield* ProjectStore.ProjectStoreV2;
   const serverSettings = yield* ServerSettings.ServerSettingsService;
+  const providerRegistry = yield* ProviderRegistry.ProviderRegistry;
   const textGeneration = yield* TextGeneration.TextGeneration;
   const generating = yield* Semaphore.make(MAX_CONCURRENT_EXPLANATIONS);
 
@@ -65,10 +67,15 @@ const make = Effect.gen(function* () {
         yield* serverSettings.getSettings,
         records.thread.projectId,
       ).settings;
-      return { records, project, settings };
+      const modelSelection = ServerSettings.resolveDunceModeModelSelection(
+        settings,
+        yield* providerRegistry.getProviders,
+        records.thread,
+      );
+      return { records, project, modelSelection };
     }).pipe(Effect.catch((cause) => failWithLoggedCause("Could not load these messages.", cause)));
 
-    const { records, project, settings } = loaded;
+    const { records, project, modelSelection } = loaded;
     if (records.messages.length !== messageIds.length) {
       return yield* fail("Some of these messages are not in this thread.");
     }
@@ -95,11 +102,22 @@ const make = Effect.gen(function* () {
       .explainPlainLanguage({
         cwd,
         messages,
-        modelSelection: settings.textGenerationModelSelection,
+        modelSelection,
       })
       .pipe(
         generating.withPermits(1),
-        Effect.catch((error) => failWithLoggedCause(error.detail, error)),
+        Effect.catch((error) =>
+          Effect.logWarning("Plain language explanation failed", { cause: error }).pipe(
+            Effect.andThen(
+              Effect.fail(
+                new PlainLanguageExplainError({
+                  message: error.detail,
+                  providerInstanceId: modelSelection.instanceId,
+                }),
+              ),
+            ),
+          ),
+        ),
       );
   });
 

@@ -1,10 +1,10 @@
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import type { ModelSelection, ProviderInstanceId } from "@t3tools/contracts";
+import type { ModelSelection, ProviderInstanceId, ServerProvider } from "@t3tools/contracts";
 import {
-  isProviderAvailable,
   isProviderTextGenerationCapable,
+  isProviderUsable,
   resolveProjectProviderInstanceEnabled,
 } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
@@ -65,6 +65,13 @@ const resolveInstance = (
     ),
   );
 
+const AUTH_FAILURE_PATTERN =
+  /\b401\b|unauthori[sz]ed|unauthenticated|not (?:logged|signed) in|log ?in again|run \/login|invalid api key|expired (?:token|session|credentials)/i;
+
+const looksLikeAuthFailure = (error: TextGenerationError): boolean =>
+  AUTH_FAILURE_PATTERN.test(error.detail) ||
+  (error.cause instanceof Error && AUTH_FAILURE_PATTERN.test(error.cause.message));
+
 // Review guides investigate the checkout read-only; the other drivers reject that request.
 const INVESTIGATING_DRIVERS = new Set(["codex", "claudeAgent"]);
 
@@ -73,6 +80,45 @@ export const make = Effect.gen(function* () {
   const registry = yield* ProviderInstanceRegistry.ProviderInstanceRegistry;
   const sourceControl = yield* SourceControlProviderRegistry.SourceControlProviderRegistry;
   const serverSettings = yield* ServerSettings.ServerSettingsService;
+  const listSnapshots = registry.listInstances.pipe(
+    Effect.flatMap((instances) =>
+      Effect.forEach(instances, (instance) => instance.snapshot.getSnapshot),
+    ),
+  );
+  const fallbackFor = Effect.fn("TextGeneration.fallbackFor")(function* (
+    operation: TextGenerationOp,
+    selection: ModelSelection,
+    snapshots: ReadonlyArray<ServerProvider>,
+    now: number,
+  ) {
+    const settings = yield* serverSettings.getSettings.pipe(
+      Effect.mapError(
+        (cause) =>
+          new TextGenerationError({
+            operation,
+            detail: "Could not read fallback model settings.",
+            cause,
+          }),
+      ),
+    );
+    return fallbackTextGenerationModelSelection(
+      settings.providerInstances,
+      (instanceId, driver) => {
+        const provider = snapshots.find((candidate) => candidate.instanceId === instanceId);
+        return (
+          instanceId !== selection.instanceId &&
+          provider !== undefined &&
+          provider.installed &&
+          isProviderUsable(provider) &&
+          resolveProjectProviderInstanceEnabled(settings, null, instanceId) &&
+          isProviderTextGenerationCapable(provider) &&
+          (operation !== "generateReviewGuide" || INVESTIGATING_DRIVERS.has(driver)) &&
+          !exhaustedUsageWindow(provider, now, defaultTextGenerationModel(driver))
+        );
+      },
+      { includeConfiguredInstances: true },
+    );
+  });
   const generate = Effect.fn("TextGeneration.generate")(function* <A>(
     operation: TextGenerationOp,
     selection: ModelSelection,
@@ -81,50 +127,40 @@ export const make = Effect.gen(function* () {
       modelSelection: ModelSelection,
     ) => Effect.Effect<A, TextGenerationError>,
   ) {
-    const snapshots = yield* registry.listInstances.pipe(
-      Effect.flatMap((instances) =>
-        Effect.forEach(instances, (instance) => instance.snapshot.getSnapshot),
-      ),
-    );
+    const snapshots = yield* listSnapshots;
     const now = DateTime.toEpochMillis(yield* DateTime.now);
-    const limited = exhaustedUsageWindow(
-      snapshots.find((provider) => provider.instanceId === selection.instanceId),
-      now,
-      selection.model,
-    );
-    if (limited) {
-      const settings = yield* serverSettings.getSettings.pipe(
-        Effect.mapError(
-          (cause) =>
-            new TextGenerationError({
-              operation,
-              detail: "Could not read fallback model settings.",
-              cause,
-            }),
-        ),
-      );
-      selection =
-        fallbackTextGenerationModelSelection(
-          settings.providerInstances,
-          (instanceId, driver) => {
-            const provider = snapshots.find((candidate) => candidate.instanceId === instanceId);
-            return (
-              instanceId !== selection.instanceId &&
-              provider?.enabled === true &&
-              resolveProjectProviderInstanceEnabled(settings, null, instanceId) &&
-              provider.installed &&
-              provider.auth.status !== "unauthenticated" &&
-              isProviderAvailable(provider) &&
-              isProviderTextGenerationCapable(provider) &&
-              (operation !== "generateReviewGuide" || INVESTIGATING_DRIVERS.has(driver)) &&
-              !exhaustedUsageWindow(provider, now, defaultTextGenerationModel(driver))
-            );
-          },
-          { includeConfiguredInstances: true },
-        ) ?? selection;
+    const chosen = snapshots.find((provider) => provider.instanceId === selection.instanceId);
+    if (
+      (chosen !== undefined &&
+        (!isProviderUsable(chosen) || !isProviderTextGenerationCapable(chosen))) ||
+      exhaustedUsageWindow(chosen, now, selection.model)
+    ) {
+      selection = (yield* fallbackFor(operation, selection, snapshots, now)) ?? selection;
     }
-    return yield* resolveInstance(registry, operation, selection.instanceId).pipe(
-      Effect.flatMap((service) => invoke(service, selection)),
+    const attempted = selection;
+    return yield* resolveInstance(registry, operation, attempted.instanceId).pipe(
+      Effect.flatMap((service) => invoke(service, attempted)),
+      Effect.catch((error) =>
+        // A cached snapshot can still say "authenticated" after the login expired.
+        Effect.gen(function* () {
+          if (!looksLikeAuthFailure(error)) return yield* error;
+          const instance = yield* registry.getInstance(attempted.instanceId);
+          const refreshed = instance ? yield* instance.snapshot.refresh : undefined;
+          if (refreshed === undefined || isProviderUsable(refreshed)) return yield* error;
+          const fallback = yield* fallbackFor(
+            operation,
+            attempted,
+            snapshots.map((provider) =>
+              provider.instanceId === refreshed.instanceId ? refreshed : provider,
+            ),
+            now,
+          );
+          if (fallback === null) return yield* error;
+          return yield* resolveInstance(registry, operation, fallback.instanceId).pipe(
+            Effect.flatMap((service) => invoke(service, fallback)),
+          );
+        }),
+      ),
     );
   });
   return TextGeneration.of({

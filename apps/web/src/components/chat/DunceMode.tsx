@@ -1,11 +1,19 @@
-import { PLAIN_LANGUAGE_MAX_MESSAGES, type MessageId } from "@t3tools/contracts";
+import { useNavigate } from "@tanstack/react-router";
+import { resolveProviderInstanceDisplayName } from "@t3tools/client-runtime/state/provider-instance-display";
+import {
+  type EnvironmentId,
+  PLAIN_LANGUAGE_MAX_MESSAGES,
+  type MessageId,
+  type ProviderInstanceId,
+} from "@t3tools/contracts";
 import { XIcon } from "lucide-react";
 import { use, type PointerEvent } from "react";
 
 import { cn } from "~/lib/utils";
+import { useEnvironmentProviders } from "~/state/environments";
 import ChatMarkdown from "../ChatMarkdown";
 import { DunceCapIcon } from "../Icons";
-import { Button } from "../ui/button";
+import { Button, InlineButton } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import {
@@ -205,29 +213,69 @@ export function PlainEnglishCardSlot({ messageId }: { readonly messageId: Messag
         </div>
       ) : null}
       {card.result.status === "error" ? (
-        <div role="alert" className="flex flex-wrap items-center gap-2 pt-2 text-sm">
-          <div className="min-w-0 flex-1">
-            <p className="m-0 text-destructive-foreground">
-              Couldn&apos;t get an explanation right now.
-            </p>
-            <p className="m-0 text-muted-foreground text-xs">
-              The model that writes these (the same one that names your threads) didn&apos;t answer.
-              Check it is set up in Settings, Providers, then try again.
-            </p>
-            <p className="m-0 mt-1 break-words font-mono text-2xs text-muted-foreground/80">
-              {card.result.message}
-            </p>
-          </div>
-          <Button
-            type="button"
-            size="xs"
-            variant="outline"
-            onClick={() => retryPlainEnglishCard(threadKey)}
-          >
-            Retry
-          </Button>
-        </div>
+        <PlainEnglishError
+          environmentId={card.threadRef.environmentId}
+          providerInstanceId={card.result.providerInstanceId}
+          message={card.result.message}
+          onRetry={() => retryPlainEnglishCard(threadKey)}
+        />
       ) : null}
     </section>
+  );
+}
+
+function PlainEnglishError({
+  environmentId,
+  providerInstanceId,
+  message,
+  onRetry,
+}: {
+  readonly environmentId: EnvironmentId;
+  readonly providerInstanceId: ProviderInstanceId | undefined;
+  readonly message: string;
+  readonly onRetry: () => void;
+}) {
+  const navigate = useNavigate();
+  const provider = useEnvironmentProviders()
+    .get(environmentId)
+    ?.find((candidate) => candidate.instanceId === providerInstanceId);
+  const providerName = provider ? resolveProviderInstanceDisplayName(provider) : null;
+
+  return (
+    <div role="alert" className="flex flex-wrap items-center gap-2 pt-2 text-sm">
+      <div className="min-w-0 flex-1">
+        <p className="m-0 text-destructive-foreground">
+          {providerName
+            ? `${providerName} couldn't write an explanation right now.`
+            : "Couldn't get an explanation right now."}
+        </p>
+        <p className="m-0 text-muted-foreground text-xs">
+          Check the provider is signed in, or choose another model for explanations.
+        </p>
+        <p className="m-0 mt-1 break-words font-mono text-2xs text-muted-foreground/80">
+          {message}
+        </p>
+        <div className="mt-1 flex flex-wrap gap-3 text-xs">
+          {provider ? (
+            <InlineButton
+              onClick={() =>
+                void navigate({
+                  to: "/settings/providers",
+                  search: { environmentId, instanceId: provider.instanceId },
+                })
+              }
+            >
+              Set up {providerName}
+            </InlineButton>
+          ) : null}
+          <InlineButton onClick={() => void navigate({ to: "/settings/chat" })}>
+            Choose explanation model
+          </InlineButton>
+        </div>
+      </div>
+      <Button type="button" size="xs" variant="outline" onClick={onRetry}>
+        Retry
+      </Button>
+    </div>
   );
 }

@@ -1,6 +1,7 @@
 import * as Schema from "effect/Schema";
 
 import { MessageId, ThreadId } from "./baseSchemas.ts";
+import { ProviderInstanceId } from "./providerInstance.ts";
 
 export const PLAIN_LANGUAGE_MAX_MESSAGES = 20;
 
@@ -22,5 +23,7 @@ export class PlainLanguageExplainError extends Schema.TaggedError<PlainLanguageE
   "PlainLanguageExplainError",
   {
     message: Schema.String,
+    // Set when the provider that was asked for the explanation failed, so clients can link its setup.
+    providerInstanceId: Schema.optional(ProviderInstanceId),
   },
 ) {}

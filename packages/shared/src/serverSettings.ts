@@ -6,7 +6,7 @@ import {
   defaultInstanceIdForDriver,
   globalIdleCompaction,
   type IdleCompactionMode,
-  isProviderAvailable,
+  isProviderUsable,
   isUnconfiguredDefaultInstanceEnabled,
   resolveProjectProviderInstanceEnabled,
   resolveProviderInstanceEnabled,
@@ -121,8 +121,8 @@ export function resolveSourceControlWriterModelSelection(
   }
 
   const provider = providers.find((candidate) => candidate.instanceId === selection.instanceId);
-  return provider?.enabled === true &&
-    isProviderAvailable(provider) &&
+  return provider !== undefined &&
+    isProviderUsable(provider) &&
     isProviderTextGenerationCapable(provider)
     ? selection
     : settings.textGenerationModelSelection;
@@ -141,14 +141,44 @@ export function resolveReviewGuideModelSelection(
     const provider = providers?.find((candidate) => candidate.instanceId === selection.instanceId);
     if (
       providers === undefined ||
-      (provider?.enabled === true &&
-        isProviderAvailable(provider) &&
+      (provider !== undefined &&
+        isProviderUsable(provider) &&
         isProviderTextGenerationCapable(provider))
     ) {
       return selection;
     }
   }
   return resolveSourceControlWriterModelSelection(settings, providers, projectId);
+}
+
+/** Automatic picks the thread's provider at its cheap text model, so an Opus thread is not explained by Opus. */
+export function resolveDunceModeModelSelection(
+  settings: ServerSettings,
+  providers: ReadonlyArray<ServerProvider>,
+  thread: { readonly projectId: ProjectId; readonly providerInstanceId: ProviderInstanceId },
+): ModelSelection {
+  const explainer = (instanceId: ProviderInstanceId) => {
+    const provider = providers.find((candidate) => candidate.instanceId === instanceId);
+    return provider !== undefined &&
+      resolveProjectProviderInstanceEnabled(settings, thread.projectId, instanceId) &&
+      isProviderUsable(provider) &&
+      isProviderTextGenerationCapable(provider)
+      ? provider
+      : undefined;
+  };
+  const chosen = settings.dunceModeModelSelection;
+  if (chosen && explainer(chosen.instanceId)) return chosen;
+  const threadProvider = explainer(thread.providerInstanceId);
+  if (
+    threadProvider === undefined ||
+    threadProvider.instanceId === settings.textGenerationModelSelection.instanceId
+  ) {
+    return settings.textGenerationModelSelection;
+  }
+  return {
+    instanceId: threadProvider.instanceId,
+    model: defaultTextGenerationModel(threadProvider.driver),
+  };
 }
 
 export interface PersistedServerObservabilitySettings {
@@ -605,6 +635,9 @@ export function applyServerSettingsPatch(
       : {}),
     ...(patch.reviewGuideModelSelection !== undefined
       ? { reviewGuideModelSelection: patch.reviewGuideModelSelection }
+      : {}),
+    ...(patch.dunceModeModelSelection !== undefined
+      ? { dunceModeModelSelection: patch.dunceModeModelSelection }
       : {}),
     ...(automaticGitFetchInterval !== undefined ? { automaticGitFetchInterval } : {}),
     ...(providerHealthRefreshInterval !== undefined ? { providerHealthRefreshInterval } : {}),

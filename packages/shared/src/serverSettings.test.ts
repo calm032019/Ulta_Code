@@ -18,11 +18,13 @@ import { createModelSelection } from "./model.ts";
 import { resolveProjectScripts } from "./projectScripts.ts";
 import {
   applyServerSettingsPatch,
+  defaultTextGenerationModel,
   fallbackTextGenerationModelSelection,
   modelPreferencesMigrationPatch,
   resolveModelPreferences,
   isModelSelectionProviderEnabled,
   parsePersistedServerObservabilitySettings,
+  resolveDunceModeModelSelection,
   resolveSourceControlWriterModelSelection,
 } from "./serverSettings.ts";
 
@@ -375,6 +377,93 @@ describe("serverSettings helpers", () => {
       settings.textGenerationModelSelection,
     );
     expect(settings.sourceControlWriterModelSelection).toBe(sourceControlWriterModelSelection);
+  });
+
+  it("picks the dunce mode model: chosen, then the thread's provider, then the text model", () => {
+    const projectId = ProjectId.make("project:dunce");
+    const ready = (instanceId: string, auth: ServerProvider["auth"]["status"] = "authenticated") =>
+      ({
+        instanceId: ProviderInstanceId.make(instanceId),
+        driver: ProviderDriverKind.make(instanceId),
+        enabled: true,
+        installed: true,
+        version: null,
+        status: "ready",
+        auth: { status: auth },
+        checkedAt: "2026-11-03T00:00:00.000Z",
+        models: [],
+        slashCommands: [],
+        skills: [],
+      }) satisfies ServerProvider;
+    const chosen = createModelSelection(ProviderInstanceId.make("codex"), "gpt-5.5");
+    const claudeThread = { projectId, providerInstanceId: ProviderInstanceId.make("claudeAgent") };
+    const textModel = DEFAULT_SERVER_SETTINGS.textGenerationModelSelection;
+    const withChoice = { ...DEFAULT_SERVER_SETTINGS, dunceModeModelSelection: chosen };
+
+    expect(
+      resolveDunceModeModelSelection(
+        withChoice,
+        [ready("codex"), ready("claudeAgent")],
+        claudeThread,
+      ),
+    ).toBe(chosen);
+    expect(
+      resolveDunceModeModelSelection(
+        withChoice,
+        [ready("codex", "unauthenticated"), ready("claudeAgent")],
+        claudeThread,
+      ),
+    ).toEqual({
+      instanceId: claudeThread.providerInstanceId,
+      model: defaultTextGenerationModel(ProviderDriverKind.make("claudeAgent")),
+    });
+    expect(
+      resolveDunceModeModelSelection(
+        DEFAULT_SERVER_SETTINGS,
+        [{ ...ready("claudeAgent"), supportsTextGeneration: false }],
+        claudeThread,
+      ),
+    ).toBe(textModel);
+    // The thread's provider is the text model's provider, so keep the model the user picked.
+    expect(
+      resolveDunceModeModelSelection(DEFAULT_SERVER_SETTINGS, [ready(textModel.instanceId)], {
+        projectId,
+        providerInstanceId: textModel.instanceId,
+      }),
+    ).toBe(textModel);
+  });
+
+  it("uses a writer provider only while it is usable", () => {
+    const instanceId = ProviderInstanceId.make("claudeAgent");
+    const sourceControlWriterModelSelection = createModelSelection(instanceId, "claude-haiku-4-5");
+    const settings = { ...DEFAULT_SERVER_SETTINGS, sourceControlWriterModelSelection };
+    const provider = {
+      instanceId,
+      driver: ProviderDriverKind.make("claudeAgent"),
+      enabled: true,
+      installed: true,
+      version: null,
+      status: "ready",
+      auth: { status: "authenticated" },
+      checkedAt: "2026-07-27T00:00:00.000Z",
+      models: [],
+      slashCommands: [],
+      skills: [],
+    } satisfies ServerProvider;
+    const cases = [
+      [provider, true],
+      [{ ...provider, auth: { status: "unknown" } }, true],
+      // Not checked yet in this session.
+      [{ ...provider, installed: false, status: "warning", auth: { status: "unknown" } }, true],
+      [{ ...provider, auth: { status: "unauthenticated" } }, false],
+      [{ ...provider, installed: false, status: "error", auth: { status: "unknown" } }, false],
+    ] satisfies ReadonlyArray<readonly [ServerProvider, boolean]>;
+
+    for (const [snapshot, usable] of cases) {
+      expect(resolveSourceControlWriterModelSelection(settings, [snapshot], null)).toBe(
+        usable ? sourceControlWriterModelSelection : settings.textGenerationModelSelection,
+      );
+    }
   });
 
   it("falls back from a writer provider a project turned off, keeping it for other projects", () => {

@@ -146,9 +146,11 @@ messages together, up to 20. Shift+click a second cap to explain everything betw
 Press Escape while dragging to cancel. The explanation appears below the last message you chose,
 stays on your device, and is never sent to the agent.
 
-Explanations are written by your **text generation model** (the one that writes thread titles),
-so each one uses a small amount of that provider's usage. Explaining the same messages again
-reuses the earlier answer until you reload.
+Explanations use the thread's own provider with its small, fast model, so each one uses a little
+of that provider's usage. If that provider can't write explanations or isn't signed in, your
+**text generation model** (the one that writes thread titles) is used instead. To always use one
+model, turn on **Model for explanations** under Dunce Mode in **Settings → Chat**. Explaining the
+same messages again reuses the earlier answer until you reload.
 
 ## Recall a sent prompt
 

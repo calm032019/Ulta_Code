@@ -38,6 +38,7 @@ import {
   resolveDesktopUpdateButtonAction,
 } from "../../components/desktopUpdate.logic";
 import { ProviderModelPicker } from "../chat/ProviderModelPicker";
+import { DunceModeModelRow } from "./DunceModeModelSettings";
 import { TraitsPicker } from "../chat/TraitsPicker";
 import { isElectron } from "../../env";
 import { buildHostedChannelSelectionUrl, type HostedAppChannel } from "../../hostedPairing";
@@ -507,6 +508,7 @@ export function useSettingsRestore(onRestored?: () => void) {
     ...(settings.dunceModeEnabled !== DEFAULT_UNIFIED_SETTINGS.dunceModeEnabled
       ? ["Dunce Mode"]
       : []),
+    ...(settings.dunceModeModelSelection !== null ? ["Dunce Mode model"] : []),
     ...(settings.sendShortcut !== DEFAULT_UNIFIED_SETTINGS.sendShortcut ? ["Send shortcut"] : []),
     ...(settings.followUpBehavior !== DEFAULT_UNIFIED_SETTINGS.followUpBehavior
       ? ["Follow-up behavior"]
@@ -626,6 +628,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       composerRichTextEnabled: DEFAULT_UNIFIED_SETTINGS.composerRichTextEnabled,
       minigameAutoPauseEnabled: DEFAULT_UNIFIED_SETTINGS.minigameAutoPauseEnabled,
       dunceModeEnabled: DEFAULT_UNIFIED_SETTINGS.dunceModeEnabled,
+      dunceModeModelSelection: DEFAULT_UNIFIED_SETTINGS.dunceModeModelSelection,
       sendShortcut: DEFAULT_UNIFIED_SETTINGS.sendShortcut,
       followUpBehavior: DEFAULT_UNIFIED_SETTINGS.followUpBehavior,
       contextWindowMeterEnabled: DEFAULT_UNIFIED_SETTINGS.contextWindowMeterEnabled,
@@ -1248,7 +1251,7 @@ export function ChatSettingsPanel() {
       <SettingsSection id="dunce-mode" title="Dunce Mode">
         <SettingsRow
           {...searchableSetting("dunce-mode")}
-          description="Show a dunce cap beside each message. Click it, or drag across several, to get a plain English explanation from your text generation model."
+          description="Show a dunce cap beside each message. Click it, or drag across several, to get a plain English explanation."
           resetAction={
             settings.dunceModeEnabled !== DEFAULT_UNIFIED_SETTINGS.dunceModeEnabled ? (
               <SettingResetButton
@@ -1267,6 +1270,7 @@ export function ChatSettingsPanel() {
             />
           }
         />
+        {settings.dunceModeEnabled ? <DunceModeModelRow /> : null}
       </SettingsSection>
     </SettingsPageContainer>
   );

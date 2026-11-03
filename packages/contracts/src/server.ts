@@ -273,6 +273,16 @@ export type ServerProviders = typeof ServerProviders.Type;
 export const isProviderAvailable = (snapshot: ServerProvider): boolean =>
   snapshot.availability !== "unavailable";
 
+/**
+ * Ignores `installed`: a missing CLI reports `error`, and an unchecked snapshot reports
+ * `installed: false` with `warning`. Unknown auth passes because Codex without an account reports it.
+ */
+export const isProviderUsable = (snapshot: ServerProvider): boolean =>
+  snapshot.enabled &&
+  snapshot.status !== "error" &&
+  snapshot.auth.status !== "unauthenticated" &&
+  isProviderAvailable(snapshot);
+
 /** Legacy producers omit this field and support text generation. */
 export const isProviderTextGenerationCapable = (snapshot: ServerProvider): boolean =>
   snapshot.supportsTextGeneration !== false;
