@@ -1,159 +1,137 @@
-> **Ulta Code** is a fork of [T3 Code](https://github.com/pingdotgg/t3code) restyled to feel like a
-> calm desktop chat app rather than a terminal: a warm low-glare cream (light) / deep navy (dark) palette
-> with coral, blush and teal accents, Epilogue Light for conversation text, a softer floating composer,
-> and a time-of-day greeting on new chats. Your own themes in Settings → Appearance still override
-> the defaults. To pull in upstream changes: `git fetch upstream && git merge upstream/main`.
+<p align="center">
+  <img src="assets/prod/logo.svg" alt="Ulta Code logo" width="96" height="96" />
+</p>
 
-# T3 Code
+<h1 align="center">Ulta Code</h1>
 
-T3 Code is an "agent harness control surface". It enables control of the agents on your machine with a best-in-class mobile app ([iOS](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824), [Android](https://play.google.com/store/apps/details?id=com.t3tools.t3code)), [web app](https://app.t3.codes) and [Electron-based desktop app](https://t3.codes).
+<p align="center">
+  A calm desktop app for coding agents, for people who are still learning to code.<br />
+  Works with your Claude Code, Codex, Cursor, Grok Build, OpenCode, Antigravity and fx subscriptions.
+</p>
 
-Works with your subscriptions on Claude Code, Codex, Cursor, Grok Build, OpenCode, Google Antigravity, and fx. If they're set up on your computer, T3 Code can control them.
+---
 
-## "Wait, what are you selling me?"
-
-Nothing. We built T3 Code because we wanted the best possible development experience with agents. We were inspired by existing solutions like the Codex desktop app, Conductor, Claude Desktop and Cursor Glass, but none met our bar.
-
-We wanted something performant, remote-ready, and truly open. If we ever go the wrong direction, we want you to have everything you need to fork and build the editor that you want.
-
-## Installation
-
-> [!WARNING]
-> T3 Code currently supports Codex, Claude, Cursor, Grok Build, OpenCode, Antigravity, and fx. Install and authenticate at least one provider before use:
+> This is a fork of [T3 Code](https://github.com/pingdotgg/t3code). I love what they're doing with it, and am following with interest - you'll probably see their updates pushing across to Ulta Code too.
 >
-> - Codex: install [Codex CLI](https://developers.openai.com/codex/cli) and run `codex login`
-> - Claude: install [Claude Code](https://claude.com/product/claude-code) and run `claude auth login`
-> - Cursor: install [Cursor CLI](https://cursor.com/cli) and run `agent login`
-> - Grok Build: install [Grok Build CLI](https://x.ai/cli) and run `grok login`
-> - OpenCode: install [OpenCode](https://opencode.ai) and run `opencode auth login`
-> - Antigravity: enable it in Settings, then use **Install Antigravity** and **Sign in with Google**. No CLI is required.
-> - fx: install [fx](https://fx.sh) and run `fx login` on the machine running the T3 Code server ([setup guide](./docs/user/providers-fx.md))
+> The reason for making my own version is this. I'm technically minded, but I can't code and I can't profess to be a programmer. I'm just a vibe coder, but I am trying to learn how to code. I love Claude Codes app, but I think it dumbs down coding too much. Cursor is too complex. T3 Code is halfway between, but it's just not quite right for me.
+>
+> My simplest but favourite add-on is the 'Dunce Mode' you can enable in settings. You can select the dunces hat next to one or more messages that you don't understand, and it'll explain in non-technical English, what it has just said or done.
+>
+> My next favourite is a set of minigames I can play while it's coding away. They autopause when the agent is finished or has a question.
+>
+> — **calm032019**
 
-### Command line
+![Ulta Code showing an agent's finished reply with a code block and a results table](docs/assets/readme/chat.jpg)
 
-```bash
-curl -fsSL https://t3.codes/install.sh | sh
-```
+## Dunce Mode
 
-On Windows, in PowerShell:
+Turn it on in **Settings → Chat → Dunce Mode**. A small dunce cap appears beside every message. Click it, or
+drag across several caps, and Ulta Code rewrites what the agent said or did in plain, non-technical
+English. Jargon gets a short explanation in brackets, and it tells you when the agent is waiting on you.
 
-```powershell
-irm https://t3.codes/install.ps1 | iex
-```
+Explanations stay on your device and are never sent back to the agent. They use the thread's own
+provider with its small, fast model, or a model you pick under **Dunce Mode model**.
 
-Then run `t3` to start the server and open the local web app. `t3 service install` keeps it running in the background, `t3 update` moves to a newer release, and `t3 --help` has the full reference.
+![A plain English explanation card under an agent's reply](docs/assets/readme/dunce-mode.jpg)
 
-To try it once without installing, run `npx t3@latest` instead.
+## Minigames while you wait
 
-### Desktop app
+Press the controller button in the composer to swap it for a game while the agent works:
 
-Install the latest version of the desktop app from [GitHub Releases](https://github.com/pingdotgg/t3code/releases), or from your favorite package registry:
+- **Claude Run**: an endless runner at sunset
+- **Skyline Hop**: a rooftop platformer through a dusk city
+- **Gate Rush**: pick the multiplier gates and grow your crowd
 
-#### Windows (`winget`)
+With **Auto-pause** on, the game pauses as soon as the agent finishes or asks you a question, and
+**Back to chat** puts the composer back.
 
-```bash
-winget install T3Tools.T3Code
-```
+![The minigame dock playing Claude Run under a finished agent reply](docs/assets/readme/minigames.jpg)
 
-#### Windows (`scoop`)
+## Everything else that's different
 
-```bash
-scoop install extras/t3code
-```
+- **A calmer look**: a warm cream (light) and deep navy (dark) palette with coral accents, and Epilogue
+  Light for conversation text. Your own themes in **Settings → Appearance** still win.
+- **Plain permissions and honest status**: clearer permission choices, and reconnect states that say what
+  is really happening.
+- **Session timeline and activity**: a vertical timeline with a "you are here" marker, and one panel showing
+  everything that happened in the thread.
+- **Problems with "Fix with agent"**: errors from scripts you run show up in thread details, ready to hand
+  to the agent.
+- **Ask the agent to edit selected lines** straight from the file preview, and **find code by meaning** from
+  the command palette.
+- **Connectors page** listing the MCP servers each provider has set up.
+- **Usage plan** that spreads your daily usage against weekly and monthly limits.
+- **Continue a thread on another machine**, and **API keys for Claude** instances.
+- **Dates in your own region's format.**
 
-#### macOS (Homebrew)
+<details>
+<summary>Settings and dark mode</summary>
 
-```bash
-brew install --cask t3-code
-```
+![Chat settings showing the Minigames and Dunce Mode sections](docs/assets/readme/settings.jpg)
 
-#### Debian, Ubuntu (`.deb`)
+![Dunce Mode explanation in dark mode](docs/assets/readme/dunce-mode-dark.jpg)
 
-Download the `.deb` from [GitHub Releases](https://github.com/pingdotgg/t3code/releases), then:
+</details>
 
-```bash
-sudo apt install ./T3-Code-*.deb
-```
+## Getting started
 
-#### Arch Linux (AUR)
+There are no downloadable builds of Ulta Code yet, so for now you build it yourself.
 
-Stable:
+**1. Sign in to at least one agent** on your computer:
 
-```bash
-yay -S t3code-bin
-```
+- Claude: install [Claude Code](https://claude.com/product/claude-code) and run `claude auth login`
+- Codex: install [Codex CLI](https://developers.openai.com/codex/cli) and run `codex login`
+- Cursor: install [Cursor CLI](https://cursor.com/cli) and run `agent login`
+- Grok Build: install [Grok Build CLI](https://x.ai/cli) and run `grok login`
+- OpenCode: install [OpenCode](https://opencode.ai) and run `opencode auth login`
+- Antigravity: enable it in Settings, then use **Install Antigravity** and **Sign in with Google**
+- fx: install [fx](https://fx.sh) and run `fx login` ([setup guide](./docs/user/providers-fx.md))
 
-Nightly:
-
-```bash
-yay -S t3code-nightly-bin
-```
-
-The AUR packaging is maintained in this repository under [`packaging/aur`](./packaging/aur).
-
-#### Nix (nixpkgs)
-
-```bash
-nix profile add github:NixOS/nixpkgs/nixos-unstable#t3code
-```
-
-The package is maintained in [nixpkgs](https://github.com/NixOS/nixpkgs/tree/nixos-unstable/pkgs/by-name/t3/t3code)
-and includes the desktop app (`t3code-desktop`) and the `t3` command.
-See [Nix installation](./docs/user/install.md#nix-nixpkgs) for NixOS configuration and updates.
-
-## Some notes
-
-We are very very early in this project. Expect bugs.
-
-We are (mostly) not accepting contributions yet. Small fixes may be considered. Big features will not be.
-
-## Documentation
-
-Full docs live in [docs/](./docs). There's no docs site yet.
-
-- [FAQ](./docs/user/faq.md)
-- [Install and first run](./docs/user/install.md)
-- [Permission modes](./docs/user/permission-modes.md)
-- [Keyboard shortcuts](./docs/user/keybindings.md)
-- [Project settings](./docs/user/project-settings.md)
-- [Appearance preferences](./docs/user/appearance.md)
-- [Remote access from a phone or another machine](./docs/user/remote-access.md)
-- [Connect Claude Code, Codex, ChatGPT and other agents over MCP](./docs/user/outside-agents.md)
-- [Keeping app and server in sync](./docs/user/updating.md)
-- [Source control integrations](./docs/user/source-control.md)
-- Multiple accounts: [Codex](./docs/user/providers-codex.md) · [Claude](./docs/user/providers-claude.md)
-- [Run T3 Code as a background service](./docs/user/background-service.md)
-
-Building from source? Start at [docs/internals/overview.md](./docs/internals/overview.md).
-
-## If you REALLY want to contribute still.... read this first
-
-### Install `vp`
-
-T3 Code uses Vite+ so you'll need to install the global `vp` command-line tool.
-
-#### macOS / Linux
+**2. Install [Vite+](https://viteplus.dev/guide/)**, which gives you the `vp` command:
 
 ```bash
 curl -fsSL https://vite.plus | bash
 ```
 
-#### Windows
+On Windows, in PowerShell:
 
-```bash
+```powershell
 irm https://vite.plus/ps1 | iex
 ```
 
-Checkout their getting started guide for more information: https://viteplus.dev/guide/
-
-### Install dependencies
+**3. Get the code and install its dependencies:**
 
 ```bash
+git clone https://github.com/calm032019/Ulta_Code.git
+cd Ulta_Code
 vp i
 ```
 
-Read [CONTRIBUTING.md](./CONTRIBUTING.md) before reporting a bug or opening a PR.
+**4. Run it.** `vp run dev` starts the app in your browser, and `vp run dev:desktop` opens the desktop app.
+To build an installer, run `vp run dist:desktop:win`, `vp run dist:desktop:dmg` or
+`vp run dist:desktop:linux`.
 
-Have a feature request? Start an [Ideas discussion](https://github.com/pingdotgg/t3code/discussions/categories/ideas).
+## Staying in sync with T3 Code
 
-Need support? Join the [Discord](https://discord.gg/jn4EGJjrvv).
+Ulta Code takes in each stable T3 Code release, and never touches its own changes or branding along the way.
+[FORK.md](./FORK.md) lists everything that's been changed and the rules every sync follows. Run
+`vp run upstream:check` to see what the next release would bring in before anything is merged.
+
+## Documentation
+
+Most of T3 Code's guides apply to Ulta Code as well:
+
+- [Install and first run](./docs/user/install.md) · [FAQ](./docs/user/faq.md)
+- [The composer, including Dunce Mode](./docs/user/composer.md)
+- [Permission modes](./docs/user/permission-modes.md) · [Keyboard shortcuts](./docs/user/keybindings.md)
+- [Appearance](./docs/user/appearance.md) · [Project settings](./docs/user/project-settings.md)
+- [Remote access from a phone or another machine](./docs/user/remote-access.md)
+- [Source control integrations](./docs/user/source-control.md)
+- Multiple accounts: [Codex](./docs/user/providers-codex.md) · [Claude](./docs/user/providers-claude.md)
+
+Building on the code? Start at [docs/internals/overview.md](./docs/internals/overview.md).
+
+## Credits
+
+Ulta Code is built on [T3 Code](https://github.com/pingdotgg/t3code) by T3 Tools Inc., and keeps its
+[MIT license](./LICENSE). All the credit for the foundation goes to them.
