@@ -12,7 +12,7 @@ import { toastManager } from "./ui/toast";
 // Separate keys so a count written by another tab can never undo a dismissal.
 const SENT_KEY = "t3code:github-star-prompt:sent";
 const DISMISSED_KEY = "t3code:github-star-prompt:dismissed";
-const REPOSITORY = "pingdotgg/t3code";
+const REPOSITORY = "calm032019/Ulta_Code";
 const PROMPTS_BEFORE_ASKING = 5;
 
 let shownThisSession = false;

@@ -60,6 +60,8 @@ Each entry: what we changed, the rule a merge must keep, and the commits.
 - Product name is **Ulta Code** everywhere users see it, with our own logo. New upstream strings saying
   "T3 Code" get rebranded. `t3`/`t3code` identifiers, package names, env vars (`T3CODE_*`) and the
   `t3code://` scheme stay, because mobile pairing and tooling depend on them. Marketing site is untouched.
+- The GitHub star prompt stars and links calm032019/Ulta_Code (`GitHubStarPrompt.tsx` `REPOSITORY`).
+  Upstream's later star features (one-click star, confetti) must use the same constant and Ulta Code text.
 - Exception: Codex `clientInfo.name` and the originator override stay "T3 Code", the identifier existing
   installs reported to OpenAI. Only its display title says "Ulta Code".
 - Desktop has its own identity: app ID `com.calm032019.ultacode`, `~/.ulta` data folder, `ulta-code`
