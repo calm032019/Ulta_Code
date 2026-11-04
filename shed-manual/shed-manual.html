@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Shed Manual</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Public+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E9ECEA; --surface:#F7F8F6; --ink:#1A1F24; --muted:#56606A; --line:#CDD3CF;
+  --red:#C3302A; --blue:#2353A3; --yellow:#E2AE17; --green:#2C8549; --white:#FFFFFF; --white-edge:#8B939B; --black:#2B3036;
+  --note-bg:#FFF4D1; --note-ink:#4A3A06; --focus:#2353A3;
+  --display:"Big Shoulders Display", "Arial Narrow", "Roboto Condensed", Impact, sans-serif;
+  --body:"Public Sans", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top, 0px);
+  padding-bottom:env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#14171A; --surface:#1C2024; --ink:#E6E9E5; --muted:#9BA4AB; --line:#30373D;
+    --red:#E0544D; --blue:#5B8BE0; --yellow:#EDC046; --green:#4BB06B; --white:#E8EBED; --white-edge:#E8EBED; --black:#AAB2B8;
+    --note-bg:#352B0B; --note-ink:#F5E3A8; --focus:#8FB1F0;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14171A; --surface:#1C2024; --ink:#E6E9E5; --muted:#9BA4AB; --line:#30373D;
+  --red:#E0544D; --blue:#5B8BE0; --yellow:#EDC046; --green:#4BB06B; --white:#E8EBED; --white-edge:#E8EBED; --black:#AAB2B8;
+  --note-bg:#352B0B; --note-ink:#F5E3A8; --focus:#8FB1F0;
+  color-scheme: dark;
+}
+html{scroll-padding-top:calc(env(safe-area-inset-top, 0px) + 120px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:1rem;line-height:1.5;-webkit-text-size-adjust:100%}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top, 0px);z-index:10;background:var(--bg)}
+.wrap{max-width:46rem;margin:0 auto;padding:0 1.1rem}
+
+header.hero{padding:2.6rem 0 1.4rem}
+.stripes{display:flex;gap:6px;margin-bottom:1.1rem}
+.stripes span{height:10px;flex:1;border-radius:2px}
+h1{font-family:var(--display);font-weight:900;font-size:clamp(3.4rem, 15vw, 6.4rem);line-height:.86;letter-spacing:-.01em;margin:0 0 .9rem}
+.lead{font-size:1.08rem;max-width:34rem;margin:0;color:var(--ink)}
+.sub{color:var(--muted);margin:.5rem 0 0;font-size:.95rem}
+
+.bar{position:sticky;top:env(safe-area-inset-top, 0px);z-index:5;background:var(--bg);padding:.7rem 0 .75rem;border-bottom:1px solid var(--line)}
+.search{width:100%;font:inherit;font-size:1rem;padding:.65rem .85rem;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}
+.search::placeholder{color:var(--muted)}
+.chips{display:flex;gap:.45rem;overflow-x:auto;padding-top:.6rem;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;display:inline-flex;align-items:center;gap:.45rem;font:inherit;font-size:.9rem;font-weight:600;padding:.38rem .8rem .38rem .45rem;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.chip[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--bg)}
+.chip.all{padding-left:.8rem}
+
+.plate{flex:none;width:18px;height:18px;border-radius:50%;background:var(--c);position:relative;box-shadow:inset 0 0 0 1.5px var(--edge, transparent)}
+.plate::after{content:"";position:absolute;inset:6px;border-radius:50%;background:var(--surface)}
+.chip[aria-pressed="true"] .plate::after{background:var(--ink)}
+
+.count{color:var(--muted);font-size:.9rem;margin:1rem 0 .4rem}
+.focusbar{display:none;margin:1rem 0 .2rem}
+.focusbar a{font-weight:700;color:var(--ink)}
+body.focus .focusbar{display:block}
+body.focus .count, body.focus .bar{display:none}
+
+.list{display:flex;flex-direction:column;gap:.6rem;padding-bottom:3rem}
+details.ex{background:var(--surface);border-radius:12px;border:1px solid var(--line);border-left:7px solid var(--c);overflow:hidden}
+details.ex[hidden]{display:none}
+summary{list-style:none;cursor:pointer;padding:.85rem 1rem;display:grid;grid-template-columns:1fr auto;align-items:center;gap:.15rem .8rem}
+summary::-webkit-details-marker{display:none}
+summary:focus-visible, .chip:focus-visible, .search:focus-visible, a:focus-visible, button:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.name{font-family:var(--display);font-weight:700;font-size:1.55rem;line-height:1.05}
+.kit{grid-column:1;color:var(--muted);font-size:.88rem}
+.chev{grid-row:1 / span 2;grid-column:2;width:12px;height:12px;border-right:2.5px solid var(--muted);border-bottom:2.5px solid var(--muted);transform:rotate(45deg);margin-top:-6px;transition:transform .2s}
+details[open] .chev{transform:rotate(-135deg);margin-top:4px}
+.flag{display:inline-block;font-size:.75rem;font-weight:700;padding:.08rem .45rem;border-radius:5px;background:var(--note-bg);color:var(--note-ink);margin-left:.35rem;vertical-align:2px;font-family:var(--body)}
+
+.flag.nz{background:var(--line);color:var(--muted)}
+.flag.an{background:none;box-shadow:inset 0 0 0 1.5px var(--muted);color:var(--muted)}
+.body{padding:0 1rem 1.1rem}
+.body ol{margin:.2rem 0 .9rem;padding-left:1.25rem}
+.body li{margin:.3rem 0}
+.note{background:var(--note-bg);color:var(--note-ink);border-radius:9px;padding:.65rem .8rem;margin:0 0 .9rem;font-size:.95rem}
+.note strong{display:block;margin-bottom:.1rem}
+.watch{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:.5rem;font-weight:700;text-decoration:none;background:var(--ink);color:var(--bg);padding:.6rem 1rem;border-radius:9px}
+.btn svg{width:18px;height:18px}
+.vmeta{color:var(--muted);font-size:.88rem}
+
+.anim{margin:.2rem 0 1rem;border:1px solid var(--line);border-radius:10px;padding:.6rem .6rem .4rem;background:var(--bg)}
+.anim svg{display:block;width:100%;max-width:420px;height:auto;margin:0 auto}
+.anim .cap{display:flex;justify-content:space-between;align-items:center;gap:.6rem;font-size:.85rem;color:var(--muted);padding:.3rem .2rem 0}
+.anim button{font:inherit;font-size:.85rem;font-weight:700;background:none;border:1.5px solid var(--line);color:var(--ink);border-radius:7px;padding:.25rem .65rem;cursor:pointer}
+.fig{stroke:var(--ink);stroke-width:6;stroke-linecap:round;stroke-linejoin:round;fill:none}
+.fig-head{fill:var(--ink)}
+.gear{stroke:var(--muted);stroke-width:4;stroke-linecap:round;fill:none}
+.gear-fill{fill:var(--muted)}
+.platec{fill:none;stroke:var(--red);stroke-width:6}
+.rope{stroke:var(--muted);stroke-width:2.5;stroke-dasharray:5 4}
+.ground{stroke:var(--line);stroke-width:3}
+.fig.far{stroke:var(--muted);opacity:.55}
+.trace{fill:none;stroke:var(--red);stroke-width:2;stroke-dasharray:3 4;opacity:.75}
+.guide{stroke:var(--line);stroke-width:2;stroke-dasharray:4 4}
+.wheel{fill:var(--bg);stroke:var(--red);stroke-width:5}
+.dbell{fill:var(--red)}
+
+footer{color:var(--muted);font-size:.85rem;padding:0 0 2.5rem}
+@media (prefers-reduced-motion: reduce){ .chev{transition:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <div class="stripes" aria-hidden="true">
+      <span style="background:var(--red)"></span><span style="background:var(--blue)"></span><span style="background:var(--yellow)"></span><span style="background:var(--green)"></span><span style="background:var(--white);box-shadow:inset 0 0 0 1.5px var(--white-edge)"></span><span style="background:var(--black)"></span>
+    </div>
+    <h1>The Shed Manual</h1>
+    <p class="lead">Every move your shed can handle. Read the cues, watch the video, then go and lift the bloody thing.</p>
+    <p class="sub">Names match Zing, so what you pick there is what you look up here. Colours follow the weight-plate code. Yellow flags are notes for your left shoulder. Grey flags mean it’s not in Zing, so add it there as a custom exercise. Ten moves have an animation where the movement path matters.</p>
+  </header>
+
+  <div class="bar">
+    <input class="search" id="q" type="search" placeholder="Find an exercise" aria-label="Find an exercise" autocomplete="off">
+    <div class="chips" id="chips" role="group" aria-label="Filter by muscle group"></div>
+  </div>
+
+  <div class="focusbar"><a href="#" id="showall">Show all exercises</a></div>
+  <p class="count" id="count" aria-live="polite"></p>
+  <div class="list" id="list"></div>
+
+  <footer>Videos open on YouTube. Use light weights until the form’s right, then earn the heavy ones.</footer>
+</div>
+
+<script>
+const CATS = [
+  {id:"legs", name:"Legs", c:"var(--red)"},
+  {id:"push", name:"Push", c:"var(--blue)"},
+  {id:"pull", name:"Pull", c:"var(--yellow)"},
+  {id:"core", name:"Core", c:"var(--green)"},
+  {id:"shoulder", name:"Shoulder care", c:"var(--white)", edge:"var(--white-edge)"},
+  {id:"cardio", name:"Cardio and mobility", c:"var(--black)"}
+];
+
+const EX = [
+  // Legs
+  {id:"back-squat", cat:"legs", name:"Barbell Back Squats", kit:"Rack and barbell",
+   cues:["Bar on your upper back, not your neck. Hands just outside your shoulders.","Big breath, brace, then sit down between your heels.","Knees track over your toes. Drive up through the whole foot."],
+   note:"If holding the bar irritates your left shoulder, widen your grip or swap to goblet squats.",
+   v:{id:"gcNh17Ckjgg", ch:"Jeremy Ethier", len:"7:15"}},
+  {id:"goblet-squat", cat:"legs", name:"DB Goblet Squats", kit:"Dumbbell",
+   cues:["Hold one end of a dumbbell at your chest, elbows tucked.","Sit down between your knees, chest tall.","Elbows brush the inside of your knees at the bottom."],
+   v:{id:"gCESNsDsbqk", ch:"BuiltLean", len:"1:06"}},
+  {id:"romanian-deadlift", anim:"rdl", cat:"legs", name:"Barbell Romanian Deadlifts", kit:"Barbell",
+   cues:["Start standing, knees soft, bar against your thighs.","Push your hips back like you’re shutting a car door with your arse.","Stop when your hamstrings say so, usually just below the knee. Back stays flat."],
+   v:{id:"_oyxCn2iSjU", ch:"Jeff Nippard", len:"6:22"}},
+  {id:"deadlift", anim:"deadlift", cat:"legs", name:"Barbell Deadlifts", kit:"Barbell",
+   cues:["Bar over mid-foot, shins nearly touching it.","Grip it, pull the slack out of the bar, chest up, then push the floor away.","Drag the bar up your legs. Finish with your glutes, don’t lean back."],
+   note:"Your plates cap the bar at 117kg. Buy more 20s before you need them.",
+   v:{id:"p2OPUi4xGrM", ch:"Starting Strength", len:"4:23"}},
+  {id:"bulgarian-split-squat", anim:"bulgarian", cat:"legs", name:"DB Bulgarian Squats", kit:"Dumbbells and bench",
+   cues:["Back foot laces-down on the bench. Front foot far enough forward to drop straight down.","Lower until your back knee nearly kisses the floor.","Drive through the front heel. Yes, it’s meant to be horrible."],
+   v:{id:"hiLF_pF3EJM", ch:"ATHLEAN-X", len:"4:48"}},
+  {id:"leg-press", cat:"legs", name:"Leg Press", kit:"Marcy multi gym",
+   cues:["Feet hip-width, middle of the platform.","Lower until your knees are near 90°, before your lower back peels off the seat.","Press through your heels. Don’t slam your knees locked."],
+   v:{id:"IZxyjW7MPJQ", ch:"ScottHermanFitness", len:"2:36"}},
+  {id:"leg-extension", cat:"legs", name:"Leg Extensions", kit:"Marcy multi gym",
+   cues:["Line your knee up with the machine’s pivot.","Kick up and squeeze your quads hard for a second at the top.","Lower slowly. The lowering is half the work."],
+   v:{id:"o90ocSBDJis", ch:"Physique Development", len:"4:50"}},
+  {id:"hip-thrust", anim:"hipthrust", cat:"legs", name:"Barbell Hip Thrusts", kit:"Barbell and bench",
+   cues:["Upper back on the bench edge, bar in your hip crease with a towel under it.","Chin tucked, ribs down. Drive your hips up until you’re a tabletop.","Squeeze your glutes at the top. Don’t arch your lower back to cheat."],
+   v:{id:"xDmFkJxPzeM", ch:"Jeff Nippard", len:"7:12"}},
+  {id:"reverse-lunge", cat:"legs", name:"Alt. DB Reverse Lunges", kit:"Dumbbells",
+   cues:["Step back, not sideways. Feet stay on two train tracks.","Drop your back knee straight down.","Push through the front foot to stand."],
+   v:{id:"sjlsISvHyZs", ch:"ScottHermanFitness", len:"3:08"}},
+  {id:"step-up", cat:"legs", name:"DB Step-Ups", kit:"Dumbbells and plyo box",
+   cues:["Whole foot on the box.","Drive up through the top leg. No bouncing off the bottom one.","Lower under control."],
+   v:{id:"9ZknEYboBOQ", ch:"Bobby Maximus", len:"0:25"}},
+  {id:"calf-raise", cat:"legs", name:"Calf Raises", kit:"Dumbbell and a plate or step",
+   cues:["Balls of your feet on a plate or step, heels hanging off.","Rise all the way up and pause.","Drop slowly into a full stretch."],
+   v:{id:"wxwY7GXxL4k", ch:"Bodybuilding.com", len:"0:48"}},
+  {id:"box-jump", cat:"legs", name:"Box Jumps", kit:"Plyo box",
+   cues:["Start with a low box. Ego is what snaps Achilles tendons.","Swing your arms, jump, and land softly with knees bent.","Step down. Never jump down."],
+   v:{id:"kNIInK_Le8I", ch:"NASM", len:"1:02"}},
+  // Push
+  {id:"bench-press", cat:"push", name:"Barbell Bench Press", kit:"Rack, barbell and bench",
+   cues:["Eyes under the bar, shoulder blades pinched together and down.","Lower to your lower chest, elbows about 45° from your sides.","Feet planted. Press up and slightly back."],
+   note:"Flared elbows are how supraspinatus complaints start. Tuck them, and set the safety arms.",
+   v:{id:"4Y2ZdHCOXok", ch:"Jeremy Ethier", len:"8:05"}},
+  {id:"db-bench-press", cat:"push", name:"DB Bench Press", kit:"Dumbbells and bench",
+   cues:["Kick the dumbbells up off your knees as you lie back.","Lower until you feel a chest stretch, wrists stacked over elbows.","Press up and slightly in."],
+   note:"Dumbbells let your shoulder find its own path, so they’re often kinder than the bar.",
+   v:{id:"QsYre__-aro", ch:"Jeremy Ethier", len:"7:29"}},
+  {id:"incline-db-press", cat:"push", name:"Incline DB Press", kit:"Dumbbells and bench",
+   cues:["Set the bench around 30°. Steeper turns it into a shoulder press.","Lower to your upper chest, elbows slightly tucked.","Press up without clanging the dumbbells together."],
+   note:"Stop short of the bottom if the front of your shoulder pinches.",
+   v:{id:"IP4oeKh1Sd4", ch:"Max Euceda", len:"2:00"}},
+  {id:"landmine-press", cat:"push", name:"Landmine Press", kit:"Landmine and barbell", anim:"landmine",
+   cues:["Hold the end of the bar at shoulder height, feet staggered.","Lean in slightly and press up and forward along the bar’s arc.","Let your shoulder blade rotate up as you reach. Lower slowly."],
+   note:"This is your overhead press substitute. The angle keeps your shoulder out of the cramped top position.",
+   v:{id:"n1NSt-h-tHA", ch:"Physio REHAB", len:"5:03"}},
+  {id:"chest-press", cat:"push", name:"Seated Chest Press", kit:"Marcy multi gym",
+   cues:["Set the seat so the handles line up with your mid-chest.","Shoulder blades back into the pad.","Press without locking out hard, then return slowly."],
+   v:{id:"sqNwDkUU_Ps", ch:"PureGym", len:"1:01"}},
+  {id:"pec-fly", cat:"push", name:"Pec Deck", kit:"Marcy multi gym",
+   cues:["Slight bend in your elbows, fixed at that angle throughout.","Hug a tree and squeeze in the middle.","Don’t let your arms travel behind your body on the way back."],
+   note:"The stretched position loads the front of your shoulder. Shorten the range if it complains.",
+   v:{id:"H4mVGHaK2f4", ch:"Colossus Fitness", len:"3:03"}},
+  {id:"push-up", cat:"push", name:"Push-Ups", kit:"Floor",
+   cues:["Hands just outside your shoulders, body plank-straight.","Elbows about 45°, chest to the floor.","Push the floor away."],
+   v:{id:"IODxDxX7oi4", ch:"Calisthenicmovement", len:"3:38"}},
+  {id:"tricep-pushdown", cat:"push", name:"Cable Pushdowns", kit:"High pulley and straight bar",
+   cues:["Elbows pinned to your sides.","Push down until your arms lock, then squeeze.","Only your forearms move."],
+   v:{id:"-zLyUAo1gMw", ch:"Max Euceda", len:"2:00"}},
+  {id:"overhead-tricep-extension", cat:"push", name:"Cable Overhead Tricep Extensions", nz:1, kit:"Low pulley and straight bar or D-handle",
+   cues:["Face away from the pulley, handle behind your head.","Elbows point forward and stay close to your head.","Extend until your arms are straight, then lower into the stretch."],
+   note:"Arms overhead can irritate your shoulder. Go one arm at a time with the D-handle, or swap to pushdowns.",
+   v:{id:"GzmlxvSFE7A", ch:"Colossus Fitness", len:"3:43"}},
+  {id:"lateral-raise", cat:"push", name:"Cable Lateral Raises", kit:"Low pulley and D-handle",
+   cues:["Stand side-on, handle in your far hand.","Raise to shoulder height, leading with your elbow.","Go light. Nobody’s impressed by a heavy lateral raise."],
+   note:"Light weight, thumb slightly up, stop at shoulder height. Raising heavy and high is how the supraspinatus got grumpy.",
+   v:{id:"Sp8be0IFNvk", ch:"John Jewett", len:"4:51"}},
+  // Pull
+  {id:"pull-up", cat:"pull", name:"Pull-Ups", kit:"Pull-up bar",
+   cues:["Dead hang, then pull your shoulder blades down first.","Pull your chest to the bar, elbows towards your back pockets.","Lower all the way, under control."],
+   note:"If the dead hang aches, start from a slightly bent-arm hang.",
+   v:{id:"eGo4IYlbE5g", ch:"Calisthenicmovement", len:"4:32"}},
+  {id:"lat-pulldown", cat:"pull", name:"Lat Pull Downs", kit:"High pulley and lat bar",
+   cues:["Grip just outside your shoulders, thighs locked under the pad.","Chest up, pull the bar to your upper chest.","No swinging back like you’re rowing a boat."],
+   v:{id:"SALxEARiMkw", ch:"ATHLEAN-X", len:"5:55"}},
+  {id:"seated-cable-row", cat:"pull", name:"Neutral Grip Seated Rows", kit:"Low pulley and triangle bar",
+   cues:["Sit tall, knees soft.","Pull the handle to your belly button, squeezing your shoulder blades.","Let your arms go long without rounding your back."],
+   v:{id:"vwHG9Jfu4sw", ch:"Max Euceda", len:"2:00"}},
+  {id:"barbell-row", cat:"pull", name:"Barbell Bent-Over Rows", kit:"Barbell",
+   cues:["Hinge to about 45° with a flat back.","Pull the bar to your lower ribs.","Lower under control. No heaving."],
+   v:{id:"FWJR5Ve8bnQ", ch:"Max Euceda", len:"2:00"}},
+  {id:"db-row", cat:"pull", name:"Single Arm DB Bench Rows", kit:"Dumbbell and bench",
+   cues:["One hand and knee on the bench, back flat.","Pull the dumbbell to your hip, not your armpit.","Get a full stretch at the bottom."],
+   v:{id:"djKXLt7kv7Q", ch:"Jeff Nippard", len:"7:23"}},
+  {id:"landmine-row", cat:"pull", name:"T-bar Rows", kit:"Landmine, barbell and triangle bar",
+   cues:["Straddle the bar with the triangle handle hooked under the sleeve.","Hinge over, back flat, chest up.","Row to your chest and squeeze."],
+   v:{id:"A0at3sCMsII", ch:"Colossus Fitness", len:"3:33"}},
+  {id:"face-pull", cat:"pull", name:"Cable Rope Face Pulls", kit:"High pulley and D-handle", anim:"facepull",
+   cues:["Set the pulley at head height or a bit above.","Pull towards your face with elbows high and wide.","Finish with your hands beside your ears, knuckles pointing back."],
+   note:"One of the best things you can do for that left shoulder. Light weight, slow reps. No rope yet? Go one arm at a time with the D-handle, or buy a rope attachment.",
+   v:{id:"ljgqer1ZpXg", ch:"ATHLEAN-X", len:"6:22"}},
+  {id:"straight-arm-pulldown", anim:"straightarm", cat:"pull", name:"Straight-Arm Pulldowns", nz:1, kit:"High pulley and straight bar",
+   cues:["Arms nearly straight, slight hinge at the hips.","Sweep the bar down to your thighs using your lats.","Let it rise slowly to eye level."],
+   v:{id:"32auHIqgEoM", ch:"Max Euceda", len:"2:00"}},
+  {id:"preacher-curl", cat:"pull", name:"Preacher Curls", nz:1, kit:"Marcy multi gym",
+   cues:["Armpits snug to the top of the pad.","Curl up and squeeze.","Lower slowly, stopping just short of snapping your elbow straight."],
+   v:{id:"AR-oARBkYxI", ch:"Colossus Fitness", len:"2:05"}},
+  {id:"hammer-curl", cat:"pull", name:"Alt. DB Hammer Curls", kit:"Dumbbells",
+   cues:["Palms face each other.","Elbows stay at your sides.","No swinging. If you need momentum, it’s too heavy."],
+   v:{id:"zC3nLlEvin4", ch:"ScottHermanFitness", len:"2:03"}},
+  // Core
+  {id:"ab-wheel", anim:"rollout", cat:"core", name:"Wheel Rollouts", kit:"Ab wheel",
+   cues:["Start on your knees with your ribs pulled down.","Roll out only as far as you can without your lower back sagging.","Pull back with your abs, not your hips."],
+   v:{id:"9ZCoAbI7uX0", ch:"Minus The Gym", len:"6:58"}},
+  {id:"ab-crunch", cat:"core", name:"Machine Abs Crunches", kit:"Cybex VR1",
+   cues:["Set the seat so the pivot lines up with your belly button.","Curl your ribs towards your hips. Don’t just fold at the hips.","Breathe out hard at the bottom, then return slowly."],
+   v:{id:"VB3_X8D1teo", ch:"Cybex", len:"0:54"}},
+  {id:"pallof-press", cat:"core", name:"Cable Pallof Press", kit:"Cable at chest height and D-handle",
+   cues:["Stand side-on with the handle at your chest.","Press straight out and refuse to twist.","Hold for 2 seconds, then bring it back."],
+   v:{id:"_2xWmYNnFS8", ch:"Colossus Fitness", len:"4:02"}},
+  {id:"dead-bug", anim:"deadbug", cat:"core", name:"Dead Bug", kit:"Floor",
+   cues:["On your back, arms up, knees bent at 90°.","Press your lower back into the floor and keep it there.","Lower the opposite arm and leg slowly while breathing out."],
+   v:{id:"GbSC02oU3To", ch:"Hinge Health", len:"1:13"}},
+  {id:"plank", cat:"core", name:"Plank", kit:"Floor",
+   cues:["Elbows under your shoulders.","Squeeze your glutes, tuck your ribs, body in a straight line.","Thirty good seconds beats two shit minutes."],
+   v:{id:"A2b2EmIg0dA", ch:"E3 Rehab", len:"4:00"}},
+  // Shoulder care
+  {id:"cable-external-rotation", anim:"externalrot", cat:"shoulder", name:"Cable External Rotations", nz:1, kit:"Cable at elbow height and D-handle",
+   cues:["Stand side-on, elbow tucked to your side. A rolled towel under the arm helps.","Rotate your forearm outward like a door opening.","Slow and light, with no shrugging."],
+   v:{id:"GxDF2AYsI1Q", ch:"Physio Plus Fitness", len:"0:50"}},
+  {id:"side-lying-external-rotation", cat:"shoulder", name:"Side-Lying External Rotations", nz:1, kit:"Light dumbbell",
+   cues:["Lie on your right side to work the left shoulder, towel under the elbow.","Rotate the dumbbell up with your elbow glued in place.","Lower slowly. 2.5kg is plenty."],
+   v:{id:"20v3G-odF5c", ch:"Release Physical Therapy", len:"1:12"}},
+  {id:"scaption", cat:"shoulder", name:"Scaption Raises", nz:1, kit:"Light dumbbells",
+   cues:["Arms angled about 30° forward of your sides, thumbs up.","Raise to shoulder height.","Light and slow."],
+   note:"This trains the supraspinatus directly. Stop short of any pinch.",
+   v:{id:"N3P7rp7bCYc", ch:"The Active Life", len:"0:31"}},
+  // Cardio and mobility
+  {id:"incline-walk", cat:"cardio", name:"Incline Treadmill Walk", nz:1, kit:"Treadmill",
+   cues:["Incline 8–12%, speed 4.5–5.5km/h.","Hands off the rails, arms swinging.","Go for 20–40 minutes. You should just about be able to hold a conversation."],
+   v:{id:"MJ1Jdu1QTUk", ch:"Eric Roberts", len:"1:19"}},
+  {id:"bike-intervals", cat:"cardio", name:"Bike Intervals", nz:1, kit:"Exercise bike",
+   cues:["Warm up for 5 minutes, easy.","Ride 20–30 seconds hard, then 90 seconds easy. Repeat 6–8 times.","Cool down for 5 minutes."],
+   v:{id:"Rh8VswzWDow", ch:"The Body Coach TV", len:"2:02"}},
+  {id:"thoracic-foam-roll", cat:"cardio", name:"Upper Back Foam Roll", kit:"Foam roller",
+   cues:["Roller across your mid-back, hands supporting your head.","Extend back over it, pausing at a few spots up the spine.","Stay off your lower back."],
+   v:{id:"SQF-0s1CckA", ch:"[P]rehab", len:"0:35"}}
+];
+
+const catById = Object.fromEntries(CATS.map(c => [c.id, c]));
+const listEl = document.getElementById("list");
+const chipsEl = document.getElementById("chips");
+const countEl = document.getElementById("count");
+const qEl = document.getElementById("q");
+let activeCat = "all";
+
+const ytIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>';
+
+function esc(s){ return s.replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m])); }
+
+// chips
+const allChip = document.createElement("button");
+allChip.className = "chip all"; allChip.textContent = "All"; allChip.setAttribute("aria-pressed","true"); allChip.dataset.cat = "all";
+chipsEl.appendChild(allChip);
+CATS.forEach(c => {
+  const b = document.createElement("button");
+  b.className = "chip"; b.dataset.cat = c.id; b.setAttribute("aria-pressed","false");
+  b.innerHTML = '<span class="plate" style="--c:' + c.c + (c.edge ? ';--edge:' + c.edge : '') + '"></span>' + esc(c.name);
+  chipsEl.appendChild(b);
+});
+chipsEl.addEventListener("click", e => {
+  const b = e.target.closest(".chip"); if (!b) return;
+  activeCat = b.dataset.cat;
+  chipsEl.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+  applyFilter();
+});
+
+// entries
+EX.forEach(x => {
+  const c = catById[x.cat];
+  const d = document.createElement("details");
+  d.className = "ex"; d.id = x.id; d.dataset.cat = x.cat;
+  d.style.setProperty("--c", x.cat === "shoulder" ? "var(--white-edge)" : c.c);
+  const flag = (x.anim ? '<span class="flag an">Animation</span>' : '') + (x.note ? '<span class="flag">Shoulder note</span>' : '') + (x.nz ? '<span class="flag nz">Not in Zing</span>' : '');
+  let html = '<summary><span class="name">' + esc(x.name) + flag + '</span><span class="kit">' + esc(x.kit) + '</span><span class="chev" aria-hidden="true"></span></summary><div class="body">';
+  if (x.anim) html += '<div class="anim" data-anim="' + x.anim + '"></div>';
+  html += '<ol>' + x.cues.map(t => '<li>' + esc(t) + '</li>').join("") + '</ol>';
+  if (x.note) html += '<div class="note"><strong>Left shoulder</strong>' + esc(x.note) + '</div>';
+  html += '<div class="watch"><a class="btn" href="https://www.youtube.com/watch?v=' + x.v.id + '" target="_blank" rel="noopener">' + ytIcon + 'Watch on YouTube</a><span class="vmeta">' + esc(x.v.ch) + ', ' + x.v.len + '</span></div></div>';
+  d.innerHTML = html;
+  listEl.appendChild(d);
+});
+
+function applyFilter(){
+  const q = qEl.value.trim().toLowerCase();
+  let n = 0;
+  EX.forEach(x => {
+    const el = document.getElementById(x.id);
+    const show = (activeCat === "all" || x.cat === activeCat) && (!q || (x.name + " " + x.kit).toLowerCase().includes(q));
+    el.hidden = !show; if (show) n++;
+  });
+  countEl.textContent = n === EX.length ? EX.length + " exercises, all doable in your shed." : n + (n === 1 ? " exercise" : " exercises") + " showing.";
+}
+qEl.addEventListener("input", applyFilter);
+
+// hash routing: #exercise-id puts that one front and centre
+function route(){
+  const id = decodeURIComponent(location.hash.slice(1));
+  const hit = EX.find(x => x.id === id);
+  if (hit){
+    document.body.classList.add("focus");
+    EX.forEach(x => { const el = document.getElementById(x.id); el.hidden = x.id !== id; el.open = x.id === id; });
+    window.scrollTo(0, 0);
+  } else {
+    document.body.classList.remove("focus");
+    applyFilter();
+  }
+}
+document.getElementById("showall").addEventListener("click", e => {
+  e.preventDefault();
+  history.pushState(null, "", location.pathname + location.search);
+  route();
+});
+window.addEventListener("hashchange", route);
+route();
+
+// ---------- animation rig ----------
+const SVGNS = "http://www.w3.org/2000/svg";
+function el(tag, attrs, parent){ const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+const D2R = Math.PI / 180;
+function step(p, len, deg){ return [p[0] + len*Math.cos(deg*D2R), p[1] - len*Math.sin(deg*D2R)]; }
+function lerp(a, b, t){ return a + (b - a) * t; }
+function ease(t){ return (1 - Math.cos(t * Math.PI)) / 2; }
+function ik(S, H, u, f, pick){
+  let dx = H[0]-S[0], dy = H[1]-S[1], d = Math.hypot(dx, dy);
+  d = Math.min(Math.max(d, Math.abs(u-f)+0.01), u+f-0.01);
+  const base = Math.atan2(dy, dx);
+  const off = Math.acos((u*u + d*d - f*f) / (2*u*d));
+  const a = [S[0]+u*Math.cos(base+off), S[1]+u*Math.sin(base+off)];
+  const b = [S[0]+u*Math.cos(base-off), S[1]+u*Math.sin(base-off)];
+  return pick(a, b);
+}
+const lower = (a, b) => a[1] > b[1] ? a : b;
+const upper = (a, b) => a[1] < b[1] ? a : b;
+function setLine(l, p, q){ l.setAttribute("x1", p[0]); l.setAttribute("y1", p[1]); l.setAttribute("x2", q[0]); l.setAttribute("y2", q[1]); }
+function setPoly(l, pts){ l.setAttribute("points", pts.map(p => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ")); }
+function setC(c, p){ c.setAttribute("cx", p[0]); c.setAttribute("cy", p[1]); }
+
+// keyframe interpolation: keys = [{...numbers}], t in 0..1 runs forward then back
+function keyed(keys, t){
+  const n = keys.length - 1;
+  let u = t < 0.5 ? t * 2 : (1 - t) * 2;          // 0 -> 1 -> 0
+  u = ease(u) * n;
+  const i = Math.min(Math.floor(u), n - 1), f = u - i;
+  const a = keys[i], b = keys[i + 1], o = {};
+  for (const k in a) o[k] = Array.isArray(a[k]) ? [lerp(a[k][0], b[k][0], f), lerp(a[k][1], b[k][1], f)] : lerp(a[k], b[k], f);
+  return o;
+}
+const L = {shin:40, thigh:42, torso:50, ua:30, fa:29};
+
+// side-view body from an ankle root (standing / closed chain)
+function fromAnkle(ankle, p){
+  const knee = step(ankle, L.shin, p.shin), hip = step(knee, L.thigh, p.thigh), sh = step(hip, L.torso, p.torso);
+  return {ankle, knee, hip, sh, head: step(sh, 19, p.torso + (p.neck || 0))};
+}
+function figureParts(svg, opts){
+  const o = opts || {};
+  const far = el("g", {class: "fig far"}, svg);
+  const near = el("g", {class: "fig"}, svg);
+  return {
+    farLeg: o.farLeg ? el("polyline", {}, far) : null,
+    farArm: o.farArm ? el("polyline", {}, far) : null,
+    leg: el("polyline", {}, near),
+    body: el("line", {}, near),
+    arm: el("polyline", {}, near),
+    head: el("circle", {r: 11, class: "fig-head"}, svg)
+  };
+}
+function trace(svg){ return el("polyline", {class: "trace"}, svg); }
+function sampleTrace(fn){ const pts = []; for (let i = 0; i <= 40; i++) pts.push(fn(i / 80)); return pts; }
+
+const ANIMS = {};
+
+// Landmine press (side view)
+ANIMS.landmine = {
+  view: "0 0 350 200", cap: "Side view. Press along the arc, lower slowly.",
+  label: "Side view of a landmine press: the bar end starts at the shoulder and is pressed up and forward along an arc towards the anchor.",
+  build(svg){
+    el("line", {x1:10, y1:186, x2:345, y2:186, class:"ground"}, svg);
+    const P = [322, 170], BL = 186;
+    el("rect", {x:312, y:170, width:22, height:16, rx:3, class:"gear-fill"}, svg);
+    const bar = el("line", {class:"gear"}, svg);
+    const plate = el("circle", {r:15, class:"platec"}, svg);
+    const S = [150, 62];
+    el("polyline", {points:"141,118 128,150 116,184", class:"fig"}, svg);
+    el("polyline", {points:"141,118 153,151 163,184", class:"fig"}, svg);
+    el("line", {x1:141, y1:118, x2:S[0], y2:S[1], class:"fig"}, svg);
+    el("circle", {cx:158, cy:44, r:12, class:"fig-head"}, svg);
+    const up = el("line", {class:"fig"}, svg), fo = el("line", {class:"fig"}, svg);
+    return t => {
+      const ph = ease(t < 0.5 ? t * 2 : (1 - t) * 2);
+      const a = (35 + 13 * ph) * D2R;
+      const H = [P[0] - BL*Math.cos(a), P[1] - BL*Math.sin(a)];
+      setLine(bar, P, H);
+      setC(plate, [P[0] - (BL-24)*Math.cos(a), P[1] - (BL-24)*Math.sin(a)]);
+      const E = ik(S, H, 30, 30, lower);
+      setLine(up, S, E); setLine(fo, E, H);
+    };
+  }
+};
+
+// Face pull (top-down)
+ANIMS.facepull = {
+  view: "0 0 240 180", cap: "Seen from above. Elbows high and wide, hands finish by your ears.",
+  label: "Face pull seen from above: hands start together reaching towards the cable, then pull back to beside the ears with the elbows flaring wide.",
+  build(svg){
+    const A = [120, 12];
+    el("circle", {cx:A[0], cy:A[1], r:7, class:"gear-fill"}, svg);
+    const rl = el("line", {class:"rope"}, svg), rr = el("line", {class:"rope"}, svg);
+    el("ellipse", {cx:120, cy:132, rx:44, ry:17, class:"fig"}, svg);
+    el("circle", {cx:120, cy:128, r:15, class:"fig-head"}, svg);
+    const SL = [82, 128], SR = [158, 128];
+    const ul = el("line", {class:"fig"}, svg), fl = el("line", {class:"fig"}, svg);
+    const ur = el("line", {class:"fig"}, svg), fr = el("line", {class:"fig"}, svg);
+    return t => {
+      const ph = ease(t < 0.5 ? t * 2 : (1 - t) * 2);
+      const HL = [111 + (96-111)*ph, 62 + (110-62)*ph];
+      const HR = [240 - HL[0], HL[1]];
+      const EL = ik(SL, HL, 34, 34, (p, q) => p[0] < q[0] ? p : q);
+      const ER = ik(SR, HR, 34, 34, (p, q) => p[0] > q[0] ? p : q);
+      setLine(ul, SL, EL); setLine(fl, EL, HL);
+      setLine(ur, SR, ER); setLine(fr, ER, HR);
+      setLine(rl, A, HL); setLine(rr, A, HR);
+    };
+  }
+};
+
+// Romanian deadlift (side)
+ANIMS.rdl = {
+  view: "0 0 240 200", cap: "Side view. Hips go back, bar slides down your thighs, back stays flat.",
+  label: "Side view of a Romanian deadlift: from standing, the hips push back and the torso tips forward with a flat back while the bar slides down the thighs to just below the knee.",
+  keys: [
+    {shin:90, thigh:90, torso:91, ua:-90, fa:-90},
+    {shin:82, thigh:128, torso:22, ua:-104, fa:-104}
+  ],
+  build(svg){
+    el("line", {x1:10, y1:186, x2:230, y2:186, class:"ground"}, svg);
+    const ank = [108, 180];
+    const pose = t => { const p = keyed(this.keys, t); const b = fromAnkle(ank, p); b.el = step(b.sh, L.ua, p.ua); b.hand = step(b.el, L.fa, p.fa); return b; };
+    const tr = trace(svg); setPoly(tr, sampleTrace(t => pose(t).hand));
+    const f = figureParts(svg);
+    el("line", {x1:ank[0]-6, y1:ank[1]+2, x2:ank[0]+20, y2:ank[1]+2, class:"fig"}, svg);
+    const plate = el("circle", {r:16, class:"platec"}, svg);
+    return t => {
+      const b = pose(t);
+      setPoly(f.leg, [b.hip, b.knee, b.ankle]); setLine(f.body, b.hip, b.sh); setPoly(f.arm, [b.sh, b.el, b.hand]);
+      setC(f.head, b.head); setC(plate, b.hand);
+    };
+  }
+};
+
+// Deadlift (side)
+ANIMS.deadlift = {
+  view: "0 0 240 200", cap: "Side view. Bar stays over mid-foot. Hips and shoulders rise together.",
+  label: "Side view of a deadlift: the bar starts on the floor over mid-foot and travels straight up, dragging along the shins, while hips and shoulders rise together to standing.",
+  keys: [
+    {shin:60, thigh:160, torso:30, ua:-102, fa:-102},
+    {shin:80, thigh:140, torso:38, ua:-93, fa:-93},
+    {shin:86, thigh:92, torso:96, ua:-78, fa:-78}
+  ],
+  build(svg){
+    el("line", {x1:10, y1:186, x2:230, y2:186, class:"ground"}, svg);
+    const ank = [104, 170];
+    const pose = t => { const p = keyed(this.keys, t); const b = fromAnkle(ank, p); b.el = step(b.sh, L.ua, p.ua); b.hand = step(b.el, L.fa, p.fa); return b; };
+    el("line", {x1:116, y1:20, x2:116, y2:186, class:"guide"}, svg);
+    const f = figureParts(svg);
+    el("line", {x1:ank[0]-6, y1:ank[1]+2, x2:ank[0]+22, y2:ank[1]+2, class:"fig"}, svg);
+    const plate = el("circle", {r:16, class:"platec"}, svg);
+    return t => {
+      const b = pose(t);
+      setPoly(f.leg, [b.hip, b.knee, b.ankle]); setLine(f.body, b.hip, b.sh); setPoly(f.arm, [b.sh, b.el, b.hand]);
+      setC(f.head, b.head); setC(plate, b.hand);
+    };
+  }
+};
+
+// Hip thrust (side)
+ANIMS.hipthrust = {
+  view: "0 0 240 200", cap: "Side view. Upper back pivots on the bench. Finish flat as a tabletop.",
+  label: "Side view of a barbell hip thrust: upper back rests on the bench edge, feet flat, and the hips drive up from near the floor until thighs and torso form a flat line.",
+  keys: [
+    {shin:105, thigh:215, torso:148},
+    {shin:90, thigh:180, torso:176}
+  ],
+  build(svg){
+    el("line", {x1:10, y1:186, x2:230, y2:186, class:"ground"}, svg);
+    el("rect", {x:20, y:142, width:72, height:10, rx:3, class:"gear-fill"}, svg);
+    el("line", {x1:30, y1:152, x2:30, y2:186, class:"gear"}, svg);
+    el("line", {x1:82, y1:152, x2:82, y2:186, class:"gear"}, svg);
+    const ank = [172, 180];
+    const pose = t => { const p = keyed(this.keys, t); const b = fromAnkle(ank, p); b.hand = [b.hip[0] - 2, b.hip[1] - 10]; b.el = ik(b.sh, b.hand, L.ua, L.fa, upper); return b; };
+    const f = figureParts(svg);
+    el("line", {x1:ank[0]-6, y1:ank[1]+2, x2:ank[0]+18, y2:ank[1]+2, class:"fig"}, svg);
+    const plate = el("circle", {r:14, class:"platec"}, svg);
+    return t => {
+      const b = pose(t);
+      setPoly(f.leg, [b.hip, b.knee, b.ankle]); setLine(f.body, b.hip, b.sh); setPoly(f.arm, [b.sh, b.el, b.hand]);
+      setC(f.head, b.head); setC(plate, [b.hip[0], b.hip[1] - 16]);
+    };
+  }
+};
+
+// Bulgarian split squat (side)
+ANIMS.bulgarian = {
+  view: "0 0 240 200", cap: "Side view. Drop straight down until the back knee nearly touches the floor.",
+  label: "Side view of a Bulgarian split squat: back foot rests on a bench, and the body drops straight down on the front leg until the back knee is just above the floor.",
+  keys: [
+    {shin:88, thigh:98, torso:93, ua:-90, fa:-90},
+    {shin:68, thigh:168, torso:84, ua:-92, fa:-92}
+  ],
+  build(svg){
+    el("line", {x1:10, y1:186, x2:230, y2:186, class:"ground"}, svg);
+    el("rect", {x:14, y:140, width:62, height:10, rx:3, class:"gear-fill"}, svg);
+    el("line", {x1:24, y1:150, x2:24, y2:186, class:"gear"}, svg);
+    el("line", {x1:66, y1:150, x2:66, y2:186, class:"gear"}, svg);
+    const ank = [150, 180], backAnk = [70, 136];
+    const pose = t => { const p = keyed(this.keys, t); const b = fromAnkle(ank, p); b.el = step(b.sh, L.ua, p.ua); b.hand = step(b.el, L.fa, p.fa); b.knee2 = ik(b.hip, backAnk, L.thigh, L.shin, lower); return b; };
+    const f = figureParts(svg, {farLeg:true});
+    el("line", {x1:ank[0]-6, y1:ank[1]+2, x2:ank[0]+20, y2:ank[1]+2, class:"fig"}, svg);
+    el("line", {x1:backAnk[0], y1:backAnk[1], x2:backAnk[0]-16, y2:backAnk[1]+4, class:"fig far"}, svg);
+    const db = el("rect", {width:20, height:9, rx:3, class:"dbell"}, svg);
+    return t => {
+      const b = pose(t);
+      setPoly(f.farLeg, [b.hip, b.knee2, backAnk]);
+      setPoly(f.leg, [b.hip, b.knee, b.ankle]); setLine(f.body, b.hip, b.sh); setPoly(f.arm, [b.sh, b.el, b.hand]);
+      setC(f.head, b.head); db.setAttribute("x", b.hand[0] - 10); db.setAttribute("y", b.hand[1] - 2);
+    };
+  }
+};
+
+// Ab wheel rollout (side)
+ANIMS.rollout = {
+  view: "0 0 260 200", cap: "Side view. Roll out only as far as your lower back stays flat.",
+  label: "Side view of an ab wheel rollout: kneeling with the wheel under the shoulders, the body extends forward in one long line as the wheel rolls out, then pulls back.",
+  keys: [
+    {thigh:112, torso:28, wx:120},
+    {thigh:34, torso:10, wx:222}
+  ],
+  build(svg){
+    el("line", {x1:10, y1:186, x2:250, y2:186, class:"ground"}, svg);
+    const knee = [80, 180], ankle = [40, 182];
+    const pose = t => { const p = keyed(this.keys, t); const hip = step(knee, L.thigh, p.thigh), sh = step(hip, L.torso, p.torso); const hand = [p.wx, 170]; return {hip, sh, hand, el: ik(sh, hand, L.ua, L.fa, upper), head: step(sh, 19, p.torso)}; };
+    const f = figureParts(svg);
+    const wheel = el("circle", {r:9, class:"wheel"}, svg);
+    return t => {
+      const b = pose(t);
+      setPoly(f.leg, [b.hip, knee, ankle]); setLine(f.body, b.hip, b.sh); setPoly(f.arm, [b.sh, b.el, b.hand]);
+      setC(f.head, b.head); setC(wheel, [b.hand[0], 177]);
+    };
+  }
+};
+
+// Dead bug (side, lying)
+ANIMS.deadbug = {
+  period: 5600,
+  view: "0 0 260 180", cap: "Side view. Lower back stays glued down. Opposite arm and leg move together.",
+  label: "Side view of a dead bug: lying on the back with arms up and knees bent at 90 degrees, one arm reaches overhead while the opposite leg straightens towards the floor, then they swap.",
+  build(svg){
+    el("line", {x1:10, y1:170, x2:250, y2:170, class:"ground"}, svg);
+    const hip = [140, 158], sh = [90, 158];
+    const f = figureParts(svg, {farLeg:true, farArm:true});
+    const head = [70, 156];
+    const rest = {th:90, sn:0, ua:90, fa:90}, out = {th:12, sn:6, ua:172, fa:176};
+    function limb(p, a, b, s){ const ph = s; return {th: lerp(a.th, b.th, ph), sn: lerp(a.sn, b.sn, ph), ua: lerp(a.ua, b.ua, ph), fa: lerp(a.fa, b.fa, ph)}; }
+    return t => {
+      const half = t < 0.5, u = half ? t * 2 : (t - 0.5) * 2;
+      const s = ease(u < 0.5 ? u * 2 : (1 - u) * 2);
+      const A = limb(null, rest, out, half ? s : 0), B = limb(null, rest, out, half ? 0 : s);
+      // near leg + far arm use A; far leg + near arm use B
+      const nk = step(hip, L.thigh, A.th), na = step(nk, L.shin + 4, A.sn);
+      const fk = step(hip, L.thigh, B.th), fa = step(fk, L.shin + 4, B.sn);
+      const ne = step(sh, L.ua, B.ua), nh = step(ne, L.fa, B.fa);
+      const fe = step(sh, L.ua, A.ua), fh = step(fe, L.fa, A.fa);
+      setPoly(f.farLeg, [hip, fk, fa]); setPoly(f.farArm, [sh, fe, fh]);
+      setPoly(f.leg, [hip, nk, na]); setLine(f.body, hip, sh); setPoly(f.arm, [sh, ne, nh]);
+      setC(f.head, head);
+    };
+  }
+};
+
+// Straight-arm pulldown (side)
+ANIMS.straightarm = {
+  view: "0 0 240 200", cap: "Side view. Arms stay long. Sweep the bar down in an arc to your thighs.",
+  label: "Side view of a straight-arm pulldown: leaning slightly forward, arms nearly straight sweep the bar from eye level down in an arc to the thighs.",
+  keys: [
+    {ua:30, fa:24},
+    {ua:-72, fa:-78}
+  ],
+  build(svg){
+    el("line", {x1:10, y1:186, x2:230, y2:186, class:"ground"}, svg);
+    el("circle", {cx:214, cy:30, r:7, class:"gear-fill"}, svg);
+    el("line", {x1:214, y1:20, x2:214, y2:186, class:"gear"}, svg);
+    const ank = [92, 180];
+    const body = fromAnkle(ank, {shin:88, thigh:98, torso:76});
+    const pose = t => { const p = keyed(this.keys, t); const e = step(body.sh, L.ua, p.ua); return {el: e, hand: step(e, L.fa, p.fa)}; };
+    const tr = trace(svg); setPoly(tr, sampleTrace(t => pose(t).hand));
+    const cable = el("line", {class:"rope"}, svg);
+    const f = figureParts(svg);
+    el("line", {x1:ank[0]-6, y1:ank[1]+2, x2:ank[0]+20, y2:ank[1]+2, class:"fig"}, svg);
+    setPoly(f.leg, [body.hip, body.knee, body.ankle]); setLine(f.body, body.hip, body.sh); setC(f.head, body.head);
+    const bar = el("circle", {r:5, class:"gear-fill"}, svg);
+    return t => {
+      const b = pose(t);
+      setPoly(f.arm, [body.sh, b.el, b.hand]); setC(bar, b.hand); setLine(cable, [214, 30], b.hand);
+    };
+  }
+};
+
+// Cable external rotation (top-down, left arm)
+ANIMS.externalrot = {
+  view: "0 0 240 170", cap: "Seen from above, left arm. Elbow stays pinned. Only the forearm swings out.",
+  label: "Cable external rotation seen from above: the left elbow stays tucked against the side while the forearm swings from across the belly outwards, against a cable pulling from the right.",
+  build(svg){
+    const P = [228, 70];
+    el("circle", {cx:P[0], cy:P[1], r:7, class:"gear-fill"}, svg);
+    el("ellipse", {cx:124, cy:128, rx:44, ry:17, class:"fig"}, svg);
+    el("circle", {cx:124, cy:124, r:15, class:"fig-head"}, svg);
+    const E = [76, 112];
+    const R = 44, a0 = 22, a1 = 150;
+    const p0 = step(E, R, a0), p1 = step(E, R, a1);
+    const tr = el("path", {class:"trace"}, svg);
+    tr.setAttribute("d", "M" + p0[0].toFixed(1) + "," + p0[1].toFixed(1) + " A" + R + "," + R + " 0 0 0 " + p1[0].toFixed(1) + "," + p1[1].toFixed(1));
+    const cable = el("line", {class:"rope"}, svg);
+    el("line", {x1:82, y1:124, x2:E[0], y2:E[1], class:"fig"}, svg);
+    const fore = el("line", {class:"fig"}, svg);
+    const hand = el("circle", {r:5, class:"gear-fill"}, svg);
+    return t => {
+      const ph = ease(t < 0.5 ? t * 2 : (1 - t) * 2);
+      const H = step(E, R, lerp(a0, a1, ph));
+      setLine(fore, E, H); setLine(cable, P, H); setC(hand, H);
+    };
+  }
+};
+
+const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+document.querySelectorAll(".anim").forEach(box => {
+  const A = ANIMS[box.dataset.anim]; if (!A) return;
+  const svg = el("svg", {viewBox: A.view, role: "img", "aria-label": A.label});
+  box.appendChild(svg);
+  const draw = A.build(svg);
+  const cap = document.createElement("div"); cap.className = "cap";
+  const label = document.createElement("span"); label.textContent = A.cap;
+  const btn = document.createElement("button"); btn.type = "button";
+  cap.appendChild(label); cap.appendChild(btn); box.appendChild(cap);
+  const det = box.closest("details");
+  const PERIOD = A.period || 3400;
+  let playing = !reduce, held = 0.25, t0 = 0, raf = null;
+  function frame(now){ held = ((now - t0) % PERIOD) / PERIOD; draw(held); raf = requestAnimationFrame(frame); }
+  function sync(){
+    cancelAnimationFrame(raf); raf = null;
+    btn.textContent = playing ? "Pause" : "Play";
+    if (playing && det.open){ t0 = performance.now() - held * PERIOD; raf = requestAnimationFrame(frame); }
+    else draw(held);
+  }
+  btn.addEventListener("click", () => { playing = !playing; sync(); });
+  det.addEventListener("toggle", sync);
+  sync();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en-GB"><head><meta charset="utf-8"><title>Shed Manual animation harness</title>
+<style>
+:root{
+  --bg:#E9ECEA; --surface:#F7F8F6; --ink:#1A1F24; --muted:#56606A; --line:#CDD3CF;
+  --red:#C3302A; --blue:#2353A3; --yellow:#E2AE17; --green:#2C8549; --white:#FFFFFF; --white-edge:#8B939B; --black:#2B3036;
+  --note-bg:#FFF4D1; --note-ink:#4A3A06; --focus:#2353A3;
+  --display:"Big Shoulders Display", "Arial Narrow", "Roboto Condensed", Impact, sans-serif;
+  --body:"Public Sans", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top, 0px);
+  padding-bottom:env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#14171A; --surface:#1C2024; --ink:#E6E9E5; --muted:#9BA4AB; --line:#30373D;
+    --red:#E0544D; --blue:#5B8BE0; --yellow:#EDC046; --green:#4BB06B; --white:#E8EBED; --white-edge:#E8EBED; --black:#AAB2B8;
+    --note-bg:#352B0B; --note-ink:#F5E3A8; --focus:#8FB1F0;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14171A; --surface:#1C2024; --ink:#E6E9E5; --muted:#9BA4AB; --line:#30373D;
+  --red:#E0544D; --blue:#5B8BE0; --yellow:#EDC046; --green:#4BB06B; --white:#E8EBED; --white-edge:#E8EBED; --black:#AAB2B8;
+  --note-bg:#352B0B; --note-ink:#F5E3A8; --focus:#8FB1F0;
+  color-scheme: dark;
+}
+
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,sans-serif}
+.anim{margin:.2rem 0 1rem;border:1px solid var(--line);border-radius:10px;padding:.6rem .6rem .4rem;background:var(--bg)}
+.anim svg{display:block;width:100%;max-width:420px;height:auto;margin:0 auto}
+.anim .cap{display:flex;justify-content:space-between;align-items:center;gap:.6rem;font-size:.85rem;color:var(--muted);padding:.3rem .2rem 0}
+.anim button{font:inherit;font-size:.85rem;font-weight:700;background:none;border:1.5px solid var(--line);color:var(--ink);border-radius:7px;padding:.25rem .65rem;cursor:pointer}
+#mounts{display:grid;grid-template-columns:repeat(2,360px);gap:12px;padding:12px}
+#sheet{display:none;padding:14px;background:var(--bg);width:max-content}
+#sheet h2{margin:0 0 8px;font-size:15px;color:var(--ink)}
+#sheet .grid{display:grid;grid-template-columns:repeat(4,330px);gap:10px}
+#sheet .cell{border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:4px}
+#sheet .cell svg{display:block;width:100%;height:auto}
+#sheet .t{font-size:11px;color:var(--muted);padding:2px 4px}
+body.sheet #mounts{display:none} body.sheet #sheet{display:block}
+</style></head><body>
+<div id="mounts"></div>
+<div id="sheet"><h2 id="sheet-title"></h2><div class="grid" id="grid"></div></div>
+<script src="anims.js"></script>
+<script>
+// --- identical to shed-manual.html's mount code, plus one line exposing draw for testing ---
+const SVGNS = "http://www.w3.org/2000/svg";
+function el(tag, attrs, parent){ const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+(function(){ const s = document.createElement("style"); s.textContent = ANIM_CSS; document.head.appendChild(s); })();
+const KEYS = ["landmine","facepull","rdl","deadlift","hipthrust","bulgarian","rollout","deadbug","straightarm","externalrot"];
+const mounts = document.getElementById("mounts");
+KEYS.forEach(k => { const d = document.createElement("details"); d.open = true; d.innerHTML = '<summary>' + k + '</summary><div class="anim" data-anim="' + k + '"></div>'; mounts.appendChild(d); });
+const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+document.querySelectorAll(".anim").forEach(box => {
+  const A = ANIMS[box.dataset.anim]; if (!A) return;
+  const svg = el("svg", {viewBox: A.view, role: "img", "aria-label": A.label});
+  box.appendChild(svg);
+  const draw = A.build(svg);
+  box.__draw = draw; box.__A = A;   // test hook
+  const cap = document.createElement("div"); cap.className = "cap";
+  const label = document.createElement("span"); label.textContent = A.cap;
+  const btn = document.createElement("button"); btn.type = "button";
+  cap.appendChild(label); cap.appendChild(btn); box.appendChild(cap);
+  const det = box.closest("details");
+  const PERIOD = A.period || 3400;
+  let playing = !reduce, held = 0.25, t0 = 0, raf = null;
+  function frame(now){ held = ((now - t0) % PERIOD) / PERIOD; draw(held); raf = requestAnimationFrame(frame); }
+  function sync(){
+    cancelAnimationFrame(raf); raf = null;
+    btn.textContent = playing ? "Pause" : "Play";
+    if (playing && det.open){ t0 = performance.now() - held * PERIOD; raf = requestAnimationFrame(frame); }
+    else draw(held);
+  }
+  btn.addEventListener("click", () => { playing = !playing; sync(); });
+  det.addEventListener("toggle", sync);
+  box.__stop = () => { playing = false; sync(); };
+  sync();
+});
+const box = k => document.querySelector('.anim[data-anim="' + k + '"]');
+function stopAll(){ document.querySelectorAll(".anim").forEach(b => b.__stop && b.__stop()); }
+
+// --- contact sheet ---
+function sheet(k, theme){
+  stopAll();
+  document.documentElement.dataset.theme = theme;
+  document.body.classList.add("sheet");
+  const b = box(k), svg = b.querySelector("svg"), grid = document.getElementById("grid");
+  document.getElementById("sheet-title").textContent = k + " (" + theme + ")  period " + b.__A.period + " ms";
+  grid.innerHTML = "";
+  for (let i = 0; i < 12; i++){
+    const t = i / 12; b.__draw(t);
+    const c = document.createElement("div"); c.className = "cell";
+    c.appendChild(svg.cloneNode(true));
+    const lab = document.createElement("div"); lab.className = "t"; lab.textContent = "t = " + t.toFixed(3) + "  (" + Math.round(t * b.__A.period) + " ms)";
+    c.appendChild(lab); grid.appendChild(c);
+  }
+}
+
+// --- automated checks ---
+function capLow(c){ return Math.max(c[1][1] + c[3], c[2][1] + c[4]); }
+// capsule samples; when a reference point is given, use the peak on the side of the limb that faces it
+function capPts(c, ref){
+  let pk = c[5];
+  if (ref && c.length > 6){ const dx = c[2][0]-c[1][0], dy = c[2][1]-c[1][1]; const side = (ref[0]-c[1][0]) * (-dy) + (ref[1]-c[1][1]) * dx; pk = side > 0 ? c[7] : c[6]; }
+  const out = []; for (let i = 0; i <= 8; i++){ const f = i / 8; const r = c[3] + (c[4] - c[3]) * f + 4 * f * (1 - f) * (pk - (c[3] + c[4]) / 2); out.push([c[1][0] + (c[2][0] - c[1][0]) * f, c[1][1] + (c[2][1] - c[1][1]) * f, r]); } return out; }
+function segD(p, a, b){ const dx = b[0]-a[0], dy = b[1]-a[1], l2 = dx*dx+dy*dy; const t = l2 ? Math.max(0, Math.min(1, ((p[0]-a[0])*dx + (p[1]-a[1])*dy)/l2)) : 0; return Math.hypot(p[0]-a[0]-t*dx, p[1]-a[1]-t*dy); }
+function rectDepth(p, r, R){ // depth of a disc (p, radius R) into rect
+  const cx = Math.max(r.x, Math.min(p[0], r.x + r.w)), cy = Math.max(r.y, Math.min(p[1], r.y + r.h));
+  const inside = p[0] > r.x && p[0] < r.x + r.w && p[1] > r.y && p[1] < r.y + r.h;
+  if (inside) return R + Math.min(p[0] - r.x, r.x + r.w - p[0], p[1] - r.y, r.y + r.h - p[1]);
+  return R - Math.hypot(p[0] - cx, p[1] - cy);
+}
+function inPoly(p, poly){ let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++){ const a = poly[i], b = poly[j]; if (((a[1] > p[1]) !== (b[1] > p[1])) && (p[0] < (b[0]-a[0]) * (p[1]-a[1]) / (b[1]-a[1]) + a[0])) c = !c; } return c; }
+function dist3(a, b){ return Math.hypot(b[0]-a[0], b[1]-a[1], (b[2]||0)-(a[2]||0)); }
+
+function runChecks(k, N){
+  stopAll();
+  N = N || 240;
+  const b = box(k), svg = b.querySelector("svg"), sm = svg.__sm, W = sm.W;
+  const res = { key: k, period: b.__A.period, len: 0, lenWorst: "", fixed: 0, fixedWorst: "", floor: -1e9, floorWorst: "", bench: -1e9, benchWorst: "", bar: -1e9, barWorst: "", reach: 0, drift: null, extra: {}, extraMin: {}, extraMax: {} };
+  const L0 = {}, F0 = {}; let bx = [];
+  for (let i = 0; i <= N; i++){
+    const t = i / N; b.__draw(t); const pr = sm.probe();
+    pr.segs.forEach(s => { const d = Math.abs(dist3(s[1], s[2]) - s[3]); if (d > res.len){ res.len = d; res.lenWorst = s[0] + " @t=" + t.toFixed(3); } });
+    (pr.fixed || []).forEach(f => { if (!F0[f[0]]) F0[f[0]] = f[1]; const d = dist3(F0[f[0]], f[1]); if (d > res.fixed){ res.fixed = d; res.fixedWorst = f[0]; } });
+    if (pr.floorY != null){
+      pr.caps.forEach(c => { const d = capLow(c) - pr.floorY; if (d > res.floor){ res.floor = d; res.floorWorst = c[0] + " @t=" + t.toFixed(3); } });
+      pr.outlines.forEach(o => o[1].forEach(p => { const d = p[1] - pr.floorY; if (d > res.floor){ res.floor = d; res.floorWorst = o[0] + " @t=" + t.toFixed(3); } }));
+      (pr.circles || []).forEach(c => { const d = c.c[1] + c.r - pr.floorY; if (d > res.floor){ res.floor = d; res.floorWorst = c.name + " @t=" + t.toFixed(3); } });
+      (pr.lowPts || []).forEach(c => { const d = c[1] - pr.floorY; if (d > res.floor){ res.floor = d; res.floorWorst = c[0] + " @t=" + t.toFixed(3); } });
+    }
+    (pr.rects || []).forEach(r => {
+      pr.caps.filter(c => r.ignore.indexOf(c[0]) < 0).forEach(c => capPts(c).forEach(q => { const d = rectDepth(q, r, q[2]); if (d > res.bench){ res.bench = d; res.benchWorst = c[0] + " in " + r.name + " @t=" + t.toFixed(3); } }));
+      pr.outlines.forEach(o => o[1].forEach(p => { const d = rectDepth(p, r, 0); if (d > res.bench){ res.bench = d; res.benchWorst = o[0] + " in " + r.name + " @t=" + t.toFixed(3); } }));
+    });
+    (pr.polys || []).forEach(pl => {
+      pr.outlines.forEach(o => o[1].forEach(p => { if (inPoly(p, pl[1])){ res.bench = Math.max(res.bench, 1); res.benchWorst = o[0] + " inside " + pl[0] + " @t=" + t.toFixed(3); } }));
+      pr.caps.filter(c => pl[2].indexOf(c[0]) < 0).forEach(c => capPts(c).forEach(q => { if (inPoly(q, pl[1])){ res.bench = Math.max(res.bench, 1); res.benchWorst = c[0] + " inside " + pl[0] + " @t=" + t.toFixed(3); } }));
+    });
+    (pr.bars || []).forEach(br => {
+      pr.caps.filter(c => br.ignore.indexOf(c[0]) < 0).forEach(c => capPts(c, br.c || br.seg[0]).forEach(q => {
+        const d = br.seg ? (q[2] + br.r) - segD(q, br.seg[0], br.seg[1]) : (q[2] + br.r) - Math.hypot(q[0] - br.c[0], q[1] - br.c[1]);
+        if (d > res.bar){ res.bar = d; res.barWorst = c[0] + " vs " + br.name + " @t=" + t.toFixed(3); }
+      }));
+      if (br.seg) pr.outlines.forEach(o => o[1].forEach(p => { const d = br.r - segD(p, br.seg[0], br.seg[1]); if (d > res.bar){ res.bar = d; res.barWorst = o[0] + " vs " + br.name + " @t=" + t.toFixed(3); } }));
+    });
+    (pr.reach || []).forEach(r => { if (r[1] > res.reach) res.reach = r[1]; });
+    if (pr.barX != null) bx.push(pr.barX);
+    for (const e in (pr.extra || {})){ const v = pr.extra[e]; if (typeof v !== "number") continue; if (i === 0) res.extra[e] = +v.toFixed(3); res.extraMin[e] = Math.min(res.extraMin[e] ?? 1e9, v); res.extraMax[e] = Math.max(res.extraMax[e] ?? -1e9, v); }
+  }
+  if (bx.length) res.drift = (Math.max(...bx) - Math.min(...bx)) / W * 100;
+  b.__draw(0); const s0 = svg.innerHTML; b.__draw(1); const s1 = svg.innerHTML;
+  res.seamless = s0 === s1;
+  for (const e in res.extraMin){ res.extraMin[e] = +res.extraMin[e].toFixed(3); res.extraMax[e] = +res.extraMax[e].toFixed(3); }
+  return res;
+}
+</script></body></html>
