@@ -103,6 +103,12 @@ import { UsageProviderSettings } from "./UsageProviderSettings";
 import { ProviderSetupSection, readAntigravityAuthMethod } from "./ProviderSetupSection";
 import { ProviderAuthenticationSection } from "./ProviderAuthenticationSection";
 import { CodexSetupSection, CodexManagedRuntimeFields } from "./CodexSetupSection";
+import { ClaudeAccountSection } from "./ClaudeAccountSection";
+import {
+  claudeEntriesSharingLogin,
+  claudeUsesApiKey,
+  separateClaudeLoginFolder,
+} from "./ClaudeAccountSection.logic";
 import { readCodexSetupMode } from "./CodexSetupSection.logic";
 import { providerClients } from "./providerDriverMeta";
 import { searchableSetting } from "./settingsSearch";
@@ -1249,6 +1255,7 @@ function ProviderInstanceRow({
 }) {
   const allProjects = useProjects();
   const secretSources = useSecretSources(environmentId);
+  const providerInstances = useEnvironmentSettings(environmentId).providerInstances ?? {};
   const acpProjects =
     mode === "editor" && liveProvider?.driver === "acpRegistry"
       ? allProjects.filter((project) => project.environmentId === environmentId)
@@ -1312,7 +1319,33 @@ function ProviderInstanceRow({
       }
       canWriteSettings={canWriteSettings}
       setup={
-        mode === "editor" && driver === "antigravity" ? (
+        mode === "editor" && driver === "claudeAgent" ? (
+          <ClaudeAccountSection
+            key={`${environmentId}:${instanceId}`}
+            environmentId={environmentId}
+            instanceId={instanceId}
+            provider={liveProvider}
+            usesApiKey={claudeUsesApiKey(instance)}
+            sharedWith={claudeEntriesSharingLogin(providerInstances, instanceId)}
+            onSeparateAccount={
+              isDefault
+                ? undefined
+                : () =>
+                    actions
+                      .enableInstance(instanceId, {
+                        ...instance,
+                        config: {
+                          ...(instance.config !== null && typeof instance.config === "object"
+                            ? instance.config
+                            : {}),
+                          homePath: separateClaudeLoginFolder(instanceId),
+                        },
+                      })
+                      .then(() => true)
+            }
+            readOnly={readOnly}
+          />
+        ) : mode === "editor" && driver === "antigravity" ? (
           <ProviderSetupSection
             environmentId={environmentId}
             environmentLabel={environmentLabel}

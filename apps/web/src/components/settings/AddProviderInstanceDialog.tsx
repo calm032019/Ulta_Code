@@ -53,6 +53,7 @@ import { AcpRegistrySearchStep, useAcpRegistrySearch } from "./AcpRegistrySearch
 import { ProviderWizardAuthenticationStep } from "./ProviderWizardAuthenticationStep";
 import { resolveOfficialAcpRegistryIconUrl } from "./AcpRegistryIcon";
 import { AddManagedCodexAccountDialog } from "./CodexSetupSection";
+import { AddClaudeAccountDialog, type AddClaudeMode } from "./AddClaudeAccountDialog";
 import { MultipleAccountsNote } from "./MultipleAccountsNote";
 import { ProviderEnvironmentSection } from "./ProviderInstanceCard";
 import { useSecretSources } from "./SecretSourceInput";
@@ -167,6 +168,7 @@ export function AddProviderInstanceDialog({
 
   const [wizardStep, setWizardStep] = useState(0);
   const [addingChatGptAccount, setAddingChatGptAccount] = useState(false);
+  const [addingClaude, setAddingClaude] = useState<AddClaudeMode | null>(null);
   const [driver, setDriver] = useState<ProviderDriverKind>(DEFAULT_DRIVER_KIND);
   const [identityByDriver, setIdentityByDriver] = useState<Record<string, ProviderIdentityDraft>>(
     {},
@@ -413,6 +415,16 @@ export function AddProviderInstanceDialog({
     });
     onOpenChange(false);
   };
+
+  if (addingClaude) {
+    return (
+      <AddClaudeAccountDialog
+        environmentId={environmentId}
+        mode={addingClaude}
+        onClose={() => onOpenChange(false)}
+      />
+    );
+  }
 
   if (addingChatGptAccount) {
     return (
@@ -720,6 +732,18 @@ export function AddProviderInstanceDialog({
                     size="sm"
                     onClick={() => setAddingChatGptAccount(true)}
                   />
+                </>
+              ) : wizardStep === 0 && driver === "claudeAgent" ? (
+                <>
+                  <Button variant="ghost-muted" size="sm" onClick={() => navigateToStep(1)}>
+                    Advanced setup
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setAddingClaude("apiKey")}>
+                    Use an API key
+                  </Button>
+                  <Button size="sm" onClick={() => setAddingClaude("account")}>
+                    Sign in with a Claude account
+                  </Button>
                 </>
               ) : wizardStep < (isAcpRegistry ? 1 : 2) ? (
                 <Button

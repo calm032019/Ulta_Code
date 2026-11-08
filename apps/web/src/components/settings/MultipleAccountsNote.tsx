@@ -8,12 +8,10 @@ import { Alert, AlertDescription } from "../ui/alert";
 const MULTIPLE_ACCOUNTS_FAQ_URL =
   "https://github.com/pingdotgg/t3code/blob/main/docs/user/faq.md#can-i-add-a-bunch-of-accounts-for-one-provider";
 
-const PROVIDER_NAMES = new Map<string, string>([
-  ["codex", "Codex"],
-  ["claudeAgent", "Claude"],
-]);
+// Claude's add flow gives each account its own sign-in, so it isn't discouraged here.
+const PROVIDER_NAMES = new Map<string, string>([["codex", "Codex"]]);
 
-/** Shown while adding a Claude or Codex account when the environment already has one signed in. */
+/** Shown while adding a Codex account when the environment already has one signed in. */
 export function MultipleAccountsNote({
   environmentId,
   driver,

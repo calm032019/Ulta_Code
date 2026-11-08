@@ -4,47 +4,44 @@ Ulta Code uses Claude Code's login and configuration. Start with the default pro
 for one account; [provider setup](./install.md#providers) covers installation and
 shared provider settings.
 
-## Separate accounts or configurations
+## Sign in
 
-Use a separate Claude config directory for each account. This also works for named
-presets that need different Claude settings or a router connection.
+Open **Settings > Providers**, select Claude, and choose **Sign in with Claude** under
+**Claude account**. Then:
 
-Keep your existing account in the default directory. On the environment's machine,
-create the second login:
+1. Choose **Open Claude sign-in page** and sign in with the account you want.
+2. Claude shows a code. Copy it, paste it into Ulta Code, and choose **Finish sign-in**.
 
-```bash
-mkdir -p ~/.claude_personal
-CLAUDE_CONFIG_DIR=~/.claude_personal claude auth login
-```
+The sign-in page can use a different account from the one your browser is already
+signed in to. On a remote connection, the login is saved on the connected server.
 
-Add another Claude instance in **Settings > Providers**:
+## A second Claude account
 
-| Instance        | Binary path | CLAUDE_CONFIG_DIR path |
-| --------------- | ----------- | ---------------------- |
-| Claude Work     | `claude`    | Leave empty            |
-| Claude Personal | `claude`    | `~/.claude_personal`   |
+Choose **Add provider**, pick Claude, then **Sign in with a Claude account**. Give it a
+name such as Personal, then sign in as above. Each account added this way gets its own
+login folder, so your first Claude stays signed in as it is. Both appear in the model
+picker.
 
-An empty config-directory setting uses Claude Code's normal configuration. The
-custom setting changes `CLAUDE_CONFIG_DIR`, leaving `HOME` and the system keychain
-location intact. Use the same variable for the login command. Setting `HOME`
-instead can put credentials where this provider will not find them.
+If a second Claude shows the same email as the first, the two share a login folder.
+Open it in **Settings > Providers** and choose **Use a different account**, then sign in.
 
-Check the account reported in provider settings after signing in. Existing
-threads can switch only between Claude instances with the same config directory.
-Separate account directories stay isolated, including their local conversation
-state. Claude does not have Codex's shared-home and shadow-home arrangement.
+Threads can switch only between Claude entries that share a login. Separate accounts
+keep their own conversation history.
+
+To set the folder yourself, put a path such as `~/.claude_personal` in
+**CLAUDE_CONFIG_DIR path**. An empty path uses Claude Code's normal configuration.
 
 For presets that differ only in endpoints, use the instance's **Environment variables**.
 Variable assignments do not belong in **Launch arguments**.
 
 ## Subscription and API credits side by side
 
-To keep your subscription and also use Anthropic API credits, add a second Claude
-instance in **Settings > Providers** and paste your Console key into its **API key**
-field. Leave **CLAUDE_CONFIG_DIR path** empty. Claude uses the key instead of your
-subscription login, and both instances appear in the model picker. Because they share
-a config directory, a thread can switch between them. The provider settings should
-report an API key for the new instance.
+To keep your subscription and also pay per use with Anthropic API credits, choose
+**Add provider**, pick Claude, then **Use an API key**. Paste a key from
+[console.anthropic.com](https://console.anthropic.com/settings/keys); it starts with
+`sk-ant-`. Both appear in the model picker, and a thread can switch between them.
+The key stays on the machine running Ulta Code. To change it later, edit the **API key**
+field in that Claude's settings.
 
 Claude Code's verbose mode can stay enabled when you use Claude for text generation, including
 thread titles, branch names, commit messages, and pull request descriptions. On a remote connection,

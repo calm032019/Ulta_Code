@@ -94,5 +94,5 @@ export const claudeSignedOutMessage = (input: {
     input.configDir !== undefined
       ? ` from ${quotePath(input.cwd)}, with CLAUDE_CONFIG_DIR set to ${quotePath(input.configDir)}`
       : "";
-  return `Claude could not authenticate. For subscription login, run \`claude auth login\` on this environment's machine${configuration}, then start a new thread. For API-key authentication, check this instance's configured credentials.`;
+  return `Claude isn't signed in. Open Settings > Providers, select this Claude, choose Sign in with Claude, then start a new thread. If it uses an API key, check the key in its settings. From a terminal, you can instead run \`claude auth login\` on this environment's machine${configuration}.`;
 };

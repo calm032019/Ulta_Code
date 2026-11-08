@@ -13,7 +13,7 @@ import {
 
 const AUTH_ERROR_TEXT = "Failed to authenticate. API Error: 401 Invalid authentication credentials";
 const AUTH_FAILURE_TEXT =
-  "Claude could not authenticate. For subscription login, run `claude auth login` on this environment's machine, then start a new thread. For API-key authentication, check this instance's configured credentials.";
+  "Claude isn't signed in. Open Settings > Providers, select this Claude, choose Sign in with Claude, then start a new thread. If it uses an API key, check the key in its settings. From a terminal, you can instead run `claude auth login` on this environment's machine.";
 
 export function assertClaudeResultIsErrorOutput(
   result: OrchestratorV2ScenarioResult,
