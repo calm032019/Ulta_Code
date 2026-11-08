@@ -5,6 +5,7 @@ import {
   MessageSquareIcon,
   PauseIcon,
   PlayIcon,
+  SkullIcon,
   UsersIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -56,6 +57,7 @@ const GAME_ICONS: Record<MiniGameId, LucideIcon> = {
   "claude-run": BotIcon,
   platformer: Building2Icon,
   "gate-runner": UsersIcon,
+  "concrete-drift": SkullIcon,
 };
 
 function readDocumentVisible(): boolean {
@@ -338,7 +340,7 @@ export const MiniGameDock = memo(function MiniGameDock(props: {
             <div
               role="radiogroup"
               aria-label="Game"
-              className="relative grid shrink-0 grid-cols-3 rounded-lg bg-input/40 p-0.5"
+              className="relative grid shrink-0 grid-cols-4 rounded-lg bg-input/40 p-0.5"
               onKeyDown={(event) => {
                 if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
                 event.preventDefault();
@@ -353,7 +355,7 @@ export const MiniGameDock = memo(function MiniGameDock(props: {
             >
               <span
                 aria-hidden="true"
-                className="absolute inset-y-0.5 left-0.5 w-[calc((100%-0.25rem)/3)] rounded-md bg-background shadow-xs/10 transition-transform duration-200 ease-out motion-reduce:transition-none dark:bg-input/72"
+                className="absolute inset-y-0.5 left-0.5 w-[calc((100%-0.25rem)/4)] rounded-md bg-background shadow-xs/10 transition-transform duration-200 ease-out motion-reduce:transition-none dark:bg-input/72"
                 style={{ transform: `translateX(${selectedIndex * 100}%)` }}
               />
               {MINI_GAMES.map((entry) => {
@@ -384,7 +386,7 @@ export const MiniGameDock = memo(function MiniGameDock(props: {
                       }
                     >
                       <Icon aria-hidden="true" className="size-3.5 shrink-0" />
-                      <span className="hidden truncate @min-[640px]/composer-surface:inline">
+                      <span className="hidden truncate @min-[820px]/composer-surface:inline">
                         {entry.title}
                       </span>
                     </TooltipTrigger>

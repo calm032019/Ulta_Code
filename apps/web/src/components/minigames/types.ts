@@ -44,7 +44,7 @@ export interface MiniGameInstance {
   destroy(): void;
 }
 
-export const MINI_GAME_IDS = ["claude-run", "platformer", "gate-runner"] as const;
+export const MINI_GAME_IDS = ["claude-run", "platformer", "gate-runner", "concrete-drift"] as const;
 
 export type MiniGameId = (typeof MINI_GAME_IDS)[number];
 

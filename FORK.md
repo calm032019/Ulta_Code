@@ -119,7 +119,8 @@ Each entry: what we changed, the rule a merge must keep, and the commits.
 
 ### Minigames
 
-- Minigame dock in place of the composer while the agent works: Claude Run, Gate Rush, Skyline Hop.
+- Minigame dock in place of the composer while the agent works: Claude Run, Gate Rush, Skyline Hop,
+  Concrete Drift.
 - Must stay cheap: no full-rate repainting when idle, hidden work skipped, no lost runs on pause or focus
   loss.
 - Commits: 0bbded353d, edb6691606, 116d9c75d1, 8031054a1a, 7a360721d2, cfc3d3aca7, 8ba7d67015,

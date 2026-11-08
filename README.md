@@ -41,6 +41,7 @@ Press the controller button in the composer to swap it for a game while the agen
 - **Claude Run**: an endless runner at sunset
 - **Skyline Hop**: a rooftop platformer through a dusk city
 - **Gate Rush**: pick the multiplier gates and grow your crowd
+- **Concrete Drift**: skate New York's streets, rooftops and sewers with a pistol and a knife
 
 With **Auto-pause** on, the game pauses as soon as the agent finishes or asks you a question, and
 **Back to chat** puts the composer back.
