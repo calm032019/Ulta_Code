@@ -62,7 +62,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { flushSync } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import {
   clampCollapsedComposerCursor,
   type ComposerTrigger,
@@ -445,6 +445,8 @@ export interface ChatComposerProps {
   onComposerOverlayHeightChange: (height: number) => void;
   /** The new-thread strip names the permissions, so the controls row hides its chip. */
   permissionsShownInStrip: boolean;
+  /** Where the model and permission controls render, below the card. Inside the card when null. */
+  controlsSlot?: HTMLElement | null | undefined;
 
   promptRef: React.RefObject<string>;
   composerImagesRef: React.RefObject<ComposerImageAttachment[]>;
@@ -2297,6 +2299,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     : composerControlsCollapsed
       ? 0
       : expandedControlsIconOnlyBlockCount;
+  const controlsBelowCard = isComposerCollapsedMobile ? null : (props.controlsSlot ?? null);
   const composerControls = (
     <ComposerControlsBar
       environmentId={environmentId}
@@ -3448,13 +3451,25 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                   className="flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-2"
                 >
                   <div
-                    ref={attachExpandedComposerControls}
+                    ref={controlsBelowCard ? undefined : attachExpandedComposerControls}
                     data-chat-composer-controls="footer"
                     data-chat-composer-footer-controls="true"
                     className="relative flex min-w-0 flex-1 items-center justify-end gap-0.5"
                   >
-                    {composerControls}
+                    {controlsBelowCard ? null : composerControls}
                   </div>
+                  {controlsBelowCard
+                    ? createPortal(
+                        <div
+                          ref={attachExpandedComposerControls}
+                          data-chat-composer-controls="below"
+                          className="relative flex min-w-0 flex-1 items-center justify-end gap-0.5"
+                        >
+                          {composerControls}
+                        </div>,
+                        controlsBelowCard,
+                      )
+                    : null}
                   {props.onOpenMinigames ? (
                     <MiniGameComposerButton onOpen={props.onOpenMinigames} />
                   ) : null}

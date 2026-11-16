@@ -1,5 +1,6 @@
 import type {
   EnvironmentId,
+  UsageLimitsReport,
   ProviderInstanceId,
   ServerProvider,
   UsageLimitSourceSnapshots,
@@ -9,6 +10,16 @@ import { useState } from "react";
 import { useStableCallback } from "../../hooks/useStableCallback";
 import { toastManager } from "../ui/toast";
 import { usageLimitsBannerItem } from "./ComposerUsageLimits";
+
+/** Each provider instance shows its own account when it has one, not every account of its driver. */
+function scopeToInstance(
+  report: UsageLimitsReport | null,
+  instanceId: ProviderInstanceId,
+): UsageLimitsReport | null {
+  if (report === null) return null;
+  const own = report.accounts.filter((account) => account.instanceId === instanceId);
+  return own.length > 0 ? { ...report, accounts: own } : report;
+}
 
 /** Keep opened data live. Retain hidden panels during reconnect; clear when quota-spending work resumes. */
 export function useUsageLimitsPanel(input: {
@@ -39,7 +50,10 @@ export function useUsageLimitsPanel(input: {
   }
   const report =
     panel !== null && panelKey !== null && panel.key === panelKey && providerInstanceId !== null
-      ? collectProviderUsageLimits(providerInstanceId, providers, sources, panel.now)
+      ? scopeToInstance(
+          collectProviderUsageLimits(providerInstanceId, providers, sources, panel.now),
+          providerInstanceId,
+        )
       : null;
   const banner =
     report !== null && panel !== null

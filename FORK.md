@@ -77,8 +77,9 @@ Each entry: what we changed, the rule a merge must keep, and the commits.
 
 ### Chat and threads
 
-- Clearer permissions, simple layout, honest reconnect states; the new-thread permissions pill opens only
-  permissions.
+- Clearer permissions, simple layout, honest reconnect states.
+- Model, effort and permissions sit in a row under the composer card, with the selected provider's usage
+  left beside them (`ComposerUsageIndicator`); the usage panel shows only that instance's own account.
 - Vertical session timeline with a "you are here" marker; session activity panel for the whole thread,
   kept cheap while scrolling; activity titles drop invisible characters.
 - Continue a thread on another machine. Prompt links open in the app that copied them.

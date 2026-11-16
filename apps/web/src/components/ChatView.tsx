@@ -184,8 +184,7 @@ import { LinkPullRequestDialogHost } from "./pullRequest/LinkPullRequestDialog";
 import { GuestPendingMessages } from "./chat/GuestShareControls";
 import { useDeviceState } from "~/state/device";
 import { BranchToolbar, type BranchToolbarHandle } from "./BranchToolbar";
-import { ComposerContextPermissions } from "./ComposerContextPermissions";
-import { resolveCompatibleRuntimeMode } from "./chat/runtimeModeConfig";
+import { ComposerUsageIndicator } from "./chat/ComposerUsageIndicator";
 import { makeWorkspaceFileDropHandlers } from "./chat/workspaceFileDrop";
 import { isEditableFocused } from "../lib/editableFocus";
 import { DEFAULT_RESOLVED_KEYBINDINGS } from "@t3tools/shared/keybindings";
@@ -650,6 +649,7 @@ export default function ChatView(props: ChatViewProps) {
   };
   const citeAssistantTextStable = useStableCallback(citeAssistantText);
   const [isWorkspaceFileDragActive, setIsWorkspaceFileDragActive] = useState(false);
+  const [composerControlsSlot, setComposerControlsSlot] = useState<HTMLDivElement | null>(null);
   const [optimisticBlobPreviews] = useState(createOptimisticBlobPreviews);
   const [heldOptimisticUserMessages, setHeldOptimisticUserMessages] = useState(() =>
     emptyOptimisticUserMessages(threadId),
@@ -1319,10 +1319,6 @@ export default function ChatView(props: ChatViewProps) {
   const selectedProvider = selectedProviderEntry?.driverKind ?? requestedDriverKind;
   const activeProviderInstanceId = selectedProviderEntry?.instanceId ?? null;
   const activeProviderStatus = selectedProviderEntry?.snapshot ?? null;
-  const compatibleRuntime = resolveCompatibleRuntimeMode(
-    runtimeMode,
-    activeProviderStatus?.supportedRuntimeModes,
-  );
   const { enabled: interactionModeEnabled, interactionMode } = resolveComposerInteractionMode({
     planModeEnabled: settings.planModeEnabled,
     provider: activeProviderStatus,
@@ -3749,7 +3745,8 @@ export default function ChatView(props: ChatViewProps) {
                               }
                               threadPullRequests={(activeThreadShell ?? activeThread)?.pullRequests}
                               onComposerOverlayHeightChange={publishComposerOverlayHeightStable}
-                              permissionsShownInStrip={showComposerContextStrip && !isServerThread}
+                              permissionsShownInStrip={false}
+                              controlsSlot={embedded ? null : composerControlsSlot}
                               promptRef={promptRef}
                               composerImagesRef={composerImagesRef}
                               composerFilesRef={composerFilesRef}
@@ -3798,10 +3795,10 @@ export default function ChatView(props: ChatViewProps) {
                       <div className="min-h-0">
                         <div
                           data-terminal-open={terminalUiState.terminalOpen ? "true" : undefined}
-                          className="relative z-0"
+                          className="relative z-0 flex min-w-0 items-start"
                         >
-                          {showComposerContextStrip && (
-                            <div className="pointer-events-auto">
+                          {showComposerContextStrip ? (
+                            <div className="pointer-events-auto min-w-0 flex-1">
                               <BranchToolbar
                                 forceNewWorktree={multipleModelSelections !== null}
                                 ref={branchToolbarRef}
@@ -3841,17 +3838,29 @@ export default function ChatView(props: ChatViewProps) {
                                     : undefined
                                 }
                                 availableEnvironments={logicalProjectEnvironments}
-                                {...(isServerThread
-                                  ? {}
-                                  : {
-                                      trailing: (
-                                        <ComposerContextPermissions
-                                          runtimeMode={compatibleRuntime.mode}
-                                          runtimeModes={compatibleRuntime.modes}
-                                          onRuntimeModeChange={handleRuntimeModeChangeStable}
-                                        />
-                                      ),
-                                    })}
+                              />
+                            </div>
+                          ) : null}
+                          {embedded ? null : (
+                            <div
+                              className={cn(
+                                "pointer-events-auto ms-auto flex max-w-full min-w-0 items-center justify-end gap-0.5 px-2 pt-2",
+                                showComposerContextStrip ? "shrink-0" : "flex-1",
+                              )}
+                            >
+                              {activeProviderInstanceId !== null ? (
+                                <ComposerUsageIndicator
+                                  instanceId={activeProviderInstanceId}
+                                  providers={providerStatuses}
+                                  sources={
+                                    serverConfig?.usageLimitSources ?? EMPTY_USAGE_LIMIT_SOURCES
+                                  }
+                                  onOpen={openUsageLimits}
+                                />
+                              ) : null}
+                              <div
+                                ref={setComposerControlsSlot}
+                                className="flex min-w-0 flex-1 items-center justify-end"
                               />
                             </div>
                           )}
