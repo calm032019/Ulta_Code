@@ -268,6 +268,8 @@ export function useThreadActionMenu(input: {
           return;
         case "mark-unread":
           markThreadUnread(threadRef);
+          // The header's thread is the open one; staying would read it again.
+          void handleNewThread(scopeProjectRef(threadRef.environmentId, thread.projectId));
           return;
         case "share-guest":
           openGuestShareDialog(threadRef);

@@ -39,6 +39,8 @@ import {
   CircleDotDashedIcon,
   ClockIcon,
   GitBranchIcon,
+  MailCheckIcon,
+  MailIcon,
   MessageCircleQuestionIcon,
   PinIcon,
   PinOffIcon,
@@ -585,6 +587,7 @@ type SidebarThreadRowProps = {
   onUnsnooze: (threadRef: ScopedThreadRef) => void;
   onUnpin: (threadRef: ScopedThreadRef) => void;
   onAcknowledgeWoke: (threadRef: ScopedThreadRef, visitedAt: string) => void;
+  onMarkUnread: (threadRef: ScopedThreadRef) => void;
   onFileDropThreads?: ((threadRef: ScopedThreadRef, files: File[]) => void) | undefined;
 };
 
@@ -636,6 +639,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     onCommitRename,
     onContextMenu,
     onAcknowledgeWoke,
+    onMarkUnread,
     onFileDropThreads,
     onRenameTitleChange,
     onSettle,
@@ -882,6 +886,13 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     if (!event.isPrimary || event.button !== 0) return;
     event.stopPropagation();
     onActionSweepStart(threadRef, variantAction, event.nativeEvent);
+  };
+  const canMarkUnread = canOperateThread && !isRenaming;
+  const handleToggleUnreadClick = (event: ReactMouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (isUnread) onAcknowledgeWoke(threadRef, new Date().toISOString());
+    else onMarkUnread(threadRef);
   };
   const handleUnsettleClick = (event: ReactMouseEvent) => {
     event.preventDefault();
@@ -1130,6 +1141,12 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
         <EnvironmentMachineIcon aria-hidden kind={props.environmentMachine} className="size-3.5" />
       </span>
     ) : null;
+  const providerStack = (
+    <SidebarProviderStack
+      thread={thread}
+      providerEntryByInstanceId={props.providerEntryByInstanceId}
+    />
+  );
   const diff = latestRunDiff(thread);
   // Only the trailing icons would remain, so the row moves them to the title line instead.
   const metaLineEmpty =
@@ -1172,22 +1189,18 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
         className="pointer-events-none ml-auto inline-flex shrink-0 items-center gap-1"
       >
         {remoteMachineIcon}
-        <SidebarProviderStack
-          thread={thread}
-          providerEntryByInstanceId={props.providerEntryByInstanceId}
-        />
+        {variant === "card" ? null : providerStack}
       </span>
     </div>
   );
-  const titleLineIcons = metaLineEmpty ? (
-    <span aria-hidden className="inline-flex shrink-0 items-center gap-1">
-      {remoteMachineIcon}
-      <SidebarProviderStack
-        thread={thread}
-        providerEntryByInstanceId={props.providerEntryByInstanceId}
-      />
-    </span>
-  ) : null;
+  // Cards show the provider on the top line, so an empty span here would only add a gap.
+  const titleLineIcons =
+    metaLineEmpty && (variant !== "card" || remoteMachineIcon !== null) ? (
+      <span aria-hidden className="inline-flex shrink-0 items-center gap-1">
+        {remoteMachineIcon}
+        {variant === "card" ? null : providerStack}
+      </span>
+    ) : null;
 
   if (variant !== "card") {
     const multiline = variant === "folder-multiline";
@@ -1429,6 +1442,9 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
           >
             <div className="flex h-5 min-w-0 items-center gap-1.5">
               {draftIndicator}
+              <span aria-hidden className="inline-flex shrink-0 items-center">
+                {providerStack}
+              </span>
               {props.project ? (
                 <ProjectFavicon project={props.project} className="size-4 shrink-0" />
               ) : null}
@@ -1511,7 +1527,10 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                       <RelativeTimeLabel timestamp={threadTimeTimestamp(thread)} />
                     )}
                   </span>
-                  {props.settlementSupported || showSnoozeButton || hasUnsentDraft ? (
+                  {props.settlementSupported ||
+                  showSnoozeButton ||
+                  hasUnsentDraft ||
+                  canMarkUnread ? (
                     <span
                       className={cn(
                         // Mouse clicks leave Settle focused; focus-within would pin controls over
@@ -1555,7 +1574,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                                 aria-label="Settle thread"
                                 onClick={handleSettleClick}
                                 onPointerDown={handleActionPointerDown}
-                                className="-mr-1 inline-flex cursor-pointer items-center gap-1 rounded-md bg-transparent px-1.5 text-xs text-muted-foreground hover:text-foreground"
+                                className="-mr-1 inline-flex min-w-[4.75rem] cursor-pointer items-center gap-1 rounded-md bg-transparent px-1.5 text-xs text-muted-foreground hover:text-foreground"
                               />
                             }
                           >
@@ -1577,6 +1596,30 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
               {isRegeneratingTitle ? (
                 <span role="status" className="sr-only">
                   Regenerating title
+                </span>
+              ) : null}
+              {canMarkUnread && props.sweepAction === null ? (
+                <span className="relative flex shrink-0 items-center">
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <button
+                          type="button"
+                          aria-label={isUnread ? "Mark thread as read" : "Mark thread as unread"}
+                          onClick={handleToggleUnreadClick}
+                          className="pointer-events-none absolute right-0 -mr-1 inline-flex h-5 min-w-[4.75rem] cursor-pointer items-center gap-1 rounded-md bg-transparent px-1.5 text-xs text-muted-foreground opacity-0 hover:text-foreground focus-visible:pointer-events-auto focus-visible:static focus-visible:opacity-100 group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:static group-any-hover/sidebar-row:opacity-100"
+                        />
+                      }
+                    >
+                      {isUnread ? (
+                        <MailCheckIcon className="size-3.5" />
+                      ) : (
+                        <MailIcon className="size-3.5" />
+                      )}
+                      {isUnread ? "Read" : "Unread"}
+                    </TooltipTrigger>
+                    <TooltipPopup>{isUnread ? "Mark as read" : "Mark as unread"}</TooltipPopup>
+                  </Tooltip>
                 </span>
               ) : null}
               {titleLineIcons}

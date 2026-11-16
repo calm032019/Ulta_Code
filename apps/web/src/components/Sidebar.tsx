@@ -1084,6 +1084,13 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   const openAddProjectCommandPalette = () => openCommandPalette({ open: "add-project" });
   const routeThreadRef = resolveActiveThreadRouteRef(routeTarget, routeDraftThread);
   const routeThreadKey = routeThreadRef ? scopedThreadKey(routeThreadRef) : null;
+  // Staying on the thread would read it again, so step out to a fresh thread in its project.
+  const markUnreadFromRow = useStableCallback((threadRef: ScopedThreadRef) => {
+    markThreadUnread(threadRef);
+    if (scopedThreadKey(threadRef) !== routeThreadKey) return;
+    const thread = readThreadShell(threadRef);
+    if (thread) void handleNewThread(scopeProjectRef(thread.environmentId, thread.projectId));
+  });
 
   // A selection made under one scope can hold threads the next scope hides.
   // The viewport outlives the scope and does not anchor, so a new list starts at the top.
@@ -2475,7 +2482,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       if (clicked.value === "mark-unread") {
         for (const threadKey of threadKeys) {
           const thread = threadByKeyRef.current.get(threadKey);
-          if (thread) markThreadUnread(scopeThreadRef(thread.environmentId, thread.id));
+          if (thread) markUnreadFromRow(scopeThreadRef(thread.environmentId, thread.id));
         }
         clearSelection();
         return;
@@ -2799,7 +2806,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
             return;
           }
           case "mark-unread":
-            markThreadUnread(threadRef);
+            markUnreadFromRow(threadRef);
             return;
           case "copy-path":
             if (!threadWorkspacePath) {
@@ -3428,6 +3435,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             onUnsnooze={attemptUnsnooze}
                             onUnpin={attemptUnpin}
                             onAcknowledgeWoke={acknowledgeWoke}
+                            onMarkUnread={markUnreadFromRow}
                             onFileDropThreads={handleThreadFileDrop}
                           />
                         );
