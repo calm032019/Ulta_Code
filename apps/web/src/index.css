@@ -1022,11 +1022,21 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
     padding-inline: 0;
   }
 
-  /* Dunce Mode sits in the gutter left of the centred lane, so turning it on moves no text. */
+  /* Dunce Mode sits in the gutter left of the centred lane, so turning it on moves no text.
+     The virtualized row paints with contain: content, so when the lane fills the row (sidebar
+     or panel open) there is no gutter to use and the text is indented to make room instead. */
   .dunce-hat-slot {
     position: absolute;
     top: 0.125rem;
-    inset-inline-start: max(-0.5rem, calc((100% - var(--chat-content-max-width)) / 2 - 1.875rem));
+    inset-inline-start: max(0px, calc((100% - var(--chat-content-max-width)) / 2 - 1.875rem));
+  }
+
+  .messages-timeline-row-frame:has(> .dunce-hat-slot) > .chat-content-lane {
+    padding-inline-start: clamp(
+      0px,
+      calc(1.875rem - (100% - var(--chat-content-max-width)) / 2),
+      1.875rem
+    );
   }
 
   .dunce-row-highlight {
