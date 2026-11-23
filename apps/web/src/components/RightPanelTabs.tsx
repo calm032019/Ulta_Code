@@ -47,6 +47,8 @@ import {
   Plus,
   TerminalSquare,
   ActivityIcon,
+  BotIcon,
+  GaugeIcon,
 } from "lucide-react";
 import { Volume2, VolumeOff } from "lucide";
 import {
@@ -146,6 +148,10 @@ export interface RightPanelTabsProps {
   onAddSideChat?: (() => void) | undefined;
   /** Absent where there is no thread to read activity from. */
   onAddActivity?: (() => void) | undefined;
+  /** Absent where there is no thread to read context usage from. */
+  onAddContext?: (() => void) | undefined;
+  /** Absent where there is no thread to read subagents from. */
+  onAddTasks?: (() => void) | undefined;
   browserAvailable: boolean;
   terminalAvailable: boolean;
   diffAvailable: boolean;
@@ -329,6 +335,8 @@ function RightPanelEmptyState(props: {
   onAddSideChat?: (() => void) | undefined;
   /** Absent where there is no thread to read activity from. */
   onAddActivity?: (() => void) | undefined;
+  onAddContext?: (() => void) | undefined;
+  onAddTasks?: (() => void) | undefined;
   browserAvailable: boolean;
   terminalAvailable: boolean;
   diffAvailable: boolean;
@@ -422,6 +430,32 @@ function RightPanelEmptyState(props: {
             available: true,
             disabledReason: "",
             onClick: props.onAddActivity,
+          },
+        ]
+      : []),
+    ...(props.onAddContext
+      ? [
+          {
+            label: "Context",
+            description: "How much of the model's context window this thread uses.",
+            icon: GaugeIcon,
+            shortcut: "C",
+            available: true,
+            disabledReason: "",
+            onClick: props.onAddContext,
+          },
+        ]
+      : []),
+    ...(props.onAddTasks
+      ? [
+          {
+            label: "Background tasks",
+            description: "Each subagent this thread started, with its thinking and tasks.",
+            icon: BotIcon,
+            shortcut: "K",
+            available: true,
+            disabledReason: "",
+            onClick: props.onAddTasks,
           },
         ]
       : []),
@@ -610,6 +644,10 @@ function surfaceTitle(
       return "Pull requests";
     case "activity":
       return "Activity";
+    case "context":
+      return "Context";
+    case "tasks":
+      return "Background tasks";
     case "device":
       return surface.title ?? surface.target?.name ?? "Device";
     case "side-chat":
@@ -704,6 +742,10 @@ function SurfaceIcon({
       return <PullRequestGlyph.link className="size-3 shrink-0" />;
     case "activity":
       return <ActivityIcon className="size-3 shrink-0" />;
+    case "context":
+      return <GaugeIcon className="size-3 shrink-0" />;
+    case "tasks":
+      return <BotIcon className="size-3 shrink-0" />;
     case "side-chat":
       return <SideChatTabIcon environmentId={environmentId} threadId={surface.threadId} />;
     case "device":
@@ -1193,6 +1235,30 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
           },
         ]
       : []),
+    ...(props.onAddContext
+      ? [
+          {
+            label: "Context",
+            icon: GaugeIcon,
+            shortcut: "C",
+            available: true,
+            disabledReason: "",
+            onClick: props.onAddContext,
+          },
+        ]
+      : []),
+    ...(props.onAddTasks
+      ? [
+          {
+            label: "Background tasks",
+            icon: BotIcon,
+            shortcut: "K",
+            available: true,
+            disabledReason: "",
+            onClick: props.onAddTasks,
+          },
+        ]
+      : []),
   ] as const;
 
   const handleAddSurfaceMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -1569,6 +1635,8 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
             onAddDevice={props.onAddDevice}
             onAddSideChat={props.onAddSideChat}
             onAddActivity={props.onAddActivity}
+            onAddContext={props.onAddContext}
+            onAddTasks={props.onAddTasks}
             browserAvailable={props.browserAvailable}
             terminalAvailable={props.terminalAvailable}
             diffAvailable={props.diffAvailable}

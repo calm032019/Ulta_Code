@@ -1,18 +1,29 @@
 import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
-import { Globe, History, RadioTower } from "lucide-react";
+import {
+  Globe,
+  History,
+  Play,
+  Plus,
+  RadioTower,
+  Server,
+  SquareArrowOutUpRight,
+} from "lucide-react";
 
 import type { BrowserHistoryEntry } from "~/browserHistoryStore";
 import { Empty, EmptyDescription, EmptyMedia, EmptyTitle } from "~/components/ui/empty";
-import { DiscoveryList } from "../ui/discovery-list";
+import { DiscoveryList, DiscoveryListRow } from "../ui/discovery-list";
 
+import { Button } from "~/components/ui/button";
+import { Spinner } from "~/components/ui/spinner";
 import { PreviewLocalServerCard } from "./PreviewLocalServerCard";
+import { previewServerPortLabel, type PreviewServerControls } from "./PreviewServerMenu";
 import { PreviewRecentUrlCard } from "./PreviewRecentUrlCard";
-import { useDiscoveredLocalServers } from "./useDiscoveredLocalServers";
+import { isLocalServerLive, useDiscoveredLocalServers } from "./useDiscoveredLocalServers";
 
 interface Props {
   threadRef: ScopedThreadRef;
   environmentId: EnvironmentId;
-  configuredUrls?: ReadonlyArray<string> | undefined;
+  serverControls: PreviewServerControls | null;
   recentEntries: ReadonlyArray<BrowserHistoryEntry>;
   onRemoveRecent: (url: string) => void;
   onOpenUrl: (url: string) => void;
@@ -21,18 +32,22 @@ interface Props {
 export function PreviewEmptyState({
   threadRef,
   environmentId,
-  configuredUrls,
+  serverControls,
   recentEntries,
   onRemoveRecent,
   onOpenUrl,
 }: Props) {
   const servers = useDiscoveredLocalServers({
     environmentId,
-    configuredUrls,
+    configuredUrls: serverControls?.configuredUrls,
   });
+  const configuredServers = serverControls?.servers ?? [];
+  const otherServers = servers.filter(
+    (server) => !configuredServers.some((c) => isLocalServerLive([server], c.previewUrl)),
+  );
   const recents = recentEntries.filter((entry) => URL.canParse(entry.url)).slice(0, 8);
 
-  if (servers.length === 0 && recents.length === 0) {
+  if (configuredServers.length === 0 && otherServers.length === 0 && recents.length === 0) {
     return (
       <Empty>
         <EmptyMedia variant="icon">
@@ -43,6 +58,12 @@ export function PreviewEmptyState({
           Type a URL above, or run a dev script. Local servers this thread starts will show up here
           automatically.
         </EmptyDescription>
+        {serverControls ? (
+          <Button variant="outline" size="sm" onClick={serverControls.onAdd}>
+            <Plus />
+            Add server
+          </Button>
+        ) : null}
       </Empty>
     );
   }
@@ -50,6 +71,47 @@ export function PreviewEmptyState({
   return (
     <div className="scrollbar-gutter-both flex h-full min-h-0 overflow-y-auto px-5 py-8">
       <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
+        {serverControls && configuredServers.length > 0 ? (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Server className="size-4 shrink-0" />
+              <h2 className="font-medium">Servers</h2>
+            </div>
+            <DiscoveryList>
+              {configuredServers.map((server) => {
+                const running = isLocalServerLive(servers, server.previewUrl);
+                const starting = serverControls.startingId === server.id;
+                return (
+                  <DiscoveryListRow
+                    key={server.id}
+                    disabled={!serverControls.onStart || starting}
+                    onClick={() => serverControls.onStart?.(server, running)}
+                    icon={<Server className="size-4 shrink-0 text-muted-foreground" />}
+                    title={server.name}
+                    description={
+                      starting
+                        ? "Starting…"
+                        : running
+                          ? `Running on ${previewServerPortLabel(server.previewUrl)}`
+                          : previewServerPortLabel(server.previewUrl)
+                    }
+                    action={
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground">
+                        {starting ? (
+                          <Spinner size="sm" />
+                        ) : running ? (
+                          <SquareArrowOutUpRight className="size-4" aria-label="Open" />
+                        ) : (
+                          <Play className="size-4" aria-label="Start" />
+                        )}
+                      </span>
+                    }
+                  />
+                );
+              })}
+            </DiscoveryList>
+          </div>
+        ) : null}
         {recents.length > 0 ? (
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -69,14 +131,14 @@ export function PreviewEmptyState({
             </DiscoveryList>
           </div>
         ) : null}
-        {servers.length > 0 ? (
+        {otherServers.length > 0 ? (
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <RadioTower className="size-4 shrink-0" />
               <h2 className="font-medium">Local servers</h2>
             </div>
             <DiscoveryList>
-              {servers.map((server) => (
+              {otherServers.map((server) => (
                 <PreviewLocalServerCard
                   key={`${server.host}:${server.port}`}
                   threadRef={threadRef}

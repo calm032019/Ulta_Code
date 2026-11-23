@@ -279,6 +279,7 @@ import {
 } from "./preparingComposerImages";
 import { ComposerControlsBar } from "./ComposerControlsBar";
 import { MiniGameComposerButton } from "../minigames/MiniGameComposerButton";
+import { CommitComposerButton } from "./CommitComposerButton";
 import { composerCommandKeyHandler } from "./composerCommandKey";
 
 function consumePasteAsTextShortcut(deadline: { current: number }): boolean {
@@ -502,6 +503,7 @@ export interface ChatComposerProps {
   onFileOpen: (attachment: ChatFileAttachment) => void;
   /** Swaps the composer for the minigame dock; absent where the dock is unavailable. */
   onOpenMinigames?: (() => void) | undefined;
+  onSendCommit?: ((text: string) => Promise<void>) | undefined;
 }
 
 const NO_PROVIDER_SKILLS: ServerProvider["skills"] = [];
@@ -3456,6 +3458,9 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                     data-chat-composer-footer-controls="true"
                     className="relative flex min-w-0 flex-1 items-center justify-end gap-0.5"
                   >
+                    {props.onSendCommit ? (
+                      <CommitComposerButton onSend={props.onSendCommit} />
+                    ) : null}
                     {controlsBelowCard ? null : composerControls}
                   </div>
                   {controlsBelowCard

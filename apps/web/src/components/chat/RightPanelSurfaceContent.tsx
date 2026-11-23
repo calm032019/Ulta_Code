@@ -1,3 +1,4 @@
+import type { PreviewProjectServers } from "../preview/usePreviewServers";
 import type {
   EditorId,
   EnvironmentId,
@@ -25,6 +26,9 @@ import { PullRequestDetailGhost } from "../pullRequest/PullRequestGhosts";
 import { PullRequestsUnavailableState } from "../pullRequest/PullRequestsUnavailableState";
 import { ThreadPullRequestsPanel } from "../pullRequest/ThreadPullRequestsPanel";
 import { SessionActivityPanel } from "../activity/SessionActivityPanel";
+import { ContextWindowPanel } from "../context/ContextWindowPanel";
+import { BackgroundTasksPanel } from "../tasks/BackgroundTasksPanel";
+import type { ContextWindowSnapshot } from "../../lib/contextWindow";
 
 const PreviewPanel = lazy(() =>
   import("../preview/PreviewPanel").then((module) => ({ default: module.PreviewPanel })),
@@ -67,7 +71,7 @@ export function RightPanelSurfaceContent(props: {
   readonly visible: boolean;
   readonly composerDraftTarget: ScopedThreadRef | DraftId;
   readonly keybindings: ResolvedKeybindingsConfig;
-  readonly configuredPreviewUrls: ReadonlyArray<string>;
+  readonly previewServers: PreviewProjectServers;
   readonly workspaceMutationId: string | null;
   readonly getShortcutContext: () => ShortcutMatchContext;
   readonly onSendAnnotation: (
@@ -79,6 +83,7 @@ export function RightPanelSurfaceContent(props: {
   readonly pullRequest: RightPanelPullRequestProps;
   readonly files: RightPanelFileProps;
   readonly sideChatParentPanel: SideChatParentPanel;
+  readonly contextWindow: ContextWindowSnapshot | null;
 }) {
   const { surface, threadRef, visible, onCloseSurface } = props;
   if (surface === null) return null;
@@ -90,7 +95,7 @@ export function RightPanelSurfaceContent(props: {
             mode="embedded"
             threadRef={threadRef}
             tabId={surface.resourceId}
-            configuredUrls={props.configuredPreviewUrls}
+            projectServers={props.previewServers}
             visible={visible}
             onSendAnnotation={props.onSendAnnotation}
           />
@@ -171,6 +176,16 @@ export function RightPanelSurfaceContent(props: {
       return <ThreadPullRequestsPanel threadRef={threadRef} />;
     case "activity":
       return <SessionActivityPanel threadRef={threadRef} />;
+    case "context":
+      return <ContextWindowPanel usage={props.contextWindow} />;
+    case "tasks":
+      return (
+        <BackgroundTasksPanel
+          key={scopedThreadKey(threadRef)}
+          threadRef={threadRef}
+          parentPanel={props.sideChatParentPanel}
+        />
+      );
     case "side-chat":
       // Not lazy: revealing a suspended tiptap editor tears down its view and crashes the composer.
       return (

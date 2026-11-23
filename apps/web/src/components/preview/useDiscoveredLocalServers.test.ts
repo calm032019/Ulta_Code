@@ -1,7 +1,7 @@
 import type { DiscoveredLocalServer } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
-import { mergeServers } from "./useDiscoveredLocalServers";
+import { isLocalServerLive, mergeServers } from "./useDiscoveredLocalServers";
 
 const scannerServer = (
   overrides: Partial<DiscoveredLocalServer & { requestedUrl: string }>,
@@ -95,5 +95,16 @@ describe("mergeServers", () => {
     });
 
     expect(result[0]?.requestedUrl).toBe("http://localhost:5173/");
+  });
+});
+
+describe("isLocalServerLive", () => {
+  it.each([
+    ["http://localhost:5733", true],
+    ["http://127.0.0.1:5733/app", true],
+    ["http://localhost:3000", false],
+    ["https://example.com:5733", false],
+  ])("%s -> %s", (url, live) => {
+    expect(isLocalServerLive([scannerServer({ host: "localhost", port: 5733 })], url)).toBe(live);
   });
 });

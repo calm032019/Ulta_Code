@@ -1,3 +1,4 @@
+import { COMMIT_PROMPT } from "./commitPrompt";
 import { InlineAudioPreview } from "../files/InlineAudioPreview";
 import { filePreviewKind } from "@t3tools/shared/filePreview";
 import { findRevealRef } from "./markdownFindContext";
@@ -31,6 +32,7 @@ import {
   ChevronDownIcon,
   DownloadIcon,
   EyeIcon,
+  GitCommitHorizontalIcon,
   type LucideIcon,
   MessagesSquareIcon,
   Redo2Icon,
@@ -1103,6 +1105,24 @@ const CollapsibleUserMessageBody = memo(function CollapsibleUserMessageBody(prop
   const revealForFind = () => setExpanded(true);
   const revealRef = findRevealRef(revealForFind);
   const hasVisibleBody = props.text.trim().length > 0;
+  if (props.text === COMMIT_PROMPT && !expanded) {
+    return (
+      <div className="flex items-center gap-2" data-user-message-body="true">
+        <GitCommitHorizontalIcon className="size-4 shrink-0" aria-hidden />
+        <span>Commit this session's work</span>
+        <Button
+          type="button"
+          size="xs"
+          variant="ghost-muted"
+          aria-expanded={false}
+          data-scroll-anchor-ignore
+          onClick={() => setExpanded(true)}
+        >
+          Show full message
+        </Button>
+      </div>
+    );
+  }
   const canCollapse =
     props.collapsible !== false && hasVisibleBody && shouldCollapseUserMessage(props.text);
   const isCollapsed = canCollapse && !expanded;

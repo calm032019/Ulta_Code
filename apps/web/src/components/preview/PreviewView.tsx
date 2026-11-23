@@ -65,6 +65,8 @@ import { showPreviewPopup } from "./showPreviewPopup";
 import { PreviewChromeRow } from "./PreviewChromeRow";
 import { PreviewEmptyState } from "./PreviewEmptyState";
 import { PreviewMoreMenu, type PreviewMoreMenuActions } from "./PreviewMoreMenu";
+import { PreviewServerMenu } from "./PreviewServerMenu";
+import { usePreviewServers, type PreviewProjectServers } from "./usePreviewServers";
 import { commitBrowserViewportChange } from "~/browser/browserViewportActions";
 import { browserResponsiveViewportForToggle, useBrowserDefaults } from "~/browser/browserDefaults";
 import { BrowserDeviceToolbar } from "~/browser/BrowserDeviceToolbar";
@@ -98,7 +100,7 @@ import { observeResize } from "~/lib/observeResize";
 interface Props {
   threadRef: ScopedThreadRef;
   tabId?: string | null;
-  configuredUrls?: ReadonlyArray<string> | undefined;
+  projectServers?: PreviewProjectServers | undefined;
   visible: boolean;
   onSendAnnotation?: (
     annotation: PreviewAnnotationPayload,
@@ -142,7 +144,7 @@ function ServerTabFileNotShown(props: {
 export function PreviewView({
   threadRef,
   tabId: requestedTabId,
-  configuredUrls,
+  projectServers,
   visible,
   onSendAnnotation,
 }: Props) {
@@ -255,6 +257,7 @@ export function PreviewView({
   };
 
   const handleSubmitUrl = async (next: string) => {
+    previewServers.cancelPendingOpen();
     try {
       const resolved = resolveAddressBarInput(next, resolveSearchUrlTemplate(getClientSettings()));
       if (await navigateToResolvedUrl(resolved)) {
@@ -294,6 +297,13 @@ export function PreviewView({
       });
     }
   };
+
+  const previewServers = usePreviewServers({
+    environmentId: threadRef.environmentId,
+    threadRef,
+    projectServers,
+    openUrl: (next) => void handleOpenServerUrl(next),
+  });
 
   const handleRefresh = () => {
     if (isServerTab) serverSurfaceRef.current?.reload();
@@ -915,32 +925,41 @@ export function PreviewView({
           ) : null
         }
         trailingActions={
-          moreMenuActions ? (
-            <PreviewMoreMenu
-              enabled={
-                runtimeTabId !== null &&
-                (serverOwnsRendering || (desktopOverlay?.hasWebContents ?? false))
-              }
-              actions={moreMenuActions}
-              {...(moveTarget
-                ? { move: { label: moveLabel, onMove: () => void handleMoveTab() } }
-                : {})}
-              profileName={activeProfileName}
-              zoomFactor={
-                serverOwnsRendering ? serverZoomFactor : (desktopOverlay?.zoomFactor ?? 1)
-              }
-              colorScheme={
-                serverOwnsRendering
-                  ? (snapshot?.colorScheme ?? "system")
-                  : (desktopOverlay?.colorScheme ?? "system")
-              }
-              deviceToolbarVisible={viewport._tag !== "fill"}
-              onToggleDeviceToolbar={handleToggleDeviceToolbar}
-              nativePictureInPicture={desktopOverlay?.pictureInPicture ?? false}
-            />
-          ) : null
+          <>
+            {previewServers.controls ? (
+              <PreviewServerMenu
+                environmentId={threadRef.environmentId}
+                controls={previewServers.controls}
+              />
+            ) : null}
+            {moreMenuActions ? (
+              <PreviewMoreMenu
+                enabled={
+                  runtimeTabId !== null &&
+                  (serverOwnsRendering || (desktopOverlay?.hasWebContents ?? false))
+                }
+                actions={moreMenuActions}
+                {...(moveTarget
+                  ? { move: { label: moveLabel, onMove: () => void handleMoveTab() } }
+                  : {})}
+                profileName={activeProfileName}
+                zoomFactor={
+                  serverOwnsRendering ? serverZoomFactor : (desktopOverlay?.zoomFactor ?? 1)
+                }
+                colorScheme={
+                  serverOwnsRendering
+                    ? (snapshot?.colorScheme ?? "system")
+                    : (desktopOverlay?.colorScheme ?? "system")
+                }
+                deviceToolbarVisible={viewport._tag !== "fill"}
+                onToggleDeviceToolbar={handleToggleDeviceToolbar}
+                nativePictureInPicture={desktopOverlay?.pictureInPicture ?? false}
+              />
+            ) : null}
+          </>
         }
       />
+      {previewServers.elements}
 
       <div ref={serverBodyRef} className="relative min-h-0 flex-1 overflow-hidden">
         {runtimeTabId && snapshot && isServerTab ? (
@@ -1010,7 +1029,7 @@ export function PreviewView({
           <PreviewEmptyState
             threadRef={threadRef}
             environmentId={threadRef.environmentId}
-            configuredUrls={configuredUrls}
+            serverControls={previewServers.controls}
             recentEntries={recentHistoryEntries}
             onRemoveRecent={(url) => removeUrlForThread(threadRef, url)}
             onOpenUrl={(next) => void handleOpenServerUrl(next)}

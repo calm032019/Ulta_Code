@@ -172,7 +172,6 @@ import {
 } from "./preview/ThreadPreviewMiniPlayer";
 import { createChatCanvasStore, resolveChatCanvasModel } from "./chat/canvasStore";
 import { usePreviewSession } from "./preview/usePreviewSession";
-import { getConfiguredPreviewUrls } from "./preview/previewEmptyStateLogic";
 
 import {
   previewMiniPlayerSourceKey,
@@ -903,12 +902,16 @@ export default function ChatView(props: ChatViewProps) {
     if (parentSubagentThreadRef !== null) {
       return {
         title: parentSubagentThread?.title ?? "Parent thread",
-        open: (): void => {
-          void navigate({
-            to: "/$environmentId/$threadId",
-            params: buildThreadRouteParams(parentSubagentThreadRef),
-          });
-        },
+        ...(embedded
+          ? {}
+          : {
+              open: (): void => {
+                void navigate({
+                  to: "/$environmentId/$threadId",
+                  params: buildThreadRouteParams(parentSubagentThreadRef),
+                });
+              },
+            }),
       };
     }
     if (delegatedFrom === null || delegatedFromRef === null) return null;
@@ -1171,7 +1174,6 @@ export default function ChatView(props: ChatViewProps) {
     });
   };
   const handleFilePendingChangeStable = useStableCallback(handleFilePendingChange);
-  const configuredPreviewUrls = getConfiguredPreviewUrls(activeProjectScripts);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- drops file surfaces from the right panel store once bootstrap shows the thread has no workspace
   useEffect(() => {
@@ -2390,6 +2392,8 @@ export default function ChatView(props: ChatViewProps) {
     addPullRequestSurfaceStable,
     addPullRequestsSurfaceStable,
     addActivitySurfaceStable,
+    addContextSurfaceStable,
+    addTasksSurfaceStable,
     closePreviewPanelStable,
     copyRightPanelFilePathStable,
     createBrowserSurface,
@@ -3235,6 +3239,7 @@ export default function ChatView(props: ChatViewProps) {
 
   const rightPanelContent = activeThreadRef ? (
     <RightPanelSurfaceContent
+      contextWindow={activeContextWindow}
       surface={renderedRightPanelSurface}
       activeSurfaceId={activeRightPanelSurface?.id ?? null}
       threadRef={activeThreadRef}
@@ -3242,7 +3247,14 @@ export default function ChatView(props: ChatViewProps) {
       visible={rightPanelOpen}
       composerDraftTarget={composerDraftTarget}
       keybindings={keybindings}
-      configuredPreviewUrls={configuredPreviewUrls}
+      previewServers={{
+        scripts: activeProjectScripts,
+        cwd: gitCwd,
+        onRun: runProjectScriptStable,
+        onAdd: saveProjectScriptStable,
+        onUpdate: updateProjectScriptStable,
+        onDelete: deleteProjectScriptStable,
+      }}
       workspaceMutationId={workspaceMutationId}
       getShortcutContext={getShortcutContextStable}
       onSendAnnotation={sendPreviewAnnotationStable}
@@ -3788,6 +3800,7 @@ export default function ChatView(props: ChatViewProps) {
                                 queuedRunEdit.removeEditingAttachment
                               }
                               onOpenMinigames={isServerThread ? openMinigamesStable : undefined}
+                              onSendCommit={isServerThread ? sendAppMessageStable : undefined}
                             />
                           )}
                         </div>
@@ -4053,6 +4066,8 @@ export default function ChatView(props: ChatViewProps) {
           onAddDevice={addDeviceSurfaceStable}
           onAddSideChat={sideChatsOffered ? openSideChatStable : undefined}
           onAddActivity={isServerThread ? addActivitySurfaceStable : undefined}
+          onAddContext={isServerThread ? addContextSurfaceStable : undefined}
+          onAddTasks={isServerThread ? addTasksSurfaceStable : undefined}
           browserAvailable={canOperatePreview && browserAvailable}
           terminalAvailable={activeProject !== null && canOperateTerminal}
           diffAvailable={isServerThread && isGitRepo}

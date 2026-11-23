@@ -76,6 +76,8 @@ import {
   TextSearchIcon,
   UserPlusIcon,
   ActivityIcon,
+  BotIcon,
+  GaugeIcon,
   Gamepad2Icon,
 } from "lucide-react";
 import { openThreadFind } from "./chat/threadFindStore";
@@ -1425,6 +1427,26 @@ function OpenCommandPaletteDialog(props: {
       icon: <ActivityIcon className={ITEM_ICON_CLASS} />,
       run: async () => {
         useRightPanelStore.getState().open(threadRef, "activity");
+      },
+    });
+    actionItems.push({
+      kind: "action",
+      value: "action:open-thread-context",
+      searchTerms: ["context", "context window", "tokens", "usage", "compact"],
+      title: "Show context window",
+      icon: <GaugeIcon className={ITEM_ICON_CLASS} />,
+      run: async () => {
+        useRightPanelStore.getState().open(threadRef, "context");
+      },
+    });
+    actionItems.push({
+      kind: "action",
+      value: "action:open-thread-background-tasks",
+      searchTerms: ["background tasks", "subagents", "agents", "tasks", "thinking"],
+      title: "Show background tasks",
+      icon: <BotIcon className={ITEM_ICON_CLASS} />,
+      run: async () => {
+        useRightPanelStore.getState().open(threadRef, "tasks");
       },
     });
   }

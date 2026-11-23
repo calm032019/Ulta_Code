@@ -10,12 +10,13 @@ import { useEnvironmentScope } from "~/state/session";
 
 import { PreviewPanelShell, type PreviewPanelMode } from "./PreviewPanelShell";
 import { PreviewView } from "./PreviewView";
+import type { PreviewProjectServers } from "./usePreviewServers";
 
 interface Props {
   mode: PreviewPanelMode;
   threadRef: ScopedThreadRef;
   tabId?: string | null;
-  configuredUrls?: ReadonlyArray<string> | undefined;
+  projectServers?: PreviewProjectServers | undefined;
   visible: boolean;
   onSendAnnotation?: (
     annotation: PreviewAnnotationPayload,
@@ -27,7 +28,7 @@ export function PreviewPanel({
   mode,
   threadRef,
   tabId,
-  configuredUrls,
+  projectServers,
   visible,
   onSendAnnotation,
 }: Props) {
@@ -52,7 +53,7 @@ export function PreviewPanel({
       <PreviewView
         threadRef={threadRef}
         {...(tabId !== undefined ? { tabId } : {})}
-        configuredUrls={configuredUrls}
+        projectServers={projectServers}
         visible={visible}
         {...(onSendAnnotation ? { onSendAnnotation } : {})}
       />

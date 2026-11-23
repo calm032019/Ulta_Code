@@ -157,6 +157,16 @@ export function useRightPanelActions(input: RightPanelActionsInput) {
     useRightPanelStore.getState().open(activeThreadRef, "activity");
   };
   const addActivitySurfaceStable = useStableCallback(addActivitySurface);
+  const addContextSurface = () => {
+    if (!activeThreadRef || !isServerThread) return;
+    useRightPanelStore.getState().open(activeThreadRef, "context");
+  };
+  const addContextSurfaceStable = useStableCallback(addContextSurface);
+  const addTasksSurface = () => {
+    if (!activeThreadRef || !isServerThread) return;
+    useRightPanelStore.getState().open(activeThreadRef, "tasks");
+  };
+  const addTasksSurfaceStable = useStableCallback(addTasksSurface);
   const addDeviceSurface = () => {
     if (!activeThreadRef) return;
     if (!deviceState.onboardingCompleted || deviceState.hostStatus === "disabled") {
@@ -354,6 +364,8 @@ export function useRightPanelActions(input: RightPanelActionsInput) {
     addPullRequestSurfaceStable,
     addPullRequestsSurfaceStable,
     addActivitySurfaceStable,
+    addContextSurfaceStable,
+    addTasksSurfaceStable,
     closePreviewPanelStable,
     copyRightPanelFilePathStable,
     createBrowserSurface,

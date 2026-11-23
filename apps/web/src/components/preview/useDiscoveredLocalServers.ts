@@ -91,3 +91,13 @@ function parseLocalUrl(raw: string): { host: string; port: number; url: string }
     return null;
   }
 }
+
+export function isLocalServerLive(
+  servers: ReadonlyArray<Pick<DiscoveredLocalServer, "host" | "port">>,
+  url: string,
+): boolean {
+  const parsed = parseLocalUrl(url);
+  if (!parsed) return false;
+  const key = canonicalKey(parsed.host, parsed.port);
+  return servers.some((server) => canonicalKey(server.host, server.port) === key);
+}
